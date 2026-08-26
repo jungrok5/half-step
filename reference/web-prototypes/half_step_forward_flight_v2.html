@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>HALF STEP — Forward Flight Prototype</title>
+<style>
+:root{
+  --skyTop:#79beff;
+  --skyMid:#a9d9ff;
+  --skyBottom:#eaf7ff;
+  --cloudA:#ffffff;
+  --cloudB:#edf7fd;
+  --platform:#25313c;
+  --platformEdge:#111921;
+  --accent:#ef6a5b;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;
+  background:#8ecbff;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;
+}
+#game{
+  position:relative;width:100%;height:100%;max-width:520px;margin:auto;overflow:hidden;
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.22), transparent 24%),
+    linear-gradient(to bottom, var(--skyTop) 0%, var(--skyMid) 52%, var(--skyBottom) 100%);
+  image-rendering:pixelated;
+}
+#horizonGlow{
+  position:absolute;left:0;right:0;top:18%;height:120px;
+  background:radial-gradient(ellipse at center, rgba(255,255,255,.45), transparent 70%);
+  pointer-events:none;z-index:1;
+}
+.cloud-sprite,.wind-streak{
+  position:absolute;pointer-events:none;image-rendering:pixelated;
+}
+.cloud-sprite{
+  width:72px;height:32px;background:var(--cloudA);z-index:2;
+  box-shadow:
+    12px 0 0 var(--cloudA),
+    24px 0 0 var(--cloudA),
+    36px 0 0 var(--cloudA),
+    48px 0 0 var(--cloudA),
+    60px 0 0 var(--cloudA),
+    6px -8px 0 var(--cloudA),
+    18px -16px 0 var(--cloudA),
+    30px -20px 0 var(--cloudA),
+    42px -14px 0 var(--cloudA),
+    54px -8px 0 var(--cloudA);
+  opacity:.9;
+}
+.cloud-sprite.alt{
+  background:var(--cloudB);
+  box-shadow:
+    12px 0 0 var(--cloudB),
+    24px 0 0 var(--cloudB),
+    36px 0 0 var(--cloudB),
+    48px 0 0 var(--cloudB),
+    60px 0 0 var(--cloudB),
+    6px -8px 0 var(--cloudB),
+    18px -16px 0 var(--cloudB),
+    30px -20px 0 var(--cloudB),
+    42px -14px 0 var(--cloudB),
+    54px -8px 0 var(--cloudB);
+  opacity:.75;
+}
+.wind-streak{
+  width:4px;height:32px;background:rgba(255,255,255,.82);z-index:3;opacity:0;
+}
+#score{
+  position:absolute;top:max(28px,env(safe-area-inset-top));left:0;right:0;
+  text-align:center;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.14);
+  font-size:44px;font-weight:900;letter-spacing:-2px;z-index:30;
+}
+#best{
+  position:absolute;top:max(80px,calc(env(safe-area-inset-top) + 52px));left:0;right:0;
+  text-align:center;color:#fff;font-size:11px;font-weight:900;opacity:.86;letter-spacing:1.4px;z-index:30;
+}
+#combo{
+  position:absolute;top:27%;left:0;right:0;text-align:center;color:#fff;
+  text-shadow:0 3px 0 rgba(0,0,0,.14);font-size:22px;font-weight:900;z-index:35;opacity:0;
+}
+.row{
+  position:absolute;left:0;width:100%;height:72px;
+  display:flex;justify-content:center;gap:54px;pointer-events:none;z-index:15;
+}
+.tile{
+  width:86px;height:28px;background:var(--platform);border-radius:0;
+  box-shadow:0 6px 0 var(--platformEdge), inset 0 4px 0 #385062;
+  transform-origin:center bottom;
+}
+.tile.empty{
+  background:transparent;box-shadow:none;
+  outline:3px dashed rgba(255,255,255,.22);outline-offset:-3px;
+}
+#player{
+  position:absolute;width:42px;height:42px;background:var(--accent);border-radius:0;z-index:22;
+  box-shadow:0 6px 0 rgba(102,52,49,.42);
+  will-change:left,top,transform,opacity;
+}
+#player:before,#player:after{
+  content:"";position:absolute;width:7px;height:7px;background:#fff;top:10px
+}
+#player:before{left:10px} #player:after{right:10px}
+#mouth{position:absolute;width:10px;height:4px;background:#fff;left:16px;top:26px}
+#hint{
+  position:absolute;left:0;right:0;bottom:10%;text-align:center;color:#fff;z-index:30;
+  font-size:16px;font-weight:900;text-shadow:0 3px 0 rgba(0,0,0,.12);
+  animation:pulse 1s infinite;
+}
+#hint small{display:block;font-size:10px;opacity:.8;margin-top:6px}
+@keyframes pulse{50%{transform:scale(1.04);opacity:.62}}
+#overlay{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:60;
+  background:rgba(95,170,221,.35);backdrop-filter:blur(4px);
+}
+#card{
+  width:min(82%,340px);text-align:center;padding:28px 24px;
+  background:rgba(255,255,255,.94);border:4px solid #fff;box-shadow:0 8px 0 rgba(20,56,79,.18);
+}
+#dead{font-size:13px;font-weight:900;letter-spacing:2px;opacity:.45}
+#final{font-size:68px;font-weight:900;letter-spacing:-4px;color:#263644}
+#newbest{font-size:12px;font-weight:900;color:var(--accent);height:18px}
+button{
+  margin-top:20px;width:100%;padding:16px;border:0;background:#24313d;color:#fff;
+  font:inherit;font-size:17px;font-weight:900;box-shadow:0 5px 0 #111a21;
+}
+#sub{font-size:11px;opacity:.45;margin-top:12px}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="horizonGlow"></div>
+  <div id="score">0</div>
+  <div id="best">BEST 0</div>
+  <div id="combo"></div>
+  <div id="player"><div id="mouth"></div></div>
+  <div id="hint">화면을 탭해서 반대편으로<small>구름 사이를 앞으로 질주합니다</small></div>
+  <div id="overlay">
+    <div id="card">
+      <div id="dead">GAME OVER</div>
+      <div id="final">0</div>
+      <div id="newbest"></div>
+      <button id="retry">다시하기</button>
+      <div id="sub">깊이 속으로 추락했습니다</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $=s=>document.querySelector(s);
+const game=$('#game'), player=$('#player'), scoreEl=$('#score'), bestEl=$('#best');
+const comboEl=$('#combo'), overlay=$('#overlay'), finalEl=$('#final'), newbestEl=$('#newbest');
+const retryBtn=$('#retry'), hint=$('#hint');
+
+let lane=0, score=0, best=+(localStorage.getItem('halfstep_best')||0);
+let rows=[], running=false, last=performance.now(), stepTimer=0, stepInterval=560;
+let pattern=[0,1,0,1], patternIndex=0, tutorialTaps=0, stepping=false;
+let lastTapTime=-9999, perfectCombo=0;
+let audioCtx=null;
+let clouds=[], winds=[];
+
+bestEl.textContent=`BEST ${best}`;
+
+function laneX(l){ return game.clientWidth/2 + (l?70:-70) - 21; }
+function baseY(){ return game.clientHeight*.72; }
+
+function ensureAudio(){
+  if(!audioCtx) try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  if(audioCtx?.state==='suspended') audioCtx.resume();
+}
+function tone(freq,dur=.05,vol=.025,type='square'){
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+  o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+dur);
+}
+
+function landingSound(isPerfect){
+  tone(220,.035,.022,'square'); // 모든 성공 공통 착지음
+  if(isPerfect){
+    const semis=[0,2,4,5,7,9,11,12];
+    const s=semis[Math.min(perfectCombo-1,semis.length-1)];
+    const freq=440*Math.pow(2,s/12);
+    setTimeout(()=>tone(freq,.07,.035,'triangle'),14);
+  }
+}
+
+function buildBackground(){
+  clouds.forEach(c=>c.el.remove());
+  winds.forEach(w=>w.el.remove());
+  clouds=[]; winds=[];
+
+  for(let i=0;i<16;i++){
+    const el=document.createElement('div');
+    el.className='cloud-sprite' + (i%2 ? ' alt' : '');
+    game.appendChild(el);
+    clouds.push({
+      el,
+      x:Math.random()*(game.clientWidth-130),
+      y:Math.random()*game.clientHeight-60,
+      baseSpeed:0.09 + Math.random()*0.06,
+      drift:(Math.random()-.5)*0.02,
+      scale:0.6 + Math.random()*0.8
+    });
+  }
+
+  for(let i=0;i<16;i++){
+    const el=document.createElement('div');
+    el.className='wind-streak';
+    game.appendChild(el);
+    winds.push({
+      el,
+      x:Math.random()*game.clientWidth,
+      y:Math.random()*game.clientHeight,
+      speed:0.3 + Math.random()*0.3
+    });
+  }
+}
+
+function updateBackground(dt){
+  const speedFactor = 1 + Math.min(3, score/45);
+  const windOpacity = Math.max(0, Math.min(.88, (score-14)/45));
+
+  clouds.forEach((c,idx)=>{
+    c.y += dt * c.baseSpeed * speedFactor;
+    c.x += dt * c.drift;
+    if(c.y > game.clientHeight + 70){
+      c.y = -60 - Math.random()*90;
+      c.x = Math.random()*(game.clientWidth-130);
+      c.scale = 0.55 + Math.random()*0.95;
+    }
+    if(c.x < -120) c.x = game.clientWidth+20;
+    if(c.x > game.clientWidth+20) c.x = -120;
+
+    const depth = Math.max(0.55, Math.min(1.35, c.scale + (c.y / game.clientHeight)*0.18));
+    c.el.style.left = c.x+'px';
+    c.el.style.top = c.y+'px';
+    c.el.style.transform = `scale(${depth})`;
+    c.el.style.opacity = idx%2 ? .62 : .86;
+  });
+
+  winds.forEach(w=>{
+    w.y += dt * w.speed * speedFactor;
+    if(w.y > game.clientHeight + 40){
+      w.y = -50;
+      w.x = Math.random()*game.clientWidth;
+    }
+    w.el.style.left = w.x+'px';
+    w.el.style.top = w.y+'px';
+    w.el.style.opacity = windOpacity;
+    w.el.style.transform = `scaleY(${1 + Math.min(2.5, score/55)})`;
+  });
+}
+
+function choosePattern(){
+  const pools = score<20
+    ? [[0,1,0,1],[1,0,1,0],[0,0,1,1],[1,1,0,0]]
+    : score<50
+    ? [[0,0,1,1],[1,1,0,0],[0,1,1,0],[1,0,0,1],[0,0,0,1],[1,1,1,0]]
+    : [[0,1,1,0,0,1],[1,0,0,1,1,0],[0,0,1,0,1,1],[1,1,0,1,0,0],[0,1,0,1,1,0],[1,0,1,0,0,1]];
+  pattern = pools[Math.floor(Math.random()*pools.length)];
+  patternIndex = 0;
+}
+function nextSafeLane(){
+  if(patternIndex>=pattern.length) choosePattern();
+  return pattern[patternIndex++];
+}
+
+function makeRow(y,safeLane){
+  const el=document.createElement('div');
+  el.className='row'; el.style.top=y+'px';
+  const tiles=[];
+  for(let i=0;i<2;i++){
+    const t=document.createElement('div');
+    t.className='tile' + (i===safeLane ? '' : ' empty');
+    el.appendChild(t); tiles.push(t);
+  }
+  game.appendChild(el);
+  const row={el,y,safeLane,tiles}; rows.push(row); return row;
+}
+
+function rebuildRows(){
+  rows.forEach(r=>r.el.remove());
+  rows=[]; choosePattern();
+  const py=baseY();
+  for(let i=0;i<7;i++) makeRow(py-(i+1)*92,nextSafeLane());
+}
+
+function reset(){
+  player.getAnimations().forEach(a=>a.cancel());
+  score=0; lane=0; stepInterval=560; stepTimer=0; tutorialTaps=0; stepping=false; perfectCombo=0; lastTapTime=-9999;
+  scoreEl.textContent='0'; comboEl.style.opacity='0';
+  player.style.left=laneX(lane)+'px'; player.style.top=baseY()+'px'; player.style.transform='none'; player.style.opacity='1';
+  overlay.style.display='none'; hint.style.display='block';
+  buildBackground();
+  rebuildRows();
+  running=true; last=performance.now();
+}
+
+function tap(){
+  if(!running) return;
+  ensureAudio();
+  lane=1-lane;
+  lastTapTime=performance.now();
+  tutorialTaps++;
+  if(tutorialTaps>=2) hint.style.display='none';
+
+  const tx=laneX(lane);
+  const currentLeft=parseFloat(getComputedStyle(player).left) || tx;
+  player.animate([{left:currentLeft+'px'},{left:tx+'px'}],{duration:90,easing:'cubic-bezier(.2,.8,.2,1)'});
+  player.style.left=tx+'px';
+  if(navigator.vibrate) navigator.vibrate(5);
+}
+
+function nearestLandingRow(){
+  const py=baseY();
+  let nearest=null,d=99999;
+  rows.forEach(r=>{
+    const dd=Math.abs((r.y+14)-py);
+    if(dd<d){d=dd; nearest=r;}
+  });
+  return nearest;
+}
+
+function showPerfect(){
+  comboEl.textContent = perfectCombo>1 ? `PERFECT x${perfectCombo}` : 'PERFECT!';
+  comboEl.animate([
+    {opacity:0,transform:'scale(.75) translateY(8px)'},
+    {opacity:1,transform:'scale(1.08) translateY(0)',offset:.32},
+    {opacity:1,transform:'scale(1) translateY(-2px)',offset:.62},
+    {opacity:0,transform:'scale(.95) translateY(-14px)'}
+  ],{duration:480,easing:'ease-out'});
+}
+
+function die(){
+  running=false; stepping=false; perfectCombo=0;
+  player.getAnimations().forEach(a=>a.cancel());
+  tone(120,.16,.05,'sawtooth');
+  if(navigator.vibrate) navigator.vibrate([28,30,65]);
+
+  const startX=laneX(lane), startY=baseY();
+
+  // 실패한 바로 그 위치에서 깊이 아래로 낙하:
+  // 화면 중심으로 이동하지 않고 x/y는 거의 유지한 채 작아지며 사라짐.
+  player.animate([
+    {left:startX+'px', top:startY+'px', transform:'scale(1) rotate(0deg)', opacity:1},
+    {left:startX+'px', top:(startY+5)+'px', transform:'scale(.72) rotate(18deg)', opacity:.92, offset:.28},
+    {left:startX+'px', top:(startY+8)+'px', transform:'scale(.38) rotate(70deg)', opacity:.68, offset:.62},
+    {left:startX+'px', top:(startY+10)+'px', transform:'scale(.06) rotate(150deg)', opacity:0}
+  ],{duration:700,easing:'cubic-bezier(.25,.2,.75,1)',fill:'forwards'});
+
+  // 깊이로 멀어지는 낙하음: pitch와 volume이 동시에 내려감.
+  if(audioCtx){
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine';
+    const t=audioCtx.currentTime;
+    o.frequency.setValueAtTime(760,t);
+    o.frequency.exponentialRampToValueAtTime(105,t+.72);
+    g.gain.setValueAtTime(.045,t);
+    g.gain.exponentialRampToValueAtTime(.001,t+.78);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t+.8);
+
+    // 짧은 공기 빠지는 보조 톤
+    const o2=audioCtx.createOscillator(), g2=audioCtx.createGain();
+    o2.type='triangle';
+    o2.frequency.setValueAtTime(420,t);
+    o2.frequency.exponentialRampToValueAtTime(70,t+.62);
+    g2.gain.setValueAtTime(.018,t);
+    g2.gain.exponentialRampToValueAtTime(.001,t+.66);
+    o2.connect(g2); g2.connect(audioCtx.destination);
+    o2.start(t); o2.stop(t+.68);
+  }
+
+  // fail burst: everything scrolls faster for a moment, as if player falls into depth
+  clouds.forEach(c=>{
+    c.y += 16;
+  });
+  winds.forEach(w=>{
+    w.y += 40;
+  });
+
+  const wasBest=score>best;
+  if(wasBest){
+    best=score;
+    localStorage.setItem('halfstep_best',best);
+    bestEl.textContent=`BEST ${best}`;
+  }
+  setTimeout(()=>{
+    finalEl.textContent=score;
+    newbestEl.textContent=wasBest?'NEW BEST!':`BEST ${best}`;
+    overlay.style.display='flex';
+  },430);
+}
+
+function resolveLanding(){
+  const nearest=nearestLandingRow();
+  if(!nearest || nearest.safeLane!==lane){
+    die();
+    return;
+  }
+
+  const now=performance.now();
+  const perfectWindow=Math.max(70,Math.min(135,stepInterval*.2));
+  const isPerfect=(now-lastTapTime)<=perfectWindow;
+
+  if(isPerfect){
+    perfectCombo++;
+    showPerfect();
+  }else{
+    perfectCombo=0;
+  }
+
+  landingSound(isPerfect);
+
+  nearest.tiles[lane].animate([
+    {transform:'translateY(0) scale(1)'},
+    {transform:'translateY(7px) scale(1.08,.8)',offset:.45},
+    {transform:'translateY(0) scale(1)'}
+  ],{duration:130,easing:'ease-out'});
+
+  player.animate([
+    {transform:'translateY(0) scale(1)'},
+    {transform:'translateY(4px) scale(1.1,.84)',offset:.45},
+    {transform:'translateY(0) scale(1)'}
+  ],{duration:130,easing:'ease-out'});
+
+  if(navigator.vibrate) navigator.vibrate(isPerfect?10:4);
+
+  score++;
+  scoreEl.textContent=score;
+  stepInterval=Math.max(315,560-score*2.1);
+
+  setTimeout(()=>{
+    if(!running) return;
+    rows.forEach(r=>{r.y+=92; r.el.style.top=r.y+'px';});
+
+    const h=game.clientHeight;
+    rows.filter(r=>r.y>h+100).forEach(r=>r.el.remove());
+    rows=rows.filter(r=>r.y<=h+100);
+
+    let minY=Math.min(...rows.map(r=>r.y));
+    while(minY>-100){
+      minY-=92;
+      makeRow(minY,nextSafeLane());
+    }
+
+    player.getAnimations().forEach(a=>a.cancel());
+    player.style.left=laneX(lane)+'px';
+    player.style.top=baseY()+'px';
+    player.style.transform='none';
+    player.style.opacity='1';
+    stepping=false;
+  },55);
+}
+
+function startStep(){
+  if(!running || stepping) return;
+  stepping=true;
+  const sy=baseY();
+  player.style.top=sy+'px';
+
+  const hop=player.animate([
+    {top:sy+'px',transform:'scale(1)'},
+    {top:(sy-20)+'px',transform:'scale(.94,1.06)',offset:.5},
+    {top:sy+'px',transform:'scale(1.05,.95)'}
+  ],{duration:130,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+
+  hop.onfinish=()=>{
+    if(!running) return;
+    player.style.top=sy+'px';
+    player.style.left=laneX(lane)+'px';
+    player.style.transform='none';
+    resolveLanding();
+  };
+}
+
+function loop(now){
+  const dt=Math.min(60,now-last); last=now;
+  if(running){
+    updateBackground(dt);
+    stepTimer+=dt;
+    if(stepTimer>=stepInterval && !stepping){
+      stepTimer-=stepInterval;
+      startStep();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+game.addEventListener('pointerdown',e=>{ if(e.target!==retryBtn) tap(); });
+retryBtn.addEventListener('click',e=>{ e.stopPropagation(); reset(); });
+window.addEventListener('resize',()=>{ if(running) reset(); });
+
+reset();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

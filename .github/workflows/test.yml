@@ -1,0 +1,23 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  gameplay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+      - name: Import project
+        run: godot --headless --path . --editor --quit
+      - name: Run gameplay tests
+        run: godot --headless --path . --script res://tests/test_runner.gd
+

@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>HALF STEP — Pixel Skin</title>
+<style>
+:root{
+  --sky-top:#7ec2ff;
+  --sky-bottom:#eef9ff;
+  --cloud:#ffffff;
+  --cloud2:#dfeef8;
+  --platform:#2b3846;
+  --platform-top:#42586d;
+  --platform-shadow:#151d24;
+  --accent:#ef6a5b;
+  --accent-dark:#9f4b46;
+  --ink:#24313d;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;background:#7fc1ff;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none
+}
+#game{
+  position:relative;width:100%;height:100%;max-width:520px;margin:auto;overflow:hidden;
+  background:linear-gradient(to bottom,var(--sky-top),var(--sky-bottom));
+  image-rendering:pixelated;
+  transition:background .9s ease;
+}
+#atmosphere{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  transition:background .9s ease,opacity .9s;
+}
+#stars{
+  position:absolute;inset:0;z-index:1;opacity:0;transition:opacity 1s;pointer-events:none;
+  background-image:
+    radial-gradient(circle,#fff 0 1px,transparent 1.5px),
+    radial-gradient(circle,#fff 0 1px,transparent 1.5px);
+  background-size:74px 83px,117px 131px;
+  background-position:10px 12px,44px 61px;
+}
+#scan{
+  position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .8s;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 2px, rgba(255,255,255,0) 2px 6px);
+}
+.cloud,.wind,.impact-pixel,.spark{
+  position:absolute;pointer-events:none;will-change:transform,top,left,opacity;z-index:3;
+}
+.cloud{
+  width:72px;height:24px;background:var(--cloud);
+  box-shadow:
+    8px 0 0 var(--cloud),16px 0 0 var(--cloud),24px 0 0 var(--cloud),32px 0 0 var(--cloud),40px 0 0 var(--cloud),48px 0 0 var(--cloud),
+    4px -8px 0 var(--cloud),12px -8px 0 var(--cloud),20px -16px 0 var(--cloud),28px -16px 0 var(--cloud),36px -8px 0 var(--cloud),44px -8px 0 var(--cloud),52px 0 0 var(--cloud);
+  opacity:.95;
+}
+.cloud.alt{
+  background:var(--cloud2);
+  box-shadow:
+    8px 0 0 var(--cloud2),16px 0 0 var(--cloud2),24px 0 0 var(--cloud2),32px 0 0 var(--cloud2),40px 0 0 var(--cloud2),48px 0 0 var(--cloud2),
+    4px -8px 0 var(--cloud2),12px -8px 0 var(--cloud2),20px -16px 0 var(--cloud2),28px -16px 0 var(--cloud2),36px -8px 0 var(--cloud2),44px -8px 0 var(--cloud2),52px 0 0 var(--cloud2);
+  opacity:.72;
+}
+.wind{
+  width:4px;height:28px;background:rgba(255,255,255,.88);opacity:0;
+}
+#score{
+  position:absolute;top:max(26px,env(safe-area-inset-top));left:0;right:0;text-align:center;color:#fff;
+  font-size:46px;font-weight:1000;letter-spacing:-3px;text-shadow:0 4px 0 rgba(0,0,0,.16);z-index:30
+}
+#best{
+  position:absolute;top:max(80px,calc(env(safe-area-inset-top) + 54px));left:0;right:0;text-align:center;
+  color:#fff;font-size:11px;font-weight:900;letter-spacing:1.3px;z-index:30;opacity:.84
+}
+#zone{
+  position:absolute;top:20%;left:0;right:0;text-align:center;color:#fff;font-weight:1000;font-size:13px;
+  letter-spacing:3px;text-shadow:0 3px 0 rgba(0,0,0,.18);z-index:34;opacity:0
+}
+#flow{
+  position:absolute;top:33%;left:0;right:0;text-align:center;color:#fff;font-size:11px;font-weight:900;
+  letter-spacing:1.5px;opacity:0;z-index:33
+}
+.row{
+  position:absolute;left:0;width:100%;height:80px;display:flex;justify-content:center;gap:54px;pointer-events:none;z-index:15
+}
+.tile-wrap{
+  width:86px;height:36px;position:relative
+}
+.tile{
+  width:86px;height:28px;background:var(--platform);position:absolute;left:0;top:0;
+  box-shadow:
+    0 6px 0 var(--platform-shadow),
+    inset 0 4px 0 var(--platform-top),
+    inset 0 -3px 0 rgba(0,0,0,.16);
+}
+.tile:before{
+  content:"";position:absolute;left:8px;right:8px;top:10px;height:2px;
+  background:repeating-linear-gradient(to right, rgba(255,255,255,.16) 0 8px, transparent 8px 16px);
+}
+.tile:after{
+  content:"";position:absolute;left:10px;top:6px;width:4px;height:4px;background:rgba(255,255,255,.14);
+  box-shadow:58px 10px 0 rgba(255,255,255,.10), 28px 12px 0 rgba(255,255,255,.08);
+}
+.tile-shadow{
+  position:absolute;left:12px;right:12px;bottom:-8px;height:8px;background:rgba(0,0,0,.12);
+  filter:blur(1px)
+}
+.tile.empty{
+  background:transparent;box-shadow:none;outline:3px dashed rgba(255,255,255,.22);outline-offset:-3px
+}
+.tile.empty:before,.tile.empty:after{display:none}
+.tile.empty + .tile-shadow{opacity:.12}
+
+#player{
+  position:absolute;width:36px;height:36px;z-index:22;
+  will-change:left,top,transform,opacity;
+}
+#player .px{position:absolute;width:4px;height:4px}
+#player .body{background:var(--accent)}
+#player .dark{background:var(--accent-dark)}
+#player .eye{background:#fff}
+#player .boot{background:#5a3030}
+#player .belt{background:#ffe38e}
+#player .cheek{background:#ffb6ab}
+
+#hint{
+  position:absolute;left:0;right:0;bottom:9%;text-align:center;color:#fff;z-index:30;font-size:16px;font-weight:1000;
+  text-shadow:0 3px 0 rgba(0,0,0,.13);animation:pulse 1s infinite
+}
+#hint small{display:block;font-size:10px;opacity:.82;margin-top:6px}
+@keyframes pulse{50%{transform:scale(1.04);opacity:.62}}
+
+.impact-ghost{
+  position:absolute;z-index:18;pointer-events:none;background:var(--platform);
+  box-shadow:0 6px 0 var(--platform-shadow), inset 0 4px 0 var(--platform-top);
+  transform-origin:center
+}
+.impact-pixel{
+  width:5px;height:5px;background:rgba(255,255,255,.92);z-index:19
+}
+.spark{
+  width:6px;height:6px;background:#ffe9a8;z-index:20
+}
+
+#overlay{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:60;
+  background:rgba(34,63,92,.38);backdrop-filter:blur(5px)
+}
+#card{
+  width:min(86%,360px);text-align:center;padding:18px;background:rgba(255,255,255,.96);
+  border:6px solid #fff;box-shadow:0 8px 0 rgba(20,56,79,.18)
+}
+.card-inner{
+  border:4px solid #d6e7f1;padding:18px 16px 14px;background:rgba(246,251,255,.98)
+}
+#dead{font-size:12px;font-weight:1000;letter-spacing:2px;opacity:.44}
+#final{font-size:70px;font-weight:1000;letter-spacing:-4px;color:#263644;line-height:1.05}
+#reached{font-size:11px;font-weight:1000;letter-spacing:1.5px;color:#6d8293;margin-top:7px}
+#newbest{font-size:12px;font-weight:1000;color:var(--accent);height:18px;margin-top:4px}
+.actions{display:flex;gap:9px;margin-top:16px}
+button{
+  flex:1;min-height:50px;border:0;font:inherit;font-size:14px;font-weight:1000
+}
+#retry{background:#24313d;color:#fff;box-shadow:0 5px 0 #111a21}
+#share{background:#e7f2f9;color:#24313d;box-shadow:0 5px 0 #c7dce9}
+#sub{font-size:10px;opacity:.45;margin-top:10px}
+#shareStatus{font-size:10px;color:#607585;height:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="atmosphere"></div>
+  <div id="stars"></div>
+  <div id="scan"></div>
+
+  <div id="score">0</div>
+  <div id="best">BEST 0</div>
+  <div id="zone"></div>
+  <div id="flow"></div>
+
+  <div id="player" aria-hidden="true"></div>
+
+  <div id="hint">화면을 탭해서 반대편으로<small>멀리 갈수록 다른 하늘이 열린다</small></div>
+
+  <div id="overlay">
+    <div id="card">
+      <div class="card-inner">
+        <div id="dead">RUN ENDED</div>
+        <div id="final">0</div>
+        <div id="reached"></div>
+        <div id="newbest"></div>
+        <div class="actions">
+          <button id="retry">다시하기</button>
+          <button id="share">공유하기</button>
+        </div>
+        <div id="shareStatus"></div>
+        <div id="sub">PLAY · FAIL · SHARE · REPEAT</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $=s=>document.querySelector(s);
+const game=$('#game'), atmo=$('#atmosphere'), starsEl=$('#stars'), scanEl=$('#scan');
+const player=$('#player'), scoreEl=$('#score'), bestEl=$('#best'), zoneEl=$('#zone'), flowEl=$('#flow');
+const overlay=$('#overlay'), finalEl=$('#final'), reachedEl=$('#reached'), newbestEl=$('#newbest');
+const retryBtn=$('#retry'), shareBtn=$('#share'), shareStatusEl=$('#shareStatus'), hint=$('#hint');
+
+let lane=0, score=0, best=+(localStorage.getItem('halfstep_best')||0);
+let rows=[], running=false, last=performance.now(), stepTimer=0, stepInterval=560, stepping=false;
+let pattern=[0,1,0,1], patternIndex=0, tutorialTaps=0;
+let successStreak=0, audioCtx=null, clouds=[], winds=[], zoneIndex=-1, lastResultZone='BLUE SKY';
+
+const zones=[
+  {score:0,name:'BLUE SKY',top:'#79beff',bottom:'#eaf7ff',atmo:'transparent',stars:0,scan:0,boost:1,shareLine:'첫 하늘'},
+  {score:30,name:'GOLDEN WIND',top:'#67b7ff',bottom:'#ffdca0',atmo:'linear-gradient(to bottom,transparent 45%,rgba(255,190,86,.20))',stars:0,scan:0,boost:1.10,shareLine:'황금빛 바람'},
+  {score:60,name:'SUNSET RUN',top:'#7287dd',bottom:'#ff9a78',atmo:'linear-gradient(to bottom,rgba(84,73,164,.10),rgba(255,118,94,.22))',stars:0,scan:0,boost:1.22,shareLine:'노을 질주'},
+  {score:100,name:'NIGHT BREAK',top:'#172b66',bottom:'#745b9e',atmo:'linear-gradient(to bottom,rgba(7,17,55,.25),rgba(117,82,155,.18))',stars:.48,scan:0,boost:1.38,shareLine:'밤을 뚫고'},
+  {score:150,name:'STAR RUSH',top:'#071633',bottom:'#244d79',atmo:'radial-gradient(circle at 50% 25%,rgba(83,174,255,.18),transparent 36%)',stars:.92,scan:0,boost:1.58,shareLine:'별 사이를 통과'},
+  {score:210,name:'AURORA EDGE',top:'#07182b',bottom:'#174d56',atmo:'linear-gradient(115deg,transparent 20%,rgba(85,255,193,.18) 42%,rgba(127,104,255,.18) 58%,transparent 78%)',stars:1,scan:0,boost:1.85,shareLine:'오로라 경계'},
+  {score:300,name:'RED STRATOS',top:'#250915',bottom:'#8f2b36',atmo:'radial-gradient(circle at 50% 22%,rgba(255,113,78,.26),transparent 42%)',stars:.72,scan:.12,boost:2.10,shareLine:'붉은 성층권'},
+  {score:400,name:'VOID CURRENT',top:'#030611',bottom:'#171c3f',atmo:'radial-gradient(circle at 50% 40%,rgba(88,73,255,.22),transparent 44%)',stars:1,scan:.2,boost:2.38,shareLine:'공허의 흐름'},
+  {score:550,name:'CHROMA STORM',top:'#140521',bottom:'#27506f',atmo:'linear-gradient(125deg,rgba(255,70,183,.18),transparent 35%,rgba(75,255,228,.18) 62%,transparent 82%)',stars:1,scan:.28,boost:2.72,shareLine:'색채 폭풍'},
+  {score:750,name:'WHITE HORIZON',top:'#d7e5ef',bottom:'#ffffff',atmo:'radial-gradient(circle at 50% 35%,rgba(255,255,255,.85),transparent 40%)',stars:.24,scan:.08,boost:3.10,shareLine:'백색 지평선'},
+  {score:1000,name:'BEYOND',top:'#020204',bottom:'#111318',atmo:'radial-gradient(circle at 50% 30%,rgba(255,255,255,.11),transparent 32%)',stars:1,scan:.36,boost:3.55,shareLine:'그 너머'}
+];
+
+bestEl.textContent=`BEST ${best}`;
+
+function buildPlayerSprite(){
+  const cells = [
+    ['dark',1,0],['body',2,0],['body',3,0],['dark',4,0],
+    ['body',1,1],['body',2,1],['body',3,1],['body',4,1],
+    ['body',0,2],['body',1,2],['body',2,2],['body',3,2],['body',4,2],['body',5,2],
+    ['body',0,3],['eye',1,3],['body',2,3],['body',3,3],['eye',4,3],['body',5,3],
+    ['body',0,4],['body',1,4],['cheek',2,4],['cheek',3,4],['body',4,4],['body',5,4],
+    ['body',1,5],['body',2,5],['body',3,5],['body',4,5],
+    ['dark',2,6],['belt',3,6],
+    ['body',1,7],['body',2,7],['body',3,7],['body',4,7],
+    ['body',1,8],['body',2,8],['body',3,8],['body',4,8],
+    ['boot',1,9],['body',2,9],['body',3,9],['boot',4,9]
+  ];
+  player.innerHTML='';
+  cells.forEach(([cls,x,y])=>{
+    const px=document.createElement('div');
+    px.className=`px ${cls}`;
+    px.style.left=(x*4)+'px';
+    px.style.top=(y*4)+'px';
+    player.appendChild(px);
+  });
+}
+
+function laneX(l){ return game.clientWidth/2 + (l?70:-70) - 18; }
+function baseY(){ return game.clientHeight*.72; }
+
+function currentZone(){
+  let z=zones[0];
+  for(const zone of zones) if(score>=zone.score) z=zone;
+  return z;
+}
+function currentZoneIndex(){
+  let zi=0;
+  for(let i=0;i<zones.length;i++) if(score>=zones[i].score) zi=i;
+  return zi;
+}
+
+function ensureAudio(){
+  if(!audioCtx) try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  if(audioCtx?.state==='suspended') audioCtx.resume();
+}
+function tone(freq,dur=.085,vol=.055,type='triangle'){
+  if(!audioCtx) return;
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+dur);
+}
+function successSound(){
+  const scale=[0,2,4,5,7,9,11,12];
+  const phraseLen=24;
+  const pos=(successStreak-1)%phraseLen;
+  const degree=scale[pos%8];
+  const octave=Math.floor(pos/8);
+  const base=260;
+  const freq=base*Math.pow(2,(degree+12*octave)/12);
+  tone(freq,.09,.06,'triangle');
+}
+function fallSound(){
+  if(!audioCtx) return;
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(780,t);
+  o.frequency.exponentialRampToValueAtTime(80,t+.84);
+  g.gain.setValueAtTime(.065,t);
+  g.gain.exponentialRampToValueAtTime(.001,t+.88);
+  o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+.9);
+}
+
+function buildBackground(){
+  clouds.forEach(x=>x.el.remove());
+  winds.forEach(x=>x.el.remove());
+  clouds=[]; winds=[];
+
+  for(let i=0;i<18;i++){
+    const el=document.createElement('div');
+    el.className='cloud'+(i%2?' alt':'');
+    game.appendChild(el);
+    clouds.push({
+      el,
+      x:Math.random()*(game.clientWidth-110),
+      y:Math.random()*game.clientHeight-90,
+      s:.06+Math.random()*.08,
+      scale:.55+Math.random()*.9
+    });
+  }
+
+  for(let i=0;i<20;i++){
+    const el=document.createElement('div');
+    el.className='wind';
+    game.appendChild(el);
+    winds.push({
+      el,
+      x:Math.random()*game.clientWidth,
+      y:Math.random()*game.clientHeight,
+      s:.28+Math.random()*.36
+    });
+  }
+}
+
+function applyZone(force=false){
+  const zi=currentZoneIndex();
+  if(!force && zi===zoneIndex) return;
+  zoneIndex=zi;
+  const z=zones[zi];
+  lastResultZone=z.name;
+
+  game.style.setProperty('--sky-top',z.top);
+  game.style.setProperty('--sky-bottom',z.bottom);
+  atmo.style.background=z.atmo;
+  starsEl.style.opacity=z.stars;
+  scanEl.style.opacity=z.scan;
+
+  if(score>0){
+    zoneEl.textContent=z.name;
+    zoneEl.style.fontSize='13px';
+    zoneEl.getAnimations().forEach(a=>a.cancel());
+    zoneEl.animate([
+      {opacity:0,transform:'scale(.75)'},
+      {opacity:1,transform:'scale(1.08)',offset:.35},
+      {opacity:1,transform:'scale(1)',offset:.68},
+      {opacity:0,transform:'scale(.98)'}
+    ],{duration:1250,easing:'ease-out'});
+  }
+}
+
+function secretFlash(){
+  const milestones={
+    300:'YOU SHOULD NOT BE HERE',
+    400:'THE SKY IS GONE',
+    550:'KEEP GOING',
+    750:'NO ONE WAS SUPPOSED TO SEE THIS',
+    1000:'BEYOND'
+  };
+  const text=milestones[score];
+  if(!text) return;
+  zoneEl.textContent=text;
+  zoneEl.style.fontSize=score>=750?'16px':'13px';
+  zoneEl.getAnimations().forEach(a=>a.cancel());
+  zoneEl.animate([
+    {opacity:0,transform:'scale(.55)',filter:'blur(6px)'},
+    {opacity:1,transform:'scale(1.12)',filter:'blur(0)',offset:.3},
+    {opacity:1,transform:'scale(1)',filter:'blur(0)',offset:.72},
+    {opacity:0,transform:'scale(.98)',filter:'blur(3px)'}
+  ],{duration:1800,easing:'ease-out'});
+}
+
+function updateBackground(dt){
+  const z=currentZone();
+  const bgSpeed=Math.min(42,(1+score/24)*z.boost);
+  const windOpacity=Math.min(.95,Math.max(0,(score-10)/45));
+
+  clouds.forEach(c=>{
+    c.y += dt*c.s*bgSpeed;
+    if(c.y>game.clientHeight+85){
+      c.y = -100 - Math.random()*100;
+      c.x = Math.random()*(game.clientWidth-110);
+      c.scale = .5 + Math.random()*1;
+    }
+    const perspective=c.scale+(c.y/game.clientHeight)*.25;
+    c.el.style.left=c.x+'px';
+    c.el.style.top=c.y+'px';
+    c.el.style.transform=`scale(${perspective})`;
+  });
+
+  winds.forEach(w=>{
+    w.y += dt*w.s*bgSpeed;
+    if(w.y>game.clientHeight+50){
+      w.y=-70;
+      w.x=Math.random()*game.clientWidth;
+    }
+    w.el.style.left=w.x+'px';
+    w.el.style.top=w.y+'px';
+    w.el.style.opacity=windOpacity;
+    w.el.style.transform=`scaleY(${1+Math.min(4,score/45)})`;
+  });
+}
+
+function choosePattern(){
+  const pools=score<20
+    ? [[0,1,0,1],[1,0,1,0],[0,0,1,1],[1,1,0,0]]
+    : score<50
+    ? [[0,0,1,1],[1,1,0,0],[0,1,1,0],[1,0,0,1],[0,0,0,1],[1,1,1,0]]
+    : [[0,1,1,0,0,1],[1,0,0,1,1,0],[0,0,1,0,1,1],[1,1,0,1,0,0],[0,1,0,1,1,0],[1,0,1,0,0,1]];
+  pattern=pools[Math.floor(Math.random()*pools.length)];
+  patternIndex=0;
+}
+function nextSafe(){ if(patternIndex>=pattern.length) choosePattern(); return pattern[patternIndex++]; }
+
+function makeRow(y,safeLane){
+  const el=document.createElement('div');
+  el.className='row';
+  el.style.top=y+'px';
+
+  const tiles=[];
+  for(let i=0;i<2;i++){
+    const wrap=document.createElement('div');
+    wrap.className='tile-wrap';
+    const t=document.createElement('div');
+    t.className='tile'+(i===safeLane?'':' empty');
+    const s=document.createElement('div');
+    s.className='tile-shadow';
+    wrap.appendChild(t);
+    wrap.appendChild(s);
+    el.appendChild(wrap);
+    tiles.push(t);
+  }
+  game.appendChild(el);
+  const row={el,y,safeLane,tiles};
+  rows.push(row);
+  return row;
+}
+function rebuildRows(){
+  rows.forEach(r=>r.el.remove());
+  rows=[];
+  choosePattern();
+  const py=baseY();
+  for(let i=0;i<7;i++) makeRow(py-(i+1)*92,nextSafe());
+}
+
+function platformImpact(tile){
+  const tr=tile.getBoundingClientRect();
+  const gr=game.getBoundingClientRect();
+
+  const ghost=document.createElement('div');
+  ghost.className='impact-ghost';
+  ghost.style.left=(tr.left-gr.left)+'px';
+  ghost.style.top=(tr.top-gr.top)+'px';
+  ghost.style.width=tr.width+'px';
+  ghost.style.height=tr.height+'px';
+  game.appendChild(ghost);
+
+  ghost.animate([
+    {transform:'scale(1)',opacity:.58},
+    {transform:'scale(1.16,1.28)',opacity:.26,offset:.42},
+    {transform:'scale(1.28,1.38)',opacity:0}
+  ],{duration:190,easing:'cubic-bezier(.15,.75,.25,1)'}).onfinish=()=>ghost.remove();
+
+  const cx=tr.left-gr.left+tr.width/2;
+  const cy=tr.top-gr.top+tr.height/2;
+  const dirs=[[-1,-1],[1,-1],[-1,1],[1,1]];
+  dirs.forEach(([dx,dy],i)=>{
+    const p=document.createElement('div');
+    p.className=i%2?'impact-pixel':'spark';
+    p.style.left=(cx-2)+'px';
+    p.style.top=(cy-2)+'px';
+    game.appendChild(p);
+    p.animate([
+      {transform:'translate(0,0) scale(1)',opacity:.9},
+      {transform:`translate(${dx*18}px,${dy*11}px) scale(.35)`,opacity:0}
+    ],{duration:160,easing:'ease-out'}).onfinish=()=>p.remove();
+  });
+}
+
+function showFlow(){
+  flowEl.textContent=`FLOW ${successStreak}`;
+  flowEl.getAnimations().forEach(a=>a.cancel());
+  flowEl.animate([
+    {opacity:0},
+    {opacity:.82,offset:.3},
+    {opacity:0}
+  ],{duration:380});
+}
+
+function reset(){
+  buildPlayerSprite();
+  player.getAnimations().forEach(a=>a.cancel());
+  shareStatusEl.textContent='';
+  score=0; lane=0; stepTimer=0; stepInterval=560; stepping=false; tutorialTaps=0; successStreak=0; zoneIndex=-1;
+  scoreEl.textContent='0';
+  player.style.left=laneX(lane)+'px';
+  player.style.top=baseY()+'px';
+  player.style.transform='none';
+  player.style.opacity='1';
+  overlay.style.display='none';
+  hint.style.display='block';
+  buildBackground();
+  rebuildRows();
+  applyZone(true);
+  running=true;
+  last=performance.now();
+}
+
+function tap(){
+  if(!running) return;
+  ensureAudio();
+  lane=1-lane;
+  tutorialTaps++;
+  if(tutorialTaps>=2) hint.style.display='none';
+
+  const tx=laneX(lane);
+  const cur=parseFloat(getComputedStyle(player).left) || tx;
+  player.animate([{left:cur+'px'},{left:tx+'px'}],{duration:88,easing:'cubic-bezier(.2,.8,.2,1)'});
+  player.style.left=tx+'px';
+  if(navigator.vibrate) navigator.vibrate(5);
+}
+
+function nearestRow(){
+  const py=baseY();
+  let n=null,d=99999;
+  rows.forEach(r=>{
+    const dd=Math.abs(r.y+14-py);
+    if(dd<d){d=dd;n=r;}
+  });
+  return n;
+}
+
+function die(){
+  running=false;
+  stepping=false;
+  ensureAudio();
+  fallSound();
+  if(navigator.vibrate) navigator.vibrate([28,30,65]);
+
+  const x=laneX(lane), y=baseY();
+  player.getAnimations().forEach(a=>a.cancel());
+  player.animate([
+    {left:x+'px',top:y+'px',transform:'scale(1) rotate(0deg)',opacity:1},
+    {left:x+'px',top:(y+4)+'px',transform:'scale(.72) rotate(20deg)',opacity:.94,offset:.28},
+    {left:x+'px',top:(y+7)+'px',transform:'scale(.35) rotate(75deg)',opacity:.62,offset:.63},
+    {left:x+'px',top:(y+10)+'px',transform:'scale(.04) rotate(160deg)',opacity:0}
+  ],{duration:760,easing:'cubic-bezier(.25,.2,.75,1)',fill:'forwards'});
+
+  const wasBest=score>best;
+  if(wasBest){
+    best=score;
+    localStorage.setItem('halfstep_best',best);
+    bestEl.textContent=`BEST ${best}`;
+  }
+
+  setTimeout(()=>{
+    finalEl.textContent=score;
+    reachedEl.textContent=`REACHED · ${lastResultZone}`;
+    newbestEl.textContent=wasBest?'NEW BEST!':`BEST ${best}`;
+    overlay.style.display='flex';
+  },500);
+}
+
+function resolveLanding(){
+  const n=nearestRow();
+  if(!n || n.safeLane!==lane){
+    die();
+    return;
+  }
+
+  successStreak++;
+  successSound();
+  showFlow();
+
+  platformImpact(n.tiles[lane]);
+  n.tiles[lane].animate([
+    {transform:'translateY(0) scale(1)'},
+    {transform:'translateY(4px) scale(1.035,.90)',offset:.38},
+    {transform:'translateY(0) scale(1)'}
+  ],{duration:115,easing:'ease-out'});
+
+  player.animate([
+    {transform:'scale(1)'},
+    {transform:'translateY(4px) scale(1.08,.88)',offset:.45},
+    {transform:'scale(1)'}
+  ],{duration:130,easing:'ease-out'});
+
+  if(navigator.vibrate) navigator.vibrate(5);
+
+  score++;
+  scoreEl.textContent=score;
+
+  stepInterval=Math.max(24,560*Math.pow(.9964,score));
+
+  applyZone();
+  secretFlash();
+
+  setTimeout(()=>{
+    if(!running) return;
+    rows.forEach(r=>{r.y+=92;r.el.style.top=r.y+'px';});
+    const h=game.clientHeight;
+    rows.filter(r=>r.y>h+100).forEach(r=>r.el.remove());
+    rows=rows.filter(r=>r.y<=h+100);
+
+    let minY=Math.min(...rows.map(r=>r.y));
+    while(minY>-100){
+      minY-=92;
+      makeRow(minY,nextSafe());
+    }
+
+    player.getAnimations().forEach(a=>a.cancel());
+    player.style.left=laneX(lane)+'px';
+    player.style.top=baseY()+'px';
+    player.style.transform='none';
+    player.style.opacity='1';
+    stepping=false;
+  },50);
+}
+
+function startStep(){
+  if(!running || stepping) return;
+  stepping=true;
+  const sy=baseY();
+  const hop=player.animate([
+    {top:sy+'px',transform:'scale(1)'},
+    {top:(sy-20)+'px',transform:'scale(.94,1.06)',offset:.5},
+    {top:sy+'px',transform:'scale(1.05,.95)'}
+  ],{duration:125,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+
+  hop.onfinish=()=>{
+    if(!running) return;
+    player.style.top=sy+'px';
+    player.style.left=laneX(lane)+'px';
+    player.style.transform='none';
+    resolveLanding();
+  };
+}
+
+function getMilestoneTag(s){
+  if(s>=1000) return 'NO ONE WAS SUPPOSED TO SEE THIS';
+  if(s>=750) return 'WHITE HORIZON REACHED';
+  if(s>=550) return 'THE SKY CHANGED';
+  if(s>=400) return 'THE SKY IS GONE';
+  if(s>=300) return 'YOU SHOULD NOT BE HERE';
+  if(s>=150) return 'KEEP CLIMBING';
+  return 'CAN YOU REACH THIS SKY?';
+}
+
+async function makeShareCardBlob(){
+  const z=currentZone();
+  const canvas=document.createElement('canvas');
+  canvas.width=1080;
+  canvas.height=1920;
+  const ctx=canvas.getContext('2d');
+
+  const grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,z.top);
+  grad.addColorStop(1,z.bottom);
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(score>=210){
+    const g2=ctx.createRadialGradient(canvas.width/2, 360, 120, canvas.width/2, 360, 560);
+    g2.addColorStop(0,'rgba(255,255,255,.18)');
+    g2.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g2;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
+  if(z.stars>.3){
+    ctx.fillStyle='rgba(255,255,255,.9)';
+    for(let i=0;i<180;i++){
+      const x=Math.random()*canvas.width;
+      const y=Math.random()*(canvas.height*.6);
+      const s=(i%3)+2;
+      ctx.fillRect(x,y,s,s);
+    }
+  }
+
+  function drawCloud(x,y,scale,color='#fff'){
+    ctx.fillStyle=color;
+    const parts=[[0,0],[8,0],[16,0],[24,0],[32,0],[40,0],[4,-8],[12,-8],[20,-16],[28,-16],[36,-8],[44,-8]];
+    for(const [px,py] of parts){
+      ctx.fillRect(x+px*scale,y+py*scale,8*scale,8*scale);
+    }
+  }
+
+  for(let i=0;i<16;i++){
+    const s=.9 + (i/16)*1.2;
+    drawCloud(60+(i*61)%900, 220 + i*95, s, i%2 ? '#eaf5fc' : '#ffffff');
+  }
+
+  ctx.fillStyle='rgba(255,255,255,.65)';
+  for(let i=0;i<26;i++){
+    const x=80+(i*37)%920;
+    const y=180+i*54;
+    ctx.fillRect(x,y,4,44 + (score/18));
+  }
+
+  ctx.fillStyle='rgba(8,16,26,.20)';
+  ctx.fillRect(90,90,900,1740);
+  ctx.fillStyle='rgba(255,255,255,.88)';
+  ctx.fillRect(114,114,852,1692);
+
+  ctx.fillStyle='#2a3b4b';
+  ctx.font='900 58px monospace';
+  ctx.fillText('HALF STEP', 170, 240);
+
+  ctx.fillStyle='#24313d';
+  ctx.font='900 240px monospace';
+  const scoreText=String(score);
+  const scoreWidth=ctx.measureText(scoreText).width;
+  ctx.fillText(scoreText, (canvas.width-scoreWidth)/2, 560);
+
+  ctx.fillStyle='#6e8292';
+  ctx.font='900 42px monospace';
+  const zoneText=`REACHED · ${lastResultZone}`;
+  const zoneWidth=ctx.measureText(zoneText).width;
+  ctx.fillText(zoneText,(canvas.width-zoneWidth)/2,650);
+
+  ctx.fillStyle='#25313c';
+  ctx.fillRect(350,1000,170,56);
+  ctx.fillStyle='#111921';
+  ctx.fillRect(350,1056,170,12);
+
+  ctx.fillStyle='#ef6a5b';
+  ctx.fillRect(560,900,24,24);
+  ctx.fillRect(552,924,40,16);
+  ctx.fillRect(552,940,40,16);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(560,928,4,4);
+  ctx.fillRect(576,928,4,4);
+
+  ctx.strokeStyle='rgba(36,49,61,.16)';
+  ctx.lineWidth=4;
+  for(let i=0;i<8;i++){
+    ctx.beginPath();
+    ctx.moveTo(572, 945);
+    ctx.lineTo(380 + i*52, 1220 + i*54);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle='#ef6a5b';
+  ctx.font='900 36px monospace';
+  const tag=getMilestoneTag(score);
+  const tagWidth=ctx.measureText(tag).width;
+  ctx.fillText(tag,(canvas.width-tagWidth)/2,1280);
+
+  ctx.fillStyle='#42596d';
+  ctx.font='900 30px monospace';
+  const skyLine=z.shareLine.toUpperCase();
+  const skyLineWidth=ctx.measureText(skyLine).width;
+  ctx.fillText(skyLine,(canvas.width-skyLineWidth)/2,1340);
+
+  ctx.fillStyle='#607585';
+  ctx.font='900 28px monospace';
+  const lines=['I MISSED A STEP AND FELL INTO THE SKY.','HOW FAR CAN YOU GO?'];
+  let yy=1480;
+  for(const line of lines){
+    const w=ctx.measureText(line).width;
+    ctx.fillText(line,(canvas.width-w)/2,yy);
+    yy+=52;
+  }
+
+  ctx.fillStyle='#24313d';
+  ctx.font='900 34px monospace';
+  const footer='PLAY. FAIL. SHARE. REPEAT.';
+  const footerW=ctx.measureText(footer).width;
+  ctx.fillText(footer,(canvas.width-footerW)/2,1740);
+
+  return new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+}
+
+async function shareScore(){
+  shareStatusEl.textContent='';
+  const text=`HALF STEP ${score}점 · ${lastResultZone}까지 도달! 이 기록 넘을 수 있어?`;
+  const url=location.href;
+
+  try{
+    const blob=await makeShareCardBlob();
+    const file=blob ? new File([blob], `half-step-${score}.png`, {type:'image/png'}) : null;
+
+    if(navigator.share){
+      if(file && navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({title:'HALF STEP',text,url,files:[file]});
+        return;
+      }
+      await navigator.share({title:'HALF STEP',text,url});
+      return;
+    }
+
+    if(navigator.clipboard){
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      shareStatusEl.textContent='공유 미지원 · 텍스트를 클립보드에 복사했어요';
+    }else{
+      shareStatusEl.textContent='이 브라우저는 공유를 지원하지 않아요';
+    }
+  }catch(e){
+    shareStatusEl.textContent='공유를 취소했어요';
+  }
+}
+
+function loop(now){
+  const dt=Math.min(60,now-last);
+  last=now;
+  if(running){
+    updateBackground(dt);
+    stepTimer+=dt;
+    if(stepTimer>=stepInterval && !stepping){
+      stepTimer-=stepInterval;
+      startStep();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+game.addEventListener('pointerdown',e=>{
+  if(e.target!==retryBtn && e.target!==shareBtn) tap();
+});
+retryBtn.addEventListener('click',e=>{ e.stopPropagation(); reset(); });
+shareBtn.addEventListener('click',e=>{ e.stopPropagation(); shareScore(); });
+window.addEventListener('resize',()=>{ if(running) reset(); });
+
+reset();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

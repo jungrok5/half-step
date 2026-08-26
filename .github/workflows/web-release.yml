@@ -1,0 +1,40 @@
+name: Web Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+      - name: Validate and test
+        run: |
+          godot --headless --path . --editor --quit
+          godot --headless --path . --script res://tests/test_runner.gd
+      - name: Export web build
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release Web build/web/index.html
+      - name: Package web build
+        run: cd build/web && zip -r ../half-step-web-${{ github.ref_name }}.zip .
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: half-step-web-${{ github.ref_name }}
+          path: build/half-step-web-${{ github.ref_name }}.zip
+      - name: Attach ZIP to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/half-step-web-${{ github.ref_name }}.zip

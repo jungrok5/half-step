@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>HALF STEP — Day 1 Prototype</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --fg:#171717;
+    --muted:#a8a39a;
+    --danger:#ef6a5b;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0; width:100%; height:100%; overflow:hidden;
+    background:var(--bg); color:var(--fg);
+    font-family:ui-rounded,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  #game{
+    position:relative; width:100%; height:100%;
+    max-width:520px; margin:auto; overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255,255,255,.85), transparent 42%),
+      var(--bg);
+  }
+  #score{
+    position:absolute; top:max(28px,env(safe-area-inset-top)); left:0; right:0;
+    text-align:center; font-weight:900; font-size:42px; letter-spacing:-2px; z-index:10;
+  }
+  #best{
+    position:absolute; top:max(78px,calc(env(safe-area-inset-top) + 50px)); left:0; right:0;
+    text-align:center; font-size:12px; font-weight:800; opacity:.4; letter-spacing:1.5px; z-index:10;
+  }
+  .row{
+    position:absolute; left:0; width:100%; height:72px;
+    display:flex; justify-content:center; gap:54px; pointer-events:none;
+    will-change:transform;
+  }
+  .tile{
+    width:86px; height:28px; border-radius:9px;
+    background:var(--fg); box-shadow:0 6px 0 rgba(0,0,0,.09);
+    transition:transform .09s ease, opacity .12s ease;
+  }
+  .tile.empty{
+    background:transparent; box-shadow:none;
+    outline:2px dashed rgba(23,23,23,.12); outline-offset:-2px;
+  }
+  .tile.hit{ transform:translateY(7px) scaleX(1.08) scaleY(.78); }
+  #player{
+    position:absolute; width:42px; height:42px; border-radius:50%;
+    background:var(--danger);
+    left:calc(50% - 70px - 21px); top:72%;
+    z-index:5; box-shadow:0 7px 0 rgba(0,0,0,.10);
+    will-change:transform,left,top;
+  }
+  #player::after{
+    content:""; position:absolute; width:8px; height:8px; border-radius:50%;
+    background:#fff; left:23px; top:10px; opacity:.9;
+  }
+  #hint{
+    position:absolute; left:0; right:0; bottom:11%;
+    text-align:center; z-index:15; pointer-events:none;
+    font-weight:900; font-size:18px; letter-spacing:-.4px;
+    animation:pulse 1s infinite;
+  }
+  #hint small{display:block;font-size:11px;opacity:.45;margin-top:6px;letter-spacing:.5px}
+  @keyframes pulse{50%{transform:scale(1.06);opacity:.55}}
+  #overlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:30; background:rgba(244,241,234,.78); backdrop-filter:blur(8px);
+  }
+  #card{
+    text-align:center; padding:32px 28px; width:min(82%,340px);
+    background:rgba(255,255,255,.78); border:1px solid rgba(0,0,0,.07);
+    border-radius:26px; box-shadow:0 20px 80px rgba(0,0,0,.12);
+  }
+  #card .dead{font-size:14px;font-weight:900;letter-spacing:2px;opacity:.45}
+  #final{font-size:68px;font-weight:1000;letter-spacing:-4px;margin:4px 0 0}
+  #newbest{font-size:12px;font-weight:900;letter-spacing:1.5px;color:var(--danger);height:18px}
+  button{
+    margin-top:22px; width:100%; padding:17px 20px; border:0; border-radius:15px;
+    background:var(--fg); color:#fff; font:inherit; font-size:17px; font-weight:900;
+  }
+  #sub{font-size:11px;opacity:.4;margin-top:12px}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="score">0</div>
+  <div id="best">BEST 0</div>
+  <div id="player"></div>
+  <div id="hint">화면을 탭해서 반대편으로<small>TAP ANYWHERE</small></div>
+  <div id="overlay">
+    <div id="card">
+      <div class="dead">GAME OVER</div>
+      <div id="final">0</div>
+      <div id="newbest"></div>
+      <button id="retry">다시하기</button>
+      <div id="sub">탭 한 번이면 즉시 재시작</div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const game = document.querySelector('#game');
+  const player = document.querySelector('#player');
+  const scoreEl = document.querySelector('#score');
+  const bestEl = document.querySelector('#best');
+  const overlay = document.querySelector('#overlay');
+  const finalEl = document.querySelector('#final');
+  const newbestEl = document.querySelector('#newbest');
+  const retryBtn = document.querySelector('#retry');
+  const hint = document.querySelector('#hint');
+
+  let lane = 0; // 0 left, 1 right
+  let score = 0;
+  let best = +(localStorage.getItem('halfstep_best') || 0);
+  let rows = [];
+  let running = false;
+  let last = performance.now();
+  let stepTimer = 0;
+  let stepInterval = 560;
+  let tutorialTaps = 0;
+  let pattern = [0,1,0,1];
+  let patternIndex = 0;
+
+  bestEl.textContent = `BEST ${best}`;
+
+  function laneLeft(l){ return `calc(50% + ${l ? 70 : -70}px - 21px)`; }
+  player.style.left = laneLeft(lane);
+
+  function choosePattern(){
+    const pools = score < 20
+      ? [[0,1,0,1],[1,0,1,0],[0,0,1,1],[1,1,0,0]]
+      : score < 50
+      ? [[0,0,1,1],[1,1,0,0],[0,1,1,0],[1,0,0,1],[0,0,0,1],[1,1,1,0]]
+      : [[0,1,1,0,0,1],[1,0,0,1,1,0],[0,0,1,0,1,1],[1,1,0,1,0,0],[0,1,0,1,1,0],[1,0,1,0,0,1]];
+    pattern = pools[Math.floor(Math.random()*pools.length)];
+    patternIndex = 0;
+  }
+
+  function nextSafeLane(){
+    if(patternIndex >= pattern.length) choosePattern();
+    return pattern[patternIndex++];
+  }
+
+  function makeRow(y, safeLane){
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.style.top = y + 'px';
+    const tiles = [];
+    for(let i=0;i<2;i++){
+      const t = document.createElement('div');
+      t.className = 'tile' + (i===safeLane ? '' : ' empty');
+      el.appendChild(t); tiles.push(t);
+    }
+    game.appendChild(el);
+    const row = {el, y, safeLane, tiles};
+    rows.push(row);
+    return row;
+  }
+
+  function rebuildRows(){
+    rows.forEach(r=>r.el.remove());
+    rows=[];
+    choosePattern();
+    const h = game.clientHeight;
+    const playerY = h * .72;
+    for(let i=0;i<7;i++){
+      makeRow(playerY - (i+1)*92, nextSafeLane());
+    }
+  }
+
+  function reset(){
+    // 이전 게임의 점프/사망 애니메이션 상태가 새 게임에 남지 않도록 완전히 초기화
+    player.getAnimations().forEach(anim => anim.cancel());
+
+    score=0; lane=0; scoreEl.textContent='0';
+    stepInterval=560; stepTimer=0;
+    player.style.left=laneLeft(lane);
+    player.style.top='72%';
+    player.style.transform='none';
+    overlay.style.display='none';
+    hint.style.display='block';
+    tutorialTaps=0;
+    rebuildRows();
+    running=true; last=performance.now();
+  }
+
+  function tap(){
+    if(!running) return;
+    lane = 1-lane;
+    tutorialTaps++;
+    if(tutorialTaps >= 2) hint.style.display='none';
+    player.animate([
+      {transform:'translateY(0) scale(1)'},
+      {transform:'translateY(-26px) scale(.92,1.08)', offset:.48},
+      {transform:'translateY(0) scale(1.08,.92)'}
+    ], {duration:220, easing:'ease-out'});
+    player.style.left=laneLeft(lane);
+    if(navigator.vibrate) navigator.vibrate(8);
+  }
+
+  function die(){
+    running=false;
+    player.animate([
+      {transform:'translateY(0) rotate(0deg)'},
+      {transform:'translateY(180px) rotate(160deg)'}
+    ], {duration:420, easing:'cubic-bezier(.4,0,1,1)', fill:'forwards'});
+    if(navigator.vibrate) navigator.vibrate([25,35,55]);
+    const wasBest = score > best;
+    if(wasBest){
+      best=score;
+      localStorage.setItem('halfstep_best',best);
+      bestEl.textContent=`BEST ${best}`;
+    }
+    setTimeout(()=>{
+      finalEl.textContent=score;
+      newbestEl.textContent=wasBest ? 'NEW BEST!' : `BEST ${best}`;
+      overlay.style.display='flex';
+    },330);
+  }
+
+  function land(){
+    const h = game.clientHeight;
+    const playerY = h*.72;
+    let nearest=null, d=99999;
+    rows.forEach(r=>{
+      const dd=Math.abs((r.y+14)-playerY);
+      if(dd<d){d=dd; nearest=r;}
+    });
+    if(!nearest || nearest.safeLane !== lane){
+      die();
+      return;
+    }
+    nearest.tiles[lane].classList.add('hit');
+    setTimeout(()=>nearest?.tiles[lane]?.classList.remove('hit'),100);
+    score++;
+    scoreEl.textContent=score;
+    stepInterval = Math.max(315, 560 - score*2.1);
+    if(navigator.vibrate) navigator.vibrate(5);
+  }
+
+  function advance(){
+    if(!running) return;
+    const move=92;
+    rows.forEach(r=>{ r.y += move; r.el.style.top=r.y+'px'; });
+
+    const h=game.clientHeight;
+    rows.filter(r=>r.y > h+100).forEach(r=>r.el.remove());
+    rows=rows.filter(r=>r.y <= h+100);
+
+    let minY=Math.min(...rows.map(r=>r.y));
+    while(minY > -100){
+      minY -= 92;
+      makeRow(minY,nextSafeLane());
+    }
+    land();
+  }
+
+  function loop(now){
+    const dt=now-last; last=now;
+    if(running){
+      stepTimer += dt;
+      if(stepTimer>=stepInterval){
+        stepTimer -= stepInterval;
+        advance();
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  game.addEventListener('pointerdown', e=>{
+    if(e.target===retryBtn) return;
+    if(running) tap();
+  });
+  retryBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    reset();
+  });
+  window.addEventListener('resize', ()=>{ if(running) rebuildRows(); });
+
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
