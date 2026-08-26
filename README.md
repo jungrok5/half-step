@@ -34,6 +34,5 @@ The `Deploy Private Web Test to itch.io` workflow builds and uploads the HTML5 v
 Required GitHub Actions secrets:
 
 - `BUTLER_API_KEY` — itch.io API key used by the official butler CLI.
-- `ITCH_TARGET` — itch.io target in `username/project-slug` form.
 
-Keep the itch.io project visibility set to **Restricted** and optionally enable its page password. The uploaded channel is `html5`.
+The deployment target is `jungrok5/half:html5`. Keep the itch.io project visibility set to **Restricted** and optionally enable its page password.
