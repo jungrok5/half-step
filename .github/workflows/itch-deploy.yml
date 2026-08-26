@@ -39,5 +39,5 @@ jobs:
 
       - name: Deploy restricted HTML5 build
         env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          BUTLER_API_KEY: ${{ secrets.BUTLERAPI_KEY }}
         run: butler push build/web "jungrok5/half:html5" --userversion "${GITHUB_SHA::12}"
