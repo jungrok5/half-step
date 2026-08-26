@@ -26,3 +26,14 @@ godot --headless --path . --export-release Web build/web/index.html
 ```
 
 Zip the complete `build/web` directory for distribution. Serve the unzipped directory over HTTP(S); opening `index.html` directly is not supported by WebAssembly browser security rules.
+
+## Private phone testing on itch.io
+
+The `Deploy Private Web Test to itch.io` workflow builds and uploads the HTML5 version whenever `main` changes.
+
+Required GitHub Actions secrets:
+
+- `BUTLER_API_KEY` — itch.io API key used by the official butler CLI.
+- `ITCH_TARGET` — itch.io target in `username/project-slug` form.
+
+Keep the itch.io project visibility set to **Restricted** and optionally enable its page password. The uploaded channel is `html5`.
