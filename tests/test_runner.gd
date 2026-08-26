@@ -9,6 +9,7 @@ func _init() -> void:
 	_test_wrong_lane_death()
 	_test_speed_is_monotonic()
 	_test_zone_boundaries()
+	_test_secret_milestones()
 	_test_note_loop()
 	_test_retry()
 	if failures == 0:
@@ -64,6 +65,11 @@ func _test_zone_boundaries() -> void:
 	for score: int in cases:
 		expect(ZoneConfig.for_score(score).name == cases[score], "zone boundary at %d" % score)
 
+func _test_secret_milestones() -> void:
+	expect(ZoneConfig.milestone_for_score(299).is_empty(), "ordinary scores do not reveal secret text")
+	expect(ZoneConfig.milestone_for_score(300) == "YOU SHOULD NOT BE HERE", "300 milestone matches prototype")
+	expect(ZoneConfig.milestone_for_score(1000) == "BEYOND", "1000 milestone matches prototype")
+
 func _test_note_loop() -> void:
 	var state := state_with_lanes([])
 	for i in 24:
@@ -77,4 +83,3 @@ func _test_retry() -> void:
 	state.retry(2)
 	expect(state.run_state == HalfStepState.RunState.PLAYING, "retry returns to playing")
 	expect(state.score == 0 and state.note_index == 0, "retry resets transient run state")
-
