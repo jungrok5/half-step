@@ -11,7 +11,6 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    if: ${{ secrets.BUTLER_API_KEY != '' && secrets.ITCH_TARGET != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +43,4 @@ jobs:
       - name: Deploy restricted HTML5 build
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-          ITCH_TARGET: ${{ secrets.ITCH_TARGET }}
-        run: /tmp/butler/butler push build/web "$ITCH_TARGET:html5" --userversion "${GITHUB_SHA::12}"
-
+        run: /tmp/butler/butler push build/web "jungrok5/half:html5" --userversion "${GITHUB_SHA::12}"
