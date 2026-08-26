@@ -34,14 +34,18 @@ jobs:
 
       - name: Install itch.io butler
         run: |
-          curl -L -o /tmp/butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          curl --fail --location --retry 5 --retry-all-errors \
+            --output /tmp/butler.zip \
+            https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          mkdir -p /tmp/butler
           unzip -q /tmp/butler.zip -d /tmp/butler
           chmod +x /tmp/butler/butler
+          /tmp/butler/butler version
 
       - name: Validate itch.io HTML5 build
         run: /tmp/butler/butler validate build/web
 
       - name: Deploy restricted HTML5 build
         env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          BUTLER_API_KEY: ${{ secrets.BUTLERAPIKEY }}
         run: /tmp/butler/butler push build/web "jungrok5/half:html5" --userversion "${GITHUB_SHA::12}"
