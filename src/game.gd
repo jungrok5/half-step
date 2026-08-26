@@ -1,11 +1,11 @@
 extends Node2D
 
 const VIEW := Vector2(720.0, 1280.0)
-const LANE_X := [245.0, 475.0]
+const LANE_X := [220.0, 500.0]
 const PLAYER_Y := 922.0
 const ROW_SPACING := 184.0
 const PLATFORM_SIZE := Vector2(172.0, 56.0)
-const PLAYER_PIXEL := 8.0
+const PLAYER_PIXEL := 12.0
 const RETRY_RECT := Rect2(112, 742, 236, 94)
 const SHARE_RECT := Rect2(372, 742, 236, 94)
 
@@ -201,7 +201,7 @@ func _draw_clouds() -> void:
 		_draw_pixel_cloud(Vector2(x,y),scale,0.58+(i%2)*0.25)
 
 func _draw_pixel_cloud(position: Vector2, scale: float, alpha: float) -> void:
-	var unit := 8.0*scale
+	var unit := 16.0*scale
 	var blocks := [Vector2(0,2),Vector2(1,1),Vector2(2,0),Vector2(3,0),Vector2(4,1),Vector2(5,1),Vector2(6,2),Vector2(1,2),Vector2(2,2),Vector2(3,2),Vector2(4,2),Vector2(5,2)]
 	for block: Vector2 in blocks:
 		draw_rect(Rect2(position+block*unit,Vector2(unit+1,unit+1)),Color(1,1,1,alpha))
@@ -294,11 +294,15 @@ func _draw_particles() -> void:
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
+	draw_string(font,Vector2(0,116),str(state.score),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,92,Color(0,0,0,0.16))
 	draw_string(font,Vector2(0,112),str(state.score),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,92,Color.WHITE)
+	draw_string(font,Vector2(0,163),"BEST %d"%best_score,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,24,Color(0,0,0,0.13))
 	draw_string(font,Vector2(0,160),"BEST %d"%best_score,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,24,Color(1,1,1,0.84))
 	if tutorial_taps < 2 and state.run_state == HalfStepState.RunState.PLAYING:
 		var pulse := 0.72+sin(Time.get_ticks_msec()*0.006)*0.20
+		draw_string(font,Vector2(0,1114),"TAP TO SWITCH SIDES",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,30,Color(0,0,0,pulse*0.15))
 		draw_string(font,Vector2(0,1110),"TAP TO SWITCH SIDES",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,30,Color(1,1,1,pulse))
+		draw_string(font,Vector2(0,1151),"A NEW SKY OPENS THE FARTHER YOU GO",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,17,Color(0,0,0,pulse*0.12))
 		draw_string(font,Vector2(0,1148),"A NEW SKY OPENS THE FARTHER YOU GO",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,17,Color(1,1,1,pulse*0.8))
 	if impact_time > 0:
 		draw_string(font,Vector2(0,405),"FLOW %d"%state.score,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,20,Color(1,1,1,impact_time/0.19*0.82))
