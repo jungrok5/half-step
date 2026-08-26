@@ -26,8 +26,8 @@ func play_success_note(completed_note_index: int) -> void:
 	_total_frames = _remaining
 
 func play_fall() -> void:
-	_frequency = 180.0
-	_remaining = int(MIX_RATE * 0.42)
+	_frequency = 780.0
+	_remaining = int(MIX_RATE * 0.88)
 	_total_frames = _remaining
 
 func _process(_delta: float) -> void:
@@ -37,9 +37,8 @@ func _process(_delta: float) -> void:
 	for i in frames:
 		var progress := 1.0 - float(_remaining) / float(_total_frames)
 		var envelope := pow(1.0 - progress, 2.0)
-		var fall_factor := lerpf(1.0, 0.25, progress) if _total_frames > int(MIX_RATE * 0.2) else 1.0
+		var fall_factor := lerpf(1.0, 0.103, progress) if _total_frames > int(MIX_RATE * 0.2) else 1.0
 		_phase = fmod(_phase + (_frequency * fall_factor) / MIX_RATE, 1.0)
 		var sample := sin(_phase * TAU) * 0.16 * envelope
 		_playback.push_frame(Vector2(sample, sample))
 		_remaining -= 1
-
