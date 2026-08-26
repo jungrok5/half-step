@@ -19,5 +19,6 @@ jobs:
       - name: Import project
         run: godot --headless --path . --editor --quit
       - name: Run gameplay tests
-        run: godot --headless --path . --script res://tests/test_runner.gd
-
+        run: |
+          godot --headless --path . --script res://tests/test_runner.gd
+          godot --headless --path . --script res://tests/input_integration_test.gd
