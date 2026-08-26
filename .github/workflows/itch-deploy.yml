@@ -31,16 +31,13 @@ jobs:
           mkdir -p build/web
           godot --headless --path . --export-release Web build/web/index.html
 
-      - name: Install itch.io butler
-        run: |
-          curl -L -o /tmp/butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
-          unzip -q /tmp/butler.zip -d /tmp/butler
-          chmod +x /tmp/butler/butler
+      - name: Set up itch.io butler
+        uses: remarkablegames/setup-butler@v3
 
       - name: Validate itch.io HTML5 build
-        run: /tmp/butler/butler validate build/web
+        run: butler validate build/web
 
       - name: Deploy restricted HTML5 build
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: /tmp/butler/butler push build/web "jungrok5/half:html5" --userversion "${GITHUB_SHA::12}"
+        run: butler push build/web "jungrok5/half:html5" --userversion "${GITHUB_SHA::12}"
