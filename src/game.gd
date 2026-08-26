@@ -41,6 +41,7 @@ var particles: Array[Dictionary] = []
 var save_file := ConfigFile.new()
 
 func _ready() -> void:
+	set_process_input(true)
 	tone_player = TonePlayer.new()
 	add_child(tone_player)
 	if save_file.load("user://half_step.cfg") == OK:
@@ -49,21 +50,24 @@ func _ready() -> void:
 	previous_zone = str(state.current_zone().name)
 	queue_redraw()
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	var pressed := false
 	var position := Vector2.ZERO
 	if event is InputEventScreenTouch and event.pressed:
 		pressed = true
 		position = event.position
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		pressed = true
-		position = event.position
+		# Mobile/web touch can also synthesize a mouse click. Handling both would
+		# toggle twice and leave the player looking completely unresponsive.
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			pressed = true
+			position = event.position
 	elif event is InputEventKey and event.pressed and not event.echo:
 		pressed = true
 	if not pressed:
 		return
-	if state.run_state == HalfStepState.RunState.DEAD and death_time >= 0.45:
-		if SHARE_RECT.has_point(position):
+	if state.run_state == HalfStepState.RunState.DEAD:
+		if death_time >= 0.45 and SHARE_RECT.has_point(position):
 			_share_score()
 		else:
 			_restart()
