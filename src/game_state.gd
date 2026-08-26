@@ -8,9 +8,15 @@ const START_INTERVAL_MS := 560.0
 const MIN_INTERVAL_MS := 24.0
 const SPEED_FACTOR := 0.9964
 const NOTE_COUNT := 24
-const PATTERNS := [
+const EARLY_PATTERNS := [
 	[0, 1, 0, 1], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 0],
+]
+const MID_PATTERNS := [
 	[0, 1, 1, 0], [1, 0, 0, 1], [0, 0, 0, 1], [1, 1, 1, 0],
+]
+const LATE_PATTERNS := [
+	[0, 1, 1, 0, 0, 1], [1, 0, 0, 1, 1, 0], [0, 0, 1, 0, 1, 1],
+	[1, 1, 0, 1, 0, 0], [0, 1, 0, 1, 1, 0], [1, 0, 1, 0, 0, 1],
 ]
 
 var lane: Lane = Lane.LEFT
@@ -59,6 +65,11 @@ func current_zone() -> Dictionary:
 
 func _refill_upcoming() -> void:
 	while upcoming_lanes.size() < 12:
-		var pattern: Array = PATTERNS[_rng.randi_range(0, PATTERNS.size() - 1)]
+		var pool := EARLY_PATTERNS
+		if score >= 50:
+			pool = LATE_PATTERNS
+		elif score >= 20:
+			pool = MID_PATTERNS
+		var pattern: Array = pool[_rng.randi_range(0, pool.size() - 1)]
 		for value: int in pattern:
 			upcoming_lanes.append(value)
