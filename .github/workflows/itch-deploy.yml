@@ -1,0 +1,49 @@
+name: Deploy Private Web Test to itch.io
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: itch-web-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    if: ${{ secrets.BUTLER_API_KEY != '' && secrets.ITCH_TARGET != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+
+      - name: Validate and test
+        run: |
+          godot --headless --path . --editor --quit
+          godot --headless --path . --script res://tests/test_runner.gd
+
+      - name: Export web build
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release Web build/web/index.html
+
+      - name: Install itch.io butler
+        run: |
+          curl -L -o /tmp/butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip -q /tmp/butler.zip -d /tmp/butler
+          chmod +x /tmp/butler/butler
+
+      - name: Validate itch.io HTML5 build
+        run: /tmp/butler/butler validate build/web
+
+      - name: Deploy restricted HTML5 build
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_TARGET: ${{ secrets.ITCH_TARGET }}
+        run: /tmp/butler/butler push build/web "$ITCH_TARGET:html5" --userversion "${GITHUB_SHA::12}"
+
