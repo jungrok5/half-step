@@ -1,333 +1,949 @@
 extends Node2D
 
-const VIEW := Vector2(720.0, 1280.0)
-const LANE_X := [220.0, 500.0]
-const PLAYER_Y := 922.0
-const ROW_SPACING := 184.0
-const PLATFORM_SIZE := Vector2(172.0, 56.0)
-const PLAYER_PIXEL := 12.0
-const RETRY_RECT := Rect2(112, 742, 236, 94)
-const SHARE_RECT := Rect2(372, 742, 236, 94)
+## HALF STEP — Godot port of `reference/web-prototypes/half_step_pixel_skin.html`.
+##
+## The prototype lays the game out in CSS pixels inside a `#game` element that is
+## `min(100%, 520px)` wide and as tall as the viewport, so this scene works in the
+## same units: the project's stretch settings keep the viewport 390 units wide and
+## let the height follow the device aspect, exactly like the browser does on a
+## 390 CSS px phone. Every constant below is the prototype's own number.
 
+const GAME_MAX_WIDTH := 520.0
+## `html,body{background:#7fc1ff}` — visible beside the game on wide viewports.
+const PAGE_BACKGROUND := Color("7fc1ff")
+## `baseY()` and `laneX()`.
+const BASE_Y_RATIO := 0.72
+const LANE_OFFSET := 70.0
+const PLAYER_BOX := 36.0
+const PLAYER_PIXEL := 4.0
+## `.tile`, `.tile-wrap` and the `gap` between them.
+const TILE_SIZE := Vector2(86.0, 28.0)
+const TILE_GAP := 54.0
+const TILE_WRAP_HEIGHT := 36.0
+
+const HOP_MS := 125.0
+const SETTLE_MS := 50.0
+const LANE_MS := 88.0
+const PLAYER_SQUASH_MS := 130.0
+const TILE_SQUASH_MS := 115.0
+const GHOST_MS := 190.0
+const PARTICLE_MS := 160.0
+const DEATH_MS := 760.0
+const RESULT_DELAY_MS := 500.0
+const ZONE_BANNER_MS := 1250.0
+const SECRET_BANNER_MS := 1800.0
+const FLOW_MS := 380.0
+const HINT_PULSE_MS := 1000.0
+const SKY_TRANSITION_MS := 900.0
+const ATMOSPHERE_TRANSITION_MS := 900.0
+const STARS_TRANSITION_MS := 1000.0
+const SCAN_TRANSITION_MS := 800.0
+## `Math.min(60, now-last)` — the prototype clamps long frames.
+const MAX_FRAME_MS := 60.0
+
+const CLOUD_COLOR := Color("ffffff")
+const CLOUD_ALT_COLOR := Color("dfeef8")
+const PLATFORM_COLOR := Color("2b3846")
+const PLATFORM_TOP_COLOR := Color("42586d")
+const PLATFORM_SHADOW_COLOR := Color("151d24")
+const ACCENT := Color("ef6a5b")
+const ACCENT_DARK := Color("9f4b46")
+const INK := Color("24313d")
+
+const CLOUD_COUNT := 18
+const WIND_COUNT := 20
+## The union of the `.cloud` box and its 13 box-shadow copies, relative to the
+## element's top-left corner.
+const CLOUD_BANDS := [
+	Rect2(20.0, -16.0, 80.0, 8.0),
+	Rect2(4.0, -8.0, 112.0, 8.0),
+	Rect2(0.0, 0.0, 124.0, 24.0),
+]
+const CLOUD_ORIGIN := Vector2(36.0, 12.0)
+const WIND_SIZE := Vector2(4.0, 28.0)
+
+## `buildPlayerSprite()` cell map: [palette, column, row] on a 4px grid.
 const PLAYER_CELLS := [
-	["dark",2,0],["dark",3,0],
-	["body",1,1],["body",2,1],["body",3,1],["body",4,1],
-	["body",0,2],["body",1,2],["body",2,2],["body",3,2],["body",4,2],["body",5,2],
-	["body",0,3],["eye",1,3],["body",2,3],["body",3,3],["eye",4,3],["body",5,3],
-	["body",0,4],["body",1,4],["cheek",2,4],["cheek",3,4],["body",4,4],["body",5,4],
-	["body",1,5],["body",2,5],["body",3,5],["body",4,5],
-	["dark",2,6],["belt",3,6],
-	["body",1,7],["body",2,7],["body",3,7],["body",4,7],
-	["body",1,8],["body",2,8],["body",3,8],["body",4,8],
-	["boot",1,9],["body",2,9],["body",3,9],["boot",4,9],
+	["dark", 1, 0], ["body", 2, 0], ["body", 3, 0], ["dark", 4, 0],
+	["body", 1, 1], ["body", 2, 1], ["body", 3, 1], ["body", 4, 1],
+	["body", 0, 2], ["body", 1, 2], ["body", 2, 2], ["body", 3, 2], ["body", 4, 2], ["body", 5, 2],
+	["body", 0, 3], ["eye", 1, 3], ["body", 2, 3], ["body", 3, 3], ["eye", 4, 3], ["body", 5, 3],
+	["body", 0, 4], ["body", 1, 4], ["cheek", 2, 4], ["cheek", 3, 4], ["body", 4, 4], ["body", 5, 4],
+	["body", 1, 5], ["body", 2, 5], ["body", 3, 5], ["body", 4, 5],
+	["dark", 2, 6], ["belt", 3, 6],
+	["body", 1, 7], ["body", 2, 7], ["body", 3, 7], ["body", 4, 7],
+	["body", 1, 8], ["body", 2, 8], ["body", 3, 8], ["body", 4, 8],
+	["boot", 1, 9], ["body", 2, 9], ["body", 3, 9], ["boot", 4, 9],
 ]
 
-var state := HalfStepState.new(Time.get_ticks_usec())
+const HINT_TEXT := "화면을 탭해서 반대편으로"
+const HINT_SUBTEXT := "멀리 갈수록 다른 하늘이 열린다"
+const SAVE_PATH := "user://half_step.cfg"
+
+var state := HalfStepState.new()
 var tone_player: TonePlayer
-var cadence_elapsed_ms := 0.0
-var impact_time := 0.0
-var death_time := 0.0
-var lane_anim_time := 0.0
-var lane_from_x := LANE_X[0]
-var player_x := LANE_X[0]
-var zone_reveal_time := 0.0
-var milestone_time := 0.0
-var previous_zone := ""
-var best_score := 0
+var result_overlay: ResultOverlay
+
+var best := 0
+## `wasBest` in `die()`, captured before the stored best is replaced.
+var was_best := false
 var tutorial_taps := 0
-var cloud_phase := 0.0
-var shake_time := 0.0
+var last_result_zone := "BLUE SKY"
+var zone_index := -1
+
+## Presentation timers, in milliseconds. -1 means "not running".
+var hop_time := -1.0
+var settle_time := -1.0
+var lane_time := -1.0
+var player_squash_time := -1.0
+var death_time := -1.0
+var flow_time := -1.0
+var banner_time := -1.0
+var banner_duration := ZONE_BANNER_MS
+var banner_secret := false
+var banner_text := ""
+var banner_size := 13.0
+var hint_phase := 0.0
+
+var lane_from_x := 0.0
+var lane_to_x := 0.0
+
+var clouds: Array[Dictionary] = []
+var winds: Array[Dictionary] = []
+var ghosts: Array[Dictionary] = []
 var particles: Array[Dictionary] = []
-var save_file := ConfigFile.new()
+
+## Zone cross-fades. CSS transitions the sky gradient, the atmosphere layer and
+## the star/scanline opacities on their own durations.
+var sky_top := Color("79beff")
+var sky_bottom := Color("eaf7ff")
+var sky_from := [Color("79beff"), Color("eaf7ff")]
+var sky_to := [Color("79beff"), Color("eaf7ff")]
+var sky_time := -1.0
+var atmosphere_previous: Dictionary = ZoneConfig.NO_ATMOSPHERE
+var atmosphere_current: Dictionary = ZoneConfig.NO_ATMOSPHERE
+var atmosphere_time := -1.0
+var stars_opacity := 0.0
+var stars_from := 0.0
+var stars_to := 0.0
+var stars_time := -1.0
+var scan_opacity := 0.0
+var scan_from := 0.0
+var scan_to := 0.0
+var scan_time := -1.0
+
+var share_status := ""
+
+var _origin := Vector2.ZERO
+var _rng := RandomNumberGenerator.new()
+var _save := ConfigFile.new()
+
+
+# --- layout -----------------------------------------------------------------
+
+## The `#game` box: `width:100%; max-width:520px; margin:auto`.
+func game_rect() -> Rect2:
+	var view := get_viewport_rect().size
+	var width := minf(GAME_MAX_WIDTH, view.x)
+	return Rect2(floorf((view.x - width) * 0.5), 0.0, width, view.y)
+
+
+func game_size() -> Vector2:
+	return game_rect().size
+
+
+## `laneX(l)` — left edge of the 36px player box.
+func lane_x(lane: int) -> float:
+	return game_size().x * 0.5 + (LANE_OFFSET if lane == 1 else -LANE_OFFSET) - PLAYER_BOX * 0.5
+
+
+## `env(safe-area-inset-top)`, converted from screen pixels into game units.
+func safe_area_top() -> float:
+	var scale := get_viewport_transform().get_scale().y
+	if scale <= 0.0:
+		return 0.0
+	var safe_area := DisplayServer.get_display_safe_area()
+	var window_position := DisplayServer.window_get_position()
+	return maxf(0.0, float(safe_area.position.y - window_position.y) / scale)
+
+
+func base_y() -> float:
+	return game_size().y * BASE_Y_RATIO
+
+
+## Left edge of a tile: the row is a centred flex line of two 86px wraps.
+func tile_x(lane: int) -> float:
+	return game_size().x * 0.5 - (TILE_SIZE.x + TILE_GAP * 0.5) + float(lane) * (TILE_SIZE.x + TILE_GAP)
+
+
+# --- lifecycle --------------------------------------------------------------
 
 func _ready() -> void:
-	set_process_input(true)
+	_rng.randomize()
 	tone_player = TonePlayer.new()
 	add_child(tone_player)
-	if save_file.load("user://half_step.cfg") == OK:
-		best_score = int(save_file.get_value("score", "best", 0))
-	state.best_score = best_score
-	previous_zone = str(state.current_zone().name)
+	if _save.load(SAVE_PATH) == OK:
+		best = int(_save.get_value("score", "best", 0))
+	get_viewport().size_changed.connect(_on_viewport_resized)
+	result_overlay = ResultOverlay.new()
+	result_overlay.visible = false
+	add_child(result_overlay)
+	reset()
+
+
+func _on_viewport_resized() -> void:
+	# `window.addEventListener('resize', () => { if(running) reset() })`
+	if state.is_running():
+		reset()
+
+
+## `reset()`
+func reset() -> void:
+	share_status = ""
+	was_best = false
+	state.reset(base_y(), _rng.randi())
+	tutorial_taps = 0
+	hop_time = -1.0
+	settle_time = -1.0
+	lane_time = -1.0
+	player_squash_time = -1.0
+	death_time = -1.0
+	flow_time = -1.0
+	banner_time = -1.0
+	ghosts.clear()
+	particles.clear()
+	if tone_player != null:
+		tone_player.stop_all()
+	build_background()
+	zone_index = -1
+	apply_zone(true)
 	queue_redraw()
+
+
+## `buildBackground()`
+func build_background() -> void:
+	var size := game_size()
+	clouds.clear()
+	winds.clear()
+	for i in CLOUD_COUNT:
+		clouds.append({
+			"x": _rng.randf() * (size.x - 110.0),
+			"y": _rng.randf() * size.y - 90.0,
+			"speed": 0.06 + _rng.randf() * 0.08,
+			"scale": 0.55 + _rng.randf() * 0.9,
+			"alt": i % 2 == 1,
+		})
+	for _i in WIND_COUNT:
+		winds.append({
+			"x": _rng.randf() * size.x,
+			"y": _rng.randf() * size.y,
+			"speed": 0.28 + _rng.randf() * 0.36,
+		})
+
+
+# --- input ------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
-	var pressed := false
-	var position := Vector2.ZERO
+	var position := Vector2.INF
 	if event is InputEventScreenTouch and event.pressed:
-		pressed = true
 		position = event.position
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		# Mobile/web touch can also synthesize a mouse click. Handling both would
-		# toggle twice and leave the player looking completely unresponsive.
-		if event.device != InputEvent.DEVICE_ID_EMULATION:
-			pressed = true
-			position = event.position
+		# Touch on mobile and web also synthesises a mouse click; handling both
+		# would toggle the lane twice per tap.
+		if event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
+		position = event.position
 	elif event is InputEventKey and event.pressed and not event.echo:
-		pressed = true
-	if not pressed:
+		position = Vector2.ZERO
+	if position == Vector2.INF:
 		return
-	if state.run_state == HalfStepState.RunState.DEAD:
-		if death_time >= 0.45 and SHARE_RECT.has_point(position):
-			_share_score()
-		else:
-			_restart()
-	else:
-		_handle_tap()
+	if not state.is_running():
+		# The result card owns the pointer once it is on screen; a tap anywhere
+		# else is swallowed, exactly like `tap()` returning on `!running`.
+		if death_time >= RESULT_DELAY_MS:
+			var layout := result_layout()
+			if Rect2(layout.retry).has_point(position):
+				reset()
+			elif Rect2(layout.share).has_point(position):
+				share_score()
+		return
+	tap()
 
-func _handle_tap() -> void:
-	lane_from_x = player_x
+
+## `tap()` — never locked, never queued.
+func tap() -> void:
+	lane_from_x = player_left()
 	state.toggle_lane()
-	lane_anim_time = 0.088
+	lane_to_x = lane_x(state.lane)
+	lane_time = 0.0
 	tutorial_taps += 1
+	_vibrate(5)
 	queue_redraw()
+
+
+# --- frame ------------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if state.run_state == HalfStepState.RunState.PLAYING:
-		cadence_elapsed_ms += delta * 1000.0
-		while cadence_elapsed_ms >= state.cadence_ms() and state.run_state == HalfStepState.RunState.PLAYING:
-			cadence_elapsed_ms -= state.cadence_ms()
-			_resolve_step()
-	else:
-		death_time += delta
-	cloud_phase += delta * (1.0 + state.score / 24.0) * float(state.current_zone().boost)
-	impact_time = maxf(0.0, impact_time - delta)
-	lane_anim_time = maxf(0.0, lane_anim_time - delta)
-	zone_reveal_time = maxf(0.0, zone_reveal_time - delta)
-	milestone_time = maxf(0.0, milestone_time - delta)
-	shake_time = maxf(0.0, shake_time - delta)
-	if lane_anim_time > 0.0:
-		var t := 1.0 - lane_anim_time / 0.088
-		player_x = lerpf(lane_from_x, LANE_X[state.lane], 1.0 - pow(1.0 - t, 3.0))
-	else:
-		player_x = LANE_X[state.lane]
-	for particle: Dictionary in particles:
-		particle.life = float(particle.life) - delta
-		particle.position = Vector2(particle.position) + Vector2(particle.velocity) * delta
-	particles = particles.filter(func(p: Dictionary) -> bool: return float(p.life) > 0.0)
+	var dt := minf(MAX_FRAME_MS, delta * 1000.0)
+	_advance_timers(dt)
+	if state.is_running():
+		update_background(dt)
+		state.step_timer += dt
+		if state.step_timer >= state.step_interval and not state.stepping:
+			state.step_timer -= state.step_interval
+			start_step()
 	queue_redraw()
 
-func _resolve_step() -> void:
-	var success := state.resolve_landing()
-	if success:
-		impact_time = 0.19
-		shake_time = 0.08
-		_spawn_impact_particles(Vector2(LANE_X[state.lane], PLAYER_Y + 30.0))
-		tone_player.play_success_note(state.note_index if state.note_index > 0 else 24)
-		if state.best_score > best_score:
-			best_score = state.best_score
-			save_file.set_value("score", "best", best_score)
-			save_file.save("user://half_step.cfg")
-		var zone_name := str(state.current_zone().name)
-		if zone_name != previous_zone:
-			previous_zone = zone_name
-			zone_reveal_time = 1.25
-		if not ZoneConfig.milestone_for_score(state.score).is_empty():
-			milestone_time = 1.8
-	else:
-		death_time = 0.0
-		tone_player.play_fall()
 
-func _spawn_impact_particles(center: Vector2) -> void:
-	var directions := [Vector2(-1,-0.65),Vector2(1,-0.65),Vector2(-1,0.55),Vector2(1,0.55)]
+func _advance_timers(dt: float) -> void:
+	hint_phase = fmod(hint_phase + dt, HINT_PULSE_MS)
+	if hop_time >= 0.0:
+		hop_time += dt
+		if hop_time >= HOP_MS:
+			hop_time = -1.0
+			resolve_landing()
+	if settle_time >= 0.0:
+		settle_time += dt
+		if settle_time >= SETTLE_MS:
+			settle_time = -1.0
+			finish_step()
+	if lane_time >= 0.0:
+		lane_time += dt
+		if lane_time >= LANE_MS:
+			lane_time = -1.0
+	if player_squash_time >= 0.0:
+		player_squash_time += dt
+		if player_squash_time >= PLAYER_SQUASH_MS:
+			player_squash_time = -1.0
+	if death_time >= 0.0:
+		death_time += dt
+	if flow_time >= 0.0:
+		flow_time += dt
+		if flow_time >= FLOW_MS:
+			flow_time = -1.0
+	if banner_time >= 0.0:
+		banner_time += dt
+		if banner_time >= banner_duration:
+			banner_time = -1.0
+	for row in state.rows:
+		if float(row.squash) >= 0.0:
+			row.squash = float(row.squash) + dt
+			if float(row.squash) >= TILE_SQUASH_MS:
+				row.squash = -1.0
+	_advance_effects(dt)
+	_advance_transitions(dt)
+
+
+func _advance_effects(dt: float) -> void:
+	var live_ghosts: Array[Dictionary] = []
+	for ghost in ghosts:
+		ghost.time = float(ghost.time) + dt
+		if float(ghost.time) < GHOST_MS:
+			live_ghosts.append(ghost)
+	ghosts = live_ghosts
+	var live_particles: Array[Dictionary] = []
+	for particle in particles:
+		particle.time = float(particle.time) + dt
+		if float(particle.time) < PARTICLE_MS:
+			live_particles.append(particle)
+	particles = live_particles
+
+
+func _advance_transitions(dt: float) -> void:
+	if sky_time >= 0.0:
+		sky_time += dt
+		var t := CssAnim.curve(CssAnim.EASE, sky_time / SKY_TRANSITION_MS)
+		sky_top = Color(sky_from[0]).lerp(sky_to[0], t)
+		sky_bottom = Color(sky_from[1]).lerp(sky_to[1], t)
+		if sky_time >= SKY_TRANSITION_MS:
+			sky_time = -1.0
+	if atmosphere_time >= 0.0:
+		atmosphere_time += dt
+		if atmosphere_time >= ATMOSPHERE_TRANSITION_MS:
+			atmosphere_time = -1.0
+	if stars_time >= 0.0:
+		stars_time += dt
+		stars_opacity = lerpf(stars_from, stars_to, CssAnim.curve(CssAnim.EASE, stars_time / STARS_TRANSITION_MS))
+		if stars_time >= STARS_TRANSITION_MS:
+			stars_time = -1.0
+	if scan_time >= 0.0:
+		scan_time += dt
+		scan_opacity = lerpf(scan_from, scan_to, CssAnim.curve(CssAnim.EASE, scan_time / SCAN_TRANSITION_MS))
+		if scan_time >= SCAN_TRANSITION_MS:
+			scan_time = -1.0
+
+
+## `updateBackground(dt)`
+func update_background(dt: float) -> void:
+	var size := game_size()
+	var zone := state.current_zone()
+	var speed: float = minf(42.0, (1.0 + float(state.score) / 24.0) * float(zone.boost))
+	for cloud in clouds:
+		cloud.y = float(cloud.y) + dt * float(cloud.speed) * speed
+		if float(cloud.y) > size.y + 85.0:
+			cloud.y = -100.0 - _rng.randf() * 100.0
+			cloud.x = _rng.randf() * (size.x - 110.0)
+			cloud.scale = 0.5 + _rng.randf() * 1.0
+	for wind in winds:
+		wind.y = float(wind.y) + dt * float(wind.speed) * speed
+		if float(wind.y) > size.y + 50.0:
+			wind.y = -70.0
+			wind.x = _rng.randf() * size.x
+
+
+# --- step cycle -------------------------------------------------------------
+
+## `startStep()` — the hop plays first, the landing resolves when it finishes.
+func start_step() -> void:
+	state.stepping = true
+	hop_time = 0.0
+
+
+## `resolveLanding()`
+func resolve_landing() -> void:
+	var row := state.resolve_landing(base_y())
+	if row.is_empty():
+		die()
+		return
+	tone_player.play_success_note(state.note_position())
+	flow_time = 0.0
+	spawn_impact(row)
+	row.squash = 0.0
+	player_squash_time = 0.0
+	_vibrate(5)
+	apply_zone()
+	secret_flash()
+	settle_time = 0.0
+
+
+## The `setTimeout(..., 50)` tail of `resolveLanding()`.
+func finish_step() -> void:
+	if not state.is_running():
+		return
+	state.advance_rows(base_y(), game_size().y)
+	# `player.getAnimations().forEach(a => a.cancel())` also drops an in-flight
+	# lane slide, snapping the player onto its lane.
+	lane_time = -1.0
+	player_squash_time = -1.0
+	state.stepping = false
+
+
+## `platformImpact(tile)`
+func spawn_impact(row: Dictionary) -> void:
+	var tile := Rect2(Vector2(tile_x(state.lane), float(row.y)), TILE_SIZE)
+	ghosts.append({"rect": tile, "time": 0.0})
+	var center := tile.get_center()
+	var directions := [Vector2(-1.0, -1.0), Vector2(1.0, -1.0), Vector2(-1.0, 1.0), Vector2(1.0, 1.0)]
 	for i in directions.size():
-		particles.append({"position":center,"velocity":directions[i]*130.0,"life":0.16,"gold":i%2==1})
+		particles.append({
+			"position": center,
+			"direction": directions[i],
+			"time": 0.0,
+			"spark": i % 2 == 0,
+		})
 
-func _restart() -> void:
-	state.retry(Time.get_ticks_usec())
-	state.best_score = best_score
-	cadence_elapsed_ms = 0.0
-	impact_time = 0.0
+
+## `die()`
+func die() -> void:
+	hop_time = -1.0
+	settle_time = -1.0
+	lane_time = -1.0
+	player_squash_time = -1.0
 	death_time = 0.0
-	tutorial_taps = 0
-	particles.clear()
-	player_x = LANE_X[0]
-	previous_zone = str(state.current_zone().name)
-	queue_redraw()
+	tone_player.play_fall()
+	_vibrate_death()
+	was_best = state.score > best
+	if was_best:
+		best = state.score
+		_save.set_value("score", "best", best)
+		_save.save(SAVE_PATH)
 
-func _share_score() -> void:
-	if OS.has_feature("web"):
-		var text := "HALF STEP %d · Reached %s. Can you beat this?" % [state.score,state.current_zone().name]
-		JavaScriptBridge.eval("navigator.share?navigator.share({title:'HALF STEP',text:%s,url:location.href}):navigator.clipboard.writeText(%s)" % [JSON.stringify(text),JSON.stringify(text)])
+
+## `applyZone(force)`
+func apply_zone(force := false) -> void:
+	var index := ZoneConfig.index_for_score(state.score)
+	if not force and index == zone_index:
+		return
+	var first := zone_index < 0 and force
+	zone_index = index
+	var zone := ZoneConfig.ZONES[index]
+	last_result_zone = String(zone.name)
+	sky_from = [sky_top, sky_bottom]
+	sky_to = [zone.top, zone.bottom]
+	atmosphere_previous = atmosphere_current
+	atmosphere_current = zone.atmo
+	stars_from = stars_opacity
+	stars_to = float(zone.stars)
+	scan_from = scan_opacity
+	scan_to = float(zone.scan)
+	if first:
+		sky_top = zone.top
+		sky_bottom = zone.bottom
+		stars_opacity = stars_to
+		scan_opacity = scan_to
+		atmosphere_previous = ZoneConfig.NO_ATMOSPHERE
+		sky_time = -1.0
+		atmosphere_time = -1.0
+		stars_time = -1.0
+		scan_time = -1.0
+	else:
+		sky_time = 0.0
+		atmosphere_time = 0.0
+		stars_time = 0.0
+		scan_time = 0.0
+	if state.score > 0:
+		banner_text = String(zone.name)
+		banner_size = 13.0
+		banner_secret = false
+		banner_duration = ZONE_BANNER_MS
+		banner_time = 0.0
+
+
+## `secretFlash()`
+func secret_flash() -> void:
+	var text := ZoneConfig.milestone_for_score(state.score)
+	if text.is_empty():
+		return
+	banner_text = text
+	banner_size = 16.0 if state.score >= 750 else 13.0
+	banner_secret = true
+	banner_duration = SECRET_BANNER_MS
+	banner_time = 0.0
+
+
+func _vibrate(milliseconds: int) -> void:
+	if OS.has_feature("mobile") or OS.has_feature("web"):
+		Input.vibrate_handheld(milliseconds)
+
+
+## `navigator.vibrate([28,30,65])`
+func _vibrate_death() -> void:
+	if not (OS.has_feature("mobile") or OS.has_feature("web")):
+		return
+	Input.vibrate_handheld(28)
+	await get_tree().create_timer(0.058).timeout
+	Input.vibrate_handheld(65)
+
+
+## `shareScore()`
+func share_score() -> void:
+	share_status = ""
+	queue_redraw()
+	var zone := ZoneConfig.ZONES[zone_index]
+	var text := "HALF STEP %d점 · %s까지 도달! 이 기록 넘을 수 있어?" % [state.score, last_result_zone]
+	var image: Image = await ShareCard.render(self, state.score, zone, last_result_zone)
+	ShareCard.share(text, image, state.score, func(status: String) -> void:
+		share_status = status
+		queue_redraw())
+
+
+# --- player animation -------------------------------------------------------
+
+func player_left() -> float:
+	if lane_time >= 0.0:
+		return lerpf(lane_from_x, lane_to_x, CssAnim.curve(CssAnim.SNAP, lane_time / LANE_MS))
+	return lane_x(state.lane)
+
+
+func player_transform() -> Dictionary:
+	var y := base_y()
+	var scale := Vector2.ONE
+	var rotation := 0.0
+	var alpha := 1.0
+	if death_time >= 0.0:
+		var t := clampf(death_time / DEATH_MS, 0.0, 1.0)
+		var offsets := [0.0, 0.28, 0.63, 1.0]
+		y += CssAnim.track(t, offsets, [0.0, 4.0, 7.0, 10.0], CssAnim.DEPTH)
+		var uniform := CssAnim.track(t, offsets, [1.0, 0.72, 0.35, 0.04], CssAnim.DEPTH)
+		scale = Vector2(uniform, uniform)
+		rotation = deg_to_rad(CssAnim.track(t, offsets, [0.0, 20.0, 75.0, 160.0], CssAnim.DEPTH))
+		alpha = CssAnim.track(t, offsets, [1.0, 0.94, 0.62, 0.0], CssAnim.DEPTH)
+		return {"y": y, "scale": scale, "rotation": rotation, "alpha": alpha}
+	if hop_time >= 0.0:
+		var t := clampf(hop_time / HOP_MS, 0.0, 1.0)
+		var offsets := [0.0, 0.5, 1.0]
+		y += CssAnim.track(t, offsets, [0.0, -20.0, 0.0], CssAnim.SNAP)
+		scale = Vector2(
+			CssAnim.track(t, offsets, [1.0, 0.94, 1.05], CssAnim.SNAP),
+			CssAnim.track(t, offsets, [1.0, 1.06, 0.95], CssAnim.SNAP)
+		)
+	elif player_squash_time >= 0.0:
+		var t := clampf(player_squash_time / PLAYER_SQUASH_MS, 0.0, 1.0)
+		var offsets := [0.0, 0.45, 1.0]
+		y += CssAnim.track(t, offsets, [0.0, 4.0, 0.0], CssAnim.EASE_OUT)
+		scale = Vector2(
+			CssAnim.track(t, offsets, [1.0, 1.08, 1.0], CssAnim.EASE_OUT),
+			CssAnim.track(t, offsets, [1.0, 0.88, 1.0], CssAnim.EASE_OUT)
+		)
+	return {"y": y, "scale": scale, "rotation": rotation, "alpha": alpha}
+
+
+static func player_color(kind: String) -> Color:
+	match kind:
+		"dark": return ACCENT_DARK
+		"eye": return Color("ffffff")
+		"boot": return Color("5a3030")
+		"belt": return Color("ffe38e")
+		"cheek": return Color("ffb6ab")
+		_: return ACCENT
+
+
+# --- drawing ----------------------------------------------------------------
+
+func _transform(position: Vector2, rotation := 0.0, scale := Vector2.ONE) -> void:
+	draw_set_transform(_origin + position, rotation, scale)
+
 
 func _draw() -> void:
-	var shake := Vector2.ZERO
-	if shake_time > 0.0:
-		shake = Vector2(sin(shake_time*190.0)*3.0,cos(shake_time*170.0)*2.0)
-	draw_set_transform(shake)
-	_draw_sky()
-	_draw_atmosphere()
+	var rect := game_rect()
+	_origin = rect.position
+	var size := rect.size
+	var local := Rect2(Vector2.ZERO, size)
+	draw_set_transform(_origin)
+	_draw_sky(local)
+	_draw_atmosphere(local)
+	_draw_stars(local)
+	_draw_scan(local)
 	_draw_clouds()
 	_draw_wind()
-	_draw_platform_rows()
-	_draw_player()
+	_draw_rows(size)
+	_draw_ghosts()
 	_draw_particles()
+	_draw_player()
+	_draw_hud(size)
 	draw_set_transform(Vector2.ZERO)
-	_draw_hud()
-	if state.run_state == HalfStepState.RunState.DEAD:
-		_draw_result()
+	_draw_letterbox(rect)
+	if result_overlay != null:
+		result_overlay.visible = death_time >= RESULT_DELAY_MS
+		if result_overlay.visible:
+			result_overlay.refresh(rect)
 
-func _draw_sky() -> void:
-	var zone := state.current_zone()
-	for band in 40:
-		var t := float(band)/39.0
-		draw_rect(Rect2(0,band*VIEW.y/40.0,VIEW.x,VIEW.y/40.0+1),Color(zone.top).lerp(Color(zone.bottom),t))
 
-func _draw_atmosphere() -> void:
-	var zone := state.current_zone()
-	var star_alpha := float(zone.stars)
-	if star_alpha > 0:
-		for i in 68:
-			var x := fmod(31.0+i*109.0,VIEW.x)
-			var y := fmod(17.0+i*157.0,VIEW.y*0.72)
-			var size := 2.0 if i%5 else 4.0
-			draw_rect(Rect2(x,y,size,size),Color(1,1,1,star_alpha*(0.42+(i%4)*0.13)))
-	if state.score >= 210:
-		var accent := Color(zone.accent)
-		for i in 5:
-			var pts := PackedVector2Array([Vector2(-120,250+i*32),Vector2(180,160+i*22),Vector2(480,260+i*28),Vector2(840,120+i*18)])
-			draw_polyline(pts,Color(accent,0.10+i*0.015),28,true)
-	var scan_alpha := float(zone.scan)
-	if scan_alpha > 0:
-		for y in range(0,int(VIEW.y),8):
-			draw_line(Vector2(0,y),Vector2(VIEW.x,y),Color(1,1,1,scan_alpha*0.12),2)
+## `#game{background:linear-gradient(to bottom,var(--sky-top),var(--sky-bottom))}`
+func _draw_sky(rect: Rect2) -> void:
+	CssPaint.linear_gradient(self, rect, 180.0, [[0.0, sky_top], [1.0, sky_bottom]])
+
+
+func _draw_atmosphere(rect: Rect2) -> void:
+	if atmosphere_time >= 0.0:
+		var t := CssAnim.curve(CssAnim.EASE, atmosphere_time / ATMOSPHERE_TRANSITION_MS)
+		CssPaint.atmosphere(self, rect, atmosphere_previous, 1.0 - t)
+		CssPaint.atmosphere(self, rect, atmosphere_current, t)
+	else:
+		CssPaint.atmosphere(self, rect, atmosphere_current, 1.0)
+
+
+## `#stars` — two offset dot grids from repeating radial gradients.
+func _draw_stars(rect: Rect2) -> void:
+	if stars_opacity <= 0.0:
+		return
+	var color := Color(1.0, 1.0, 1.0, stars_opacity)
+	for grid in [[Vector2(74.0, 83.0), Vector2(10.0, 12.0)], [Vector2(117.0, 131.0), Vector2(44.0, 61.0)]]:
+		var tile: Vector2 = grid[0]
+		var offset: Vector2 = grid[1] + tile * 0.5
+		var y := fmod(offset.y, tile.y)
+		while y < rect.size.y:
+			var x := fmod(offset.x, tile.x)
+			while x < rect.size.x:
+				draw_rect(Rect2(x - 1.0, y - 1.0, 2.0, 2.0), color)
+				x += tile.x
+			y += tile.y
+
+
+## `#scan` — 2px lines every 6px at 3% white.
+func _draw_scan(rect: Rect2) -> void:
+	if scan_opacity <= 0.0:
+		return
+	var color := Color(1.0, 1.0, 1.0, 0.03 * scan_opacity)
+	var y := 0.0
+	while y < rect.size.y:
+		draw_rect(Rect2(0.0, y, rect.size.x, 2.0), color)
+		y += 6.0
+
 
 func _draw_clouds() -> void:
-	var speed := 95.0*float(state.current_zone().boost)
-	for i in 18:
-		var depth := 0.52+(i%7)*0.11
-		var y := fmod(i*137.0+cloud_phase*speed*depth,VIEW.y+260)-150
-		var x := 30.0+fmod(i*211.0,VIEW.x-180)
-		var scale := depth+maxf(0,y/VIEW.y)*0.28
-		_draw_pixel_cloud(Vector2(x,y),scale,0.58+(i%2)*0.25)
+	var height := game_size().y
+	for cloud in clouds:
+		var position := Vector2(float(cloud.x), float(cloud.y))
+		var perspective: float = float(cloud.scale) + (float(cloud.y) / height) * 0.25
+		var color := CLOUD_ALT_COLOR if bool(cloud.alt) else CLOUD_COLOR
+		color.a = 0.72 if bool(cloud.alt) else 0.95
+		_transform(position + CLOUD_ORIGIN, 0.0, Vector2(perspective, perspective))
+		for band: Rect2 in CLOUD_BANDS:
+			draw_rect(Rect2(band.position - CLOUD_ORIGIN, band.size), color)
+	draw_set_transform(_origin)
 
-func _draw_pixel_cloud(position: Vector2, scale: float, alpha: float) -> void:
-	var unit := 16.0*scale
-	var blocks := [Vector2(0,2),Vector2(1,1),Vector2(2,0),Vector2(3,0),Vector2(4,1),Vector2(5,1),Vector2(6,2),Vector2(1,2),Vector2(2,2),Vector2(3,2),Vector2(4,2),Vector2(5,2)]
-	for block: Vector2 in blocks:
-		draw_rect(Rect2(position+block*unit,Vector2(unit+1,unit+1)),Color(1,1,1,alpha))
 
 func _draw_wind() -> void:
-	var alpha := clampf((state.score-10.0)/45.0,0,0.95)
-	if alpha <= 0:
+	var opacity := clampf((float(state.score) - 10.0) / 45.0, 0.0, 0.95)
+	if opacity <= 0.0:
 		return
-	for i in 20:
-		var y := fmod(i*83.0+cloud_phase*(250+state.score*2),VIEW.y+120)-60
-		var x := fmod(19.0+i*127.0,VIEW.x)
-		var length := 28.0*(1.0+minf(4.0,state.score/45.0))
-		draw_rect(Rect2(x,y,4,length),Color(1,1,1,alpha))
+	var stretch := 1.0 + minf(4.0, float(state.score) / 45.0)
+	var color := Color(1.0, 1.0, 1.0, 0.88 * opacity)
+	for wind in winds:
+		var center := Vector2(float(wind.x), float(wind.y)) + WIND_SIZE * 0.5
+		_transform(center, 0.0, Vector2(1.0, stretch))
+		draw_rect(Rect2(-WIND_SIZE * 0.5, WIND_SIZE), color)
+	draw_set_transform(_origin)
 
-func _draw_platform_rows() -> void:
-	var progress := cadence_elapsed_ms/state.cadence_ms()
-	for row_index in 7:
-		var safe_lane: int = state.upcoming_lanes[row_index]
-		var y := PLAYER_Y-ROW_SPACING-row_index*ROW_SPACING+progress*ROW_SPACING
-		for lane_index in 2:
-			var center := Vector2(LANE_X[lane_index],y)
-			if lane_index == safe_lane:
-				_draw_platform(center,1,false)
+
+func _draw_rows(size: Vector2) -> void:
+	for row in state.rows:
+		var y := float(row.y)
+		if y > size.y + 60.0 or y < -80.0:
+			continue
+		for lane in 2:
+			var left := tile_x(lane)
+			var safe: bool = lane == int(row.safe_lane)
+			_draw_tile_shadow(Vector2(left, y), safe)
+			if safe:
+				_draw_tile(Vector2(left, y), float(row.squash))
 			else:
-				_draw_empty_platform(center)
-	if impact_time > 0:
-		var t := 1.0-impact_time/0.19
-		_draw_platform(Vector2(LANE_X[state.lane],PLAYER_Y+25),1.0+t*0.28,true,(1-t)*0.58)
+				_draw_empty_tile(Vector2(left, y))
 
-func _draw_platform(center: Vector2, scale: float, ghost: bool, alpha: float=1.0) -> void:
-	var size := PLATFORM_SIZE*scale
-	var rect := Rect2(center-size*0.5,size)
-	draw_rect(Rect2(rect.position+Vector2(0,12*scale),rect.size),Color(0.08,0.12,0.15,alpha*0.85))
-	var platform_color := Color("2b3846")
-	platform_color.a = alpha
-	draw_rect(rect,platform_color,not ghost,5.0 if ghost else -1.0)
-	if not ghost:
-		draw_rect(Rect2(rect.position,Vector2(rect.size.x,9*scale)),Color("42586d",alpha))
-		draw_rect(Rect2(rect.position+Vector2(16*scale,24*scale),Vector2(rect.size.x-32*scale,4*scale)),Color(1,1,1,alpha*0.12))
 
-func _draw_empty_platform(center: Vector2) -> void:
-	var rect := Rect2(center-PLATFORM_SIZE*0.5,PLATFORM_SIZE)
-	var c := Color(1,1,1,0.22)
-	for x in range(int(rect.position.x),int(rect.end.x),28):
-		draw_line(Vector2(x,rect.position.y),Vector2(minf(x+14,rect.end.x),rect.position.y),c,5)
-		draw_line(Vector2(x,rect.end.y),Vector2(minf(x+14,rect.end.x),rect.end.y),c,5)
-	for y in range(int(rect.position.y),int(rect.end.y),28):
-		draw_line(Vector2(rect.position.x,y),Vector2(rect.position.x,minf(y+14,rect.end.y)),c,5)
-		draw_line(Vector2(rect.end.x,y),Vector2(rect.end.x,minf(y+14,rect.end.y)),c,5)
+## `.tile-shadow`
+func _draw_tile_shadow(top_left: Vector2, safe: bool) -> void:
+	var alpha := 0.12 if safe else 0.12 * 0.12
+	draw_rect(Rect2(top_left + Vector2(12.0, TILE_WRAP_HEIGHT), Vector2(TILE_SIZE.x - 24.0, 8.0)), Color(0.0, 0.0, 0.0, alpha))
+
+
+## `.tile` plus the landing squash keyframes.
+func _draw_tile(top_left: Vector2, squash: float) -> void:
+	var center := top_left + TILE_SIZE * 0.5
+	var offset := 0.0
+	var scale := Vector2.ONE
+	if squash >= 0.0:
+		var t := clampf(squash / TILE_SQUASH_MS, 0.0, 1.0)
+		var offsets := [0.0, 0.38, 1.0]
+		offset = CssAnim.track(t, offsets, [0.0, 4.0, 0.0], CssAnim.EASE_OUT)
+		scale = Vector2(
+			CssAnim.track(t, offsets, [1.0, 1.035, 1.0], CssAnim.EASE_OUT),
+			CssAnim.track(t, offsets, [1.0, 0.90, 1.0], CssAnim.EASE_OUT)
+		)
+	_transform(center + Vector2(0.0, offset), 0.0, scale)
+	var half := TILE_SIZE * 0.5
+	draw_rect(Rect2(Vector2(-half.x, half.y), Vector2(TILE_SIZE.x, 6.0)), PLATFORM_SHADOW_COLOR)
+	draw_rect(Rect2(-half, TILE_SIZE), PLATFORM_COLOR)
+	draw_rect(Rect2(-half, Vector2(TILE_SIZE.x, 4.0)), PLATFORM_TOP_COLOR)
+	draw_rect(Rect2(Vector2(-half.x, half.y - 3.0), Vector2(TILE_SIZE.x, 3.0)), Color(0.0, 0.0, 0.0, 0.16))
+	CssPaint.dashed_row(self, Vector2(-half.x + 8.0, -half.y + 10.0), TILE_SIZE.x - 16.0, 2.0, 8.0, 8.0, Color(1.0, 1.0, 1.0, 0.16))
+	draw_rect(Rect2(-half + Vector2(10.0, 6.0), Vector2(4.0, 4.0)), Color(1.0, 1.0, 1.0, 0.14))
+	draw_rect(Rect2(-half + Vector2(68.0, 16.0), Vector2(4.0, 4.0)), Color(1.0, 1.0, 1.0, 0.10))
+	draw_rect(Rect2(-half + Vector2(38.0, 18.0), Vector2(4.0, 4.0)), Color(1.0, 1.0, 1.0, 0.08))
+	draw_set_transform(_origin)
+
+
+## `.tile.empty{outline:3px dashed rgba(255,255,255,.22); outline-offset:-3px}`
+func _draw_empty_tile(top_left: Vector2) -> void:
+	CssPaint.dashed_outline(self, Rect2(top_left, TILE_SIZE), 3.0, 6.0, 6.0, Color(1.0, 1.0, 1.0, 0.22))
+
+
+## `.impact-ghost`
+func _draw_ghosts() -> void:
+	for ghost in ghosts:
+		var t := clampf(float(ghost.time) / GHOST_MS, 0.0, 1.0)
+		var offsets := [0.0, 0.42, 1.0]
+		var scale := Vector2(
+			CssAnim.track(t, offsets, [1.0, 1.16, 1.28], CssAnim.IMPACT),
+			CssAnim.track(t, offsets, [1.0, 1.28, 1.38], CssAnim.IMPACT)
+		)
+		var alpha := CssAnim.track(t, offsets, [0.58, 0.26, 0.0], CssAnim.IMPACT)
+		var rect: Rect2 = ghost.rect
+		var half := rect.size * 0.5
+		_transform(rect.get_center(), 0.0, scale)
+		draw_rect(Rect2(Vector2(-half.x, half.y), Vector2(rect.size.x, 6.0)), Color(PLATFORM_SHADOW_COLOR, alpha))
+		draw_rect(Rect2(-half, rect.size), Color(PLATFORM_COLOR, alpha))
+		draw_rect(Rect2(-half, Vector2(rect.size.x, 4.0)), Color(PLATFORM_TOP_COLOR, alpha))
+	draw_set_transform(_origin)
+
+
+## `.impact-pixel` and `.spark`
+func _draw_particles() -> void:
+	for particle in particles:
+		var t := clampf(float(particle.time) / PARTICLE_MS, 0.0, 1.0)
+		var eased := CssAnim.curve(CssAnim.EASE_OUT, t)
+		var spark := bool(particle.spark)
+		var size := 6.0 if spark else 5.0
+		var color := Color("ffe9a8") if spark else Color(1.0, 1.0, 1.0, 0.92)
+		color.a *= lerpf(0.9, 0.0, eased)
+		var direction: Vector2 = particle.direction
+		var offset := Vector2(direction.x * 18.0, direction.y * 11.0) * eased
+		var scale := lerpf(1.0, 0.35, eased)
+		var origin: Vector2 = particle.position - Vector2(2.0, 2.0) + Vector2(size, size) * 0.5
+		_transform(origin + offset, 0.0, Vector2(scale, scale))
+		draw_rect(Rect2(-Vector2(size, size) * 0.5, Vector2(size, size)), color)
+	draw_set_transform(_origin)
+
 
 func _draw_player() -> void:
-	var y := PLAYER_Y
-	var scale_factor := 1.0
-	var alpha := 1.0
-	var rotation := 0.0
-	if state.run_state == HalfStepState.RunState.PLAYING:
-		var p := cadence_elapsed_ms/state.cadence_ms()
-		if p > 0.72:
-			var hop := sin((p-0.72)/0.28*PI)
-			y -= hop*38
-			scale_factor = 1.0+hop*0.05
-	else:
-		var t := clampf(death_time/0.76,0,1)
-		y += t*10
-		scale_factor = lerpf(1,0.04,t)
-		alpha = 1-t
-		rotation = t*2.8
-	for cell: Array in PLAYER_CELLS:
-		var local := (Vector2(float(cell[1]),float(cell[2]))-Vector2(2.5,5))*PLAYER_PIXEL*scale_factor
-		var center := Vector2(player_x,y)+local.rotated(rotation)
-		draw_set_transform(center,rotation)
-		draw_rect(Rect2(-PLAYER_PIXEL*scale_factor*0.5,-PLAYER_PIXEL*scale_factor*0.5,PLAYER_PIXEL*scale_factor+0.5,PLAYER_PIXEL*scale_factor+0.5),_player_color(str(cell[0]),alpha))
-	draw_set_transform(Vector2.ZERO)
-
-func _player_color(kind: String, alpha: float) -> Color:
-	match kind:
-		"dark": return Color(0.62,0.29,0.27,alpha)
-		"eye": return Color(1,1,1,alpha)
-		"boot": return Color(0.35,0.19,0.19,alpha)
-		"belt": return Color(1,0.89,0.56,alpha)
-		"cheek": return Color(1,0.71,0.67,alpha)
-	return Color(0.94,0.42,0.36,alpha)
-
-func _draw_particles() -> void:
-	for particle: Dictionary in particles:
-		var alpha := clampf(float(particle.life)/0.16,0,1)
-		var color := Color("ffe9a8") if bool(particle.gold) else Color.WHITE
-		color.a = alpha
-		draw_rect(Rect2(Vector2(particle.position)-Vector2(5,5),Vector2(10,10)),color)
-
-func _draw_hud() -> void:
-	var font := ThemeDB.fallback_font
-	draw_string(font,Vector2(0,116),str(state.score),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,92,Color(0,0,0,0.16))
-	draw_string(font,Vector2(0,112),str(state.score),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,92,Color.WHITE)
-	draw_string(font,Vector2(0,163),"BEST %d"%best_score,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,24,Color(0,0,0,0.13))
-	draw_string(font,Vector2(0,160),"BEST %d"%best_score,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,24,Color(1,1,1,0.84))
-	if tutorial_taps < 2 and state.run_state == HalfStepState.RunState.PLAYING:
-		var pulse := 0.72+sin(Time.get_ticks_msec()*0.006)*0.20
-		draw_string(font,Vector2(0,1114),"TAP TO SWITCH SIDES",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,30,Color(0,0,0,pulse*0.15))
-		draw_string(font,Vector2(0,1110),"TAP TO SWITCH SIDES",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,30,Color(1,1,1,pulse))
-		draw_string(font,Vector2(0,1151),"A NEW SKY OPENS THE FARTHER YOU GO",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,17,Color(0,0,0,pulse*0.12))
-		draw_string(font,Vector2(0,1148),"A NEW SKY OPENS THE FARTHER YOU GO",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,17,Color(1,1,1,pulse*0.8))
-	if impact_time > 0:
-		draw_string(font,Vector2(0,405),"FLOW %d"%state.score,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,20,Color(1,1,1,impact_time/0.19*0.82))
-	if zone_reveal_time > 0:
-		draw_string(font,Vector2(0,330),str(state.current_zone().name),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,32,Color.WHITE)
-	if milestone_time > 0:
-		draw_string(font,Vector2(0,330),ZoneConfig.milestone_for_score(state.score),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,32,Color.WHITE)
-
-func _draw_result() -> void:
-	if death_time < 0.45:
+	var animation := player_transform()
+	var alpha: float = animation.alpha
+	if alpha <= 0.0:
 		return
-	var font := ThemeDB.fallback_font
-	draw_rect(Rect2(0,0,VIEW.x,VIEW.y),Color(0.13,0.25,0.36,0.38))
-	draw_rect(Rect2(66,330,588,570),Color.WHITE)
-	draw_rect(Rect2(78,342,564,546),Color("f6fbff"))
-	draw_rect(Rect2(92,356,536,518),Color("d6e7f1"),false,5)
-	draw_string(font,Vector2(0,425),"RUN ENDED",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,24,Color(0.15,0.21,0.27,0.44))
-	draw_string(font,Vector2(0,570),str(state.score),HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,112,Color("263644"))
-	draw_string(font,Vector2(0,625),"REACHED · %s"%state.current_zone().name,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,24,Color("6d8293"))
-	var best_line := "NEW BEST!" if state.score>0 and state.score==best_score else "BEST %d"%best_score
-	draw_string(font,Vector2(0,675),best_line,HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,25,Color("ef6a5b"))
-	draw_rect(Rect2(RETRY_RECT.position+Vector2(0,10),RETRY_RECT.size),Color("111a21"))
-	draw_rect(RETRY_RECT,Color("24313d"))
-	draw_rect(Rect2(SHARE_RECT.position+Vector2(0,10),SHARE_RECT.size),Color("c7dce9"))
-	draw_rect(SHARE_RECT,Color("e7f2f9"))
-	draw_string(font,Vector2(RETRY_RECT.position.x,805),"RETRY",HORIZONTAL_ALIGNMENT_CENTER,RETRY_RECT.size.x,28,Color.WHITE)
-	draw_string(font,Vector2(SHARE_RECT.position.x,805),"SHARE",HORIZONTAL_ALIGNMENT_CENTER,SHARE_RECT.size.x,28,Color("24313d"))
-	draw_string(font,Vector2(0,860),"PLAY · FAIL · SHARE · REPEAT",HORIZONTAL_ALIGNMENT_CENTER,VIEW.x,18,Color(0.15,0.21,0.27,0.45))
+	var box := Vector2(player_left(), float(animation.y))
+	var center := box + Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
+	_transform(center, float(animation.rotation), animation.scale)
+	for cell: Array in PLAYER_CELLS:
+		var local := Vector2(float(cell[1]) * PLAYER_PIXEL, float(cell[2]) * PLAYER_PIXEL) - Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
+		draw_rect(Rect2(local, Vector2(PLAYER_PIXEL, PLAYER_PIXEL)), Color(player_color(String(cell[0])), alpha))
+	draw_set_transform(_origin)
+
+
+func _draw_hud(size: Vector2) -> void:
+	var inset := safe_area_top()
+	# #score{top:max(26px, env(safe-area-inset-top))}
+	CssText.draw_centered_shadowed(self, str(state.score), 0.0, size.x, maxf(26.0, inset), 46.0, -3.0,
+		Color(1.0, 1.0, 1.0), Color(0.0, 0.0, 0.0, 0.16), 4.0)
+	# #best{top:max(80px, calc(env(safe-area-inset-top) + 54px))}
+	CssText.draw_centered(self, "BEST %d" % best, 0.0, size.x, maxf(80.0, inset + 54.0), 11.0, 1.3,
+		Color(1.0, 1.0, 1.0, 0.84))
+	_draw_banner(size)
+	_draw_flow(size)
+	if tutorial_taps < 2 and state.is_running():
+		_draw_hint(size)
+
+
+## #zone, shared by the zone reveal and the secret milestone flash.
+func _draw_banner(size: Vector2) -> void:
+	if banner_time < 0.0:
+		return
+	var t := clampf(banner_time / banner_duration, 0.0, 1.0)
+	var offsets := [0.0, 0.3, 0.72, 1.0] if banner_secret else [0.0, 0.35, 0.68, 1.0]
+	var scales := [0.55, 1.12, 1.0, 0.98] if banner_secret else [0.75, 1.08, 1.0, 0.98]
+	var alpha := CssAnim.track(t, offsets, [0.0, 1.0, 1.0, 0.0], CssAnim.EASE_OUT)
+	if alpha <= 0.0:
+		return
+	var scale := CssAnim.track(t, offsets, scales, CssAnim.EASE_OUT)
+	var top := size.y * 0.20
+	var center := Vector2(size.x * 0.5, top + CssText.line_height(banner_size) * 0.5)
+	_transform(center, 0.0, Vector2(scale, scale))
+	CssText.draw_centered_shadowed(self, banner_text, -size.x * 0.5, size.x, -CssText.line_height(banner_size) * 0.5,
+		banner_size, 3.0, Color(1.0, 1.0, 1.0, alpha), Color(0.0, 0.0, 0.0, 0.18 * alpha), 3.0)
+	draw_set_transform(_origin)
+
+
+## #flow
+func _draw_flow(size: Vector2) -> void:
+	if flow_time < 0.0:
+		return
+	var alpha := CssAnim.track(clampf(flow_time / FLOW_MS, 0.0, 1.0), [0.0, 0.3, 1.0], [0.0, 0.82, 0.0], CssAnim.LINEAR)
+	if alpha <= 0.0:
+		return
+	CssText.draw_centered(self, "FLOW %d" % state.success_streak, 0.0, size.x, size.y * 0.33, 11.0, 1.5,
+		Color(1.0, 1.0, 1.0, alpha))
+
+
+## #hint, with the `pulse` keyframe animation.
+func _draw_hint(size: Vector2) -> void:
+	var height := CssText.line_height(16.0) + 6.0 + CssText.line_height(10.0)
+	var top := size.y * 0.91 - height
+	var half := clampf(hint_phase / HINT_PULSE_MS, 0.0, 1.0)
+	var progress := half * 2.0 if half <= 0.5 else (1.0 - half) * 2.0
+	var eased := CssAnim.curve(CssAnim.EASE, progress)
+	var scale := lerpf(1.0, 1.04, eased)
+	var alpha := lerpf(1.0, 0.62, eased)
+	var center := Vector2(size.x * 0.5, top + height * 0.5)
+	_transform(center, 0.0, Vector2(scale, scale))
+	var left := -size.x * 0.5
+	CssText.draw_centered_shadowed(self, HINT_TEXT, left, size.x, -height * 0.5, 16.0, 0.0,
+		Color(1.0, 1.0, 1.0, alpha), Color(0.0, 0.0, 0.0, 0.13 * alpha), 3.0)
+	CssText.draw_centered_shadowed(self, HINT_SUBTEXT, left, size.x, -height * 0.5 + CssText.line_height(16.0) + 6.0,
+		10.0, 0.0, Color(1.0, 1.0, 1.0, alpha * 0.82), Color(0.0, 0.0, 0.0, 0.13 * alpha * 0.82), 3.0)
+	draw_set_transform(_origin)
+
+
+## Layout of `#overlay` > `#card` > `.card-inner`, in viewport coordinates.
+## Kept separate from drawing so hit testing never depends on a frame having
+## been rendered.
+func result_layout() -> Dictionary:
+	var rect := game_rect()
+	var size := rect.size
+	var card_width := minf(size.x * 0.86, 360.0)
+	var content_width := card_width - 88.0
+	var blocks := [
+		CssText.line_height(12.0),
+		70.0 * 1.05,
+		7.0 + CssText.line_height(11.0),
+		4.0 + 18.0,
+		16.0 + 50.0,
+		8.0 + 13.0,
+		10.0 + CssText.line_height(10.0),
+	]
+	var content_height := 0.0
+	for value: float in blocks:
+		content_height += value
+	# .card-inner padding 18/16/14 + 4px border, #card padding 18 + 6px border.
+	var card_height := content_height + 18.0 + 14.0 + 8.0 + 36.0 + 12.0
+	var card := Rect2(
+		rect.position + Vector2((size.x - card_width) * 0.5, (size.y - card_height) * 0.5),
+		Vector2(card_width, card_height)
+	)
+	var inner := Rect2(card.position + Vector2(24.0, 24.0), card.size - Vector2(48.0, 48.0))
+	var content_left := inner.position.x + 4.0 + 16.0
+	var button_top: float = inner.position.y + 4.0 + 18.0 + float(blocks[0]) + float(blocks[1]) + float(blocks[2]) + float(blocks[3]) + 16.0
+	var button_width := (content_width - 9.0) * 0.5
+	return {
+		"card": card,
+		"inner": inner,
+		"content_left": content_left,
+		"content_width": content_width,
+		"content_top": inner.position.y + 4.0 + 18.0,
+		"blocks": blocks,
+		"retry": Rect2(content_left, button_top, button_width, 50.0),
+		"share": Rect2(content_left + button_width + 9.0, button_top, button_width, 50.0),
+	}
+
+
+## `#overlay` and `#card`, painted onto [param canvas] so the blurred backdrop
+## from [ResultOverlay] stays underneath.
+func draw_result(canvas: CanvasItem) -> void:
+	var rect := game_rect()
+	var size := rect.size
+	_origin = rect.position
+	canvas.draw_set_transform(_origin)
+	canvas.draw_rect(Rect2(Vector2.ZERO, size), Color("223f5c", 0.38))
+	var layout := result_layout()
+	var blocks: Array = layout.blocks
+	var content_width: float = layout.content_width
+	var card := Rect2(Rect2(layout.card).position - _origin, Rect2(layout.card).size)
+	var inner := Rect2(Rect2(layout.inner).position - _origin, Rect2(layout.inner).size)
+	var left: float = float(layout.content_left) - _origin.x
+	canvas.draw_rect(Rect2(card.position + Vector2(0.0, 8.0), card.size), Color("14384f", 0.18))
+	canvas.draw_rect(card, Color(1.0, 1.0, 1.0))
+	canvas.draw_rect(Rect2(card.position + Vector2(6.0, 6.0), card.size - Vector2(12.0, 12.0)), Color(1.0, 1.0, 1.0, 0.96))
+	canvas.draw_rect(inner, Color("d6e7f1"))
+	canvas.draw_rect(Rect2(inner.position + Vector2(4.0, 4.0), inner.size - Vector2(8.0, 8.0)), Color("f6fbff", 0.98))
+	var y: float = float(layout.content_top) - _origin.y
+	CssText.draw_centered(canvas, "RUN ENDED", left, content_width, y, 12.0, 2.0, Color(0.0, 0.0, 0.0, 0.44))
+	y += float(blocks[0])
+	CssText.draw_centered(canvas, str(state.score), left, content_width,
+		y + (70.0 * 1.05 - CssText.line_height(70.0)) * 0.5, 70.0, -4.0, Color("263644"))
+	y += float(blocks[1]) + 7.0
+	CssText.draw_centered(canvas, "REACHED · %s" % last_result_zone, left, content_width, y, 11.0, 1.5, Color("6d8293"))
+	y += CssText.line_height(11.0) + 4.0
+	var best_line := "NEW BEST!" if was_best else "BEST %d" % best
+	CssText.draw_centered(canvas, best_line, left, content_width, y, 12.0, 0.0, ACCENT)
+	var retry := Rect2(Rect2(layout.retry).position - _origin, Rect2(layout.retry).size)
+	var share := Rect2(Rect2(layout.share).position - _origin, Rect2(layout.share).size)
+	canvas.draw_rect(Rect2(retry.position + Vector2(0.0, 5.0), retry.size), Color("111a21"))
+	canvas.draw_rect(retry, INK)
+	canvas.draw_rect(Rect2(share.position + Vector2(0.0, 5.0), share.size), Color("c7dce9"))
+	canvas.draw_rect(share, Color("e7f2f9"))
+	var label_offset := (50.0 - CssText.line_height(14.0)) * 0.5
+	CssText.draw_centered(canvas, "다시하기", retry.position.x, retry.size.x, retry.position.y + label_offset, 14.0, 0.0, Color(1.0, 1.0, 1.0))
+	CssText.draw_centered(canvas, "공유하기", share.position.x, share.size.x, share.position.y + label_offset, 14.0, 0.0, INK)
+	y = retry.position.y + 50.0 + 8.0
+	if not share_status.is_empty():
+		CssText.draw_centered(canvas, share_status, left, content_width, y, 10.0, 0.0, Color("607585"))
+	y += 13.0 + 10.0
+	CssText.draw_centered(canvas, "PLAY · FAIL · SHARE · REPEAT", left, content_width, y, 10.0, 0.0, Color(0.0, 0.0, 0.0, 0.45))
+	canvas.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_letterbox(rect: Rect2) -> void:
+	var view := get_viewport_rect().size
+	if rect.position.x <= 0.0:
+		return
+	draw_rect(Rect2(0.0, 0.0, rect.position.x, view.y), PAGE_BACKGROUND)
+	draw_rect(Rect2(rect.end.x, 0.0, view.x - rect.end.x, view.y), PAGE_BACKGROUND)

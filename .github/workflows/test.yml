@@ -21,4 +21,22 @@ jobs:
       - name: Run gameplay tests
         run: |
           godot --headless --path . --script res://tests/test_runner.gd
+          godot --headless --path . --script res://tests/step_cycle_test.gd
           godot --headless --path . --script res://tests/input_integration_test.gd
+
+      - name: Render portrait snapshots
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          xvfb-run -a -s "-screen 0 800x1200x24" \
+            env LIBGL_ALWAYS_SOFTWARE=1 \
+            godot --path . --script res://tools/render_snapshots.gd -- "$PWD/snapshots"
+
+      - name: Upload snapshots
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: portrait-snapshots
+          path: snapshots/
+          if-no-files-found: ignore
