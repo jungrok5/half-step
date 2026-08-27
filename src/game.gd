@@ -28,9 +28,11 @@ const TILE_WRAP_HEIGHT := 36.0
 const HOP_MS := 125.0
 const SETTLE_MS := 50.0
 const STEP_CYCLE_MS := HOP_MS + SETTLE_MS
-## Long enough for the lane change to read as a hop across rather than a slide,
-## still far inside the shortest step cycle.
-const LANE_MS := 120.0
+## How long the cat takes to shift its weight toward the lane it has committed
+## to. It stays on its own bridge while it does.
+const LANE_MS := 110.0
+## How far it leans, small enough that all four paws stay on the 86px deck.
+const LEAN_DISTANCE := 20.0
 const PLAYER_SQUASH_MS := 130.0
 const TILE_SQUASH_MS := 115.0
 const GHOST_MS := 190.0
@@ -113,8 +115,15 @@ var row_scroll := 0.0
 var tail_phase := 0.0
 ## Duration of the lane hop currently running.
 var lane_length := LANE_MS
-## Which way the cat is hopping across, for the mid-air lean.
-var lane_direction := 0.0
+## The lane the cat is physically standing on. `state.lane` is where the tap has
+## committed it to land next; the two differ between the tap and the jump, and
+## the cat spends that time leaning off the edge of its own bridge rather than
+## hovering over the gap beside it.
+var standing_lane := 0
+## Where the leap started, so a tap mid-flight re-aims it instead of teleporting.
+var hop_from_x := 0.0
+## Frozen at death so the fall starts from the exact screen position.
+var death_x := 0.0
 ## Durations of the cycle currently running, captured when it starts.
 var hop_length := HOP_MS
 var settle_length := SETTLE_MS
@@ -221,6 +230,7 @@ func _on_viewport_resized() -> void:
 func reset() -> void:
 	share_status = ""
 	was_best = false
+	standing_lane = 0
 	layout_base_y = base_y()
 	state.reset(layout_base_y, game_size().y, _rng.randi())
 	tutorial_taps = 0
@@ -232,7 +242,6 @@ func reset() -> void:
 	flow_time = -1.0
 	row_scroll = 0.0
 	lane_length = LANE_MS
-	lane_direction = 0.0
 	hop_length = HOP_MS
 	settle_length = SETTLE_MS
 	banner_time = -1.0
@@ -323,10 +332,10 @@ func _input(event: InputEvent) -> void:
 func tap() -> void:
 	lane_from_x = player_left()
 	state.toggle_lane()
-	lane_to_x = lane_x(state.lane)
-	lane_direction = signf(lane_to_x - lane_from_x)
-	lane_length = LANE_MS * cycle_scale()
-	lane_time = 0.0
+	# Mid-flight the leap simply re-aims; there is no weight to shift.
+	if hop_time < 0.0:
+		lane_length = LANE_MS * cycle_scale()
+		lane_time = 0.0
 	tutorial_taps += 1
 	_vibrate(5)
 	queue_redraw()
@@ -461,6 +470,8 @@ func cycle_scale() -> float:
 ## `startStep()` — the hop plays first, the landing resolves when it finishes.
 func start_step() -> void:
 	state.stepping = true
+	hop_from_x = player_left()
+	lane_time = -1.0
 	hop_length = HOP_MS * cycle_scale()
 	hop_time = 0.0
 
@@ -471,6 +482,8 @@ func resolve_landing() -> void:
 	if row.is_empty():
 		die()
 		return
+	# The cat is now standing on the bridge it just landed on.
+	standing_lane = state.lane
 	tone_player.play_success_note(state.note_position())
 	flow_time = 0.0
 	spawn_impact(row)
@@ -514,6 +527,8 @@ func spawn_impact(row: Dictionary) -> void:
 
 ## `die()`
 func die() -> void:
+	# AGENTS.md: the fall starts from the exact position the cat missed at.
+	death_x = player_left()
 	hop_time = -1.0
 	settle_time = -1.0
 	lane_time = -1.0
@@ -608,10 +623,27 @@ func share_score() -> void:
 
 # --- player animation -------------------------------------------------------
 
+## Where the cat stands while it is on a bridge: on its own deck, leaning toward
+## the lane it has committed to. Never out over the gap.
+func grounded_x() -> float:
+	var here := lane_x(standing_lane)
+	var committed := lane_x(state.lane)
+	if is_equal_approx(here, committed):
+		return here
+	return here + signf(committed - here) * LEAN_DISTANCE
+
+
 func player_left() -> float:
+	if death_time >= 0.0:
+		return death_x
+	if hop_time >= 0.0:
+		# The leap itself carries the cat across, so crossing lanes is one
+		# diagonal jump from bridge to bridge.
+		return lerpf(hop_from_x, lane_x(state.lane),
+			CssAnim.curve(CssAnim.SNAP, hop_time / maxf(hop_length, 0.001)))
 	if lane_time >= 0.0:
-		return lerpf(lane_from_x, lane_to_x, CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001)))
-	return lane_x(state.lane)
+		return lerpf(lane_from_x, grounded_x(), CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001)))
+	return grounded_x()
 
 
 ## How far off a bridge the cat is, 0 planted and 1 at the top of a jump. Both
@@ -650,15 +682,15 @@ func player_transform() -> Dictionary:
 		y += CssAnim.track(t, offsets, [0.0, -11.0, 0.0], CssAnim.SNAP)
 		var lift := CssAnim.track(t, offsets, [1.0, 1.16, 1.0], CssAnim.SNAP)
 		scale = Vector2(lift, lift)
-	if lane_time >= 0.0 and death_time < 0.0:
-		# Crossing lanes is a hop, not a slide: the cat arcs across and a little
-		# forward, rising toward the lens and leaning the way it is going.
-		var across := sin(PI * clampf(lane_time / maxf(lane_length, 0.001), 0.0, 1.0))
-		y -= 9.0 * across
-		var lift := 1.0 + 0.11 * across
-		scale *= lift
-		rotation += lane_direction * 0.30 * across
-	elif player_squash_time >= 0.0:
+	var crossing := signf(lane_x(state.lane) - lane_x(standing_lane))
+	if hop_time >= 0.0:
+		# Leaning into a diagonal leap.
+		rotation += crossing * 0.30 * sin(PI * clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0))
+	elif crossing != 0.0:
+		# Weight already shifted toward the bridge it is about to jump to.
+		var settled := 1.0 if lane_time < 0.0 else CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001))
+		rotation += crossing * 0.22 * settled
+	if player_squash_time >= 0.0 and hop_time < 0.0:
 		var t := clampf(player_squash_time / (PLAYER_SQUASH_MS * cycle_scale()), 0.0, 1.0)
 		var offsets := [0.0, 0.45, 1.0]
 		y += CssAnim.track(t, offsets, [0.0, 4.0, 0.0], CssAnim.EASE_OUT)

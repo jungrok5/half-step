@@ -66,9 +66,16 @@ The character needs:
 - **Airborne pose**: the body stretches along the direction of travel and all
   four legs are thrown out fore and aft, the shape a cat makes at the top of a
   leap. Driven by one `leap` value, 0 planted and 1 at the apex.
-- **Crossing lanes**: a diagonal hop, not a slide. The cat arcs across and a
-  little forward, rises toward the lens and leans the way it is going, so a run
-  reads as hopping nimbly between bridges.
+- **Crossing lanes**: a diagonal leap at the beat, not a slide on the tap. The
+  tap commits the lane immediately, as the rules require, but the cat shifts its
+  weight toward that side while staying on its own deck; the jump itself carries
+  it across.
+
+  **The cat is always on a bridge or in the air, never hovering over the gap
+  beside one.** Moving it to the committed lane the moment of the tap left it
+  standing on nothing for most of a beat, which made the platforms look
+  decorative — a player could see themselves float over empty sky and survive.
+  The lean is small enough that all four paws stay on the 86px deck.
 - **Tail**: always swaying, a little faster as the run speeds up; it curls
   beside the cat at rest and streams out behind it in the air.
 

@@ -208,3 +208,24 @@ Permanent lesson:
 Where the judgement happens and where the player sees it happen must be the same
 place. A correct rule that resolves somewhere the player is not looking reads as
 a different game.
+
+### The cat stood on nothing
+
+The tap flipped the lane and the cat was drawn in the new lane straight away.
+But the bridge under it belongs to the row it already landed on, and the other
+lane of that row is empty — so for most of a beat the cat hovered over open sky,
+and nothing happened. Measured: after a tap the cat sat at x=247 while its
+bridge was at x=125.
+
+The rule was never wrong; only the landing instant decides. What was wrong was
+showing a player floating over a gap and surviving it, which makes the bridges
+look decorative.
+
+Fix: the cat keeps standing on its own deck and leans toward the lane it has
+committed to; the jump carries it across. It is now always on a bridge or in the
+air.
+
+Permanent lesson:
+Do not let the character occupy a place the rules do not support, even briefly.
+Players read position as truth, and a survivable impossible position teaches
+them the obstacles are fake.

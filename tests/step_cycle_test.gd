@@ -97,7 +97,39 @@ func _run() -> void:
 		"nothing jumps on screen: the row lands exactly where it was already drawn")
 	expect(not state.stepping, "the settle delay clears the stepping flag")
 
+	# The cat must be on a bridge or in the air, never hovering over the gap
+	# beside one. A tap commits the lane straight away, but the cat only crosses
+	# when it jumps.
+	var deck_half := 86.0 * 0.5
+	var cat_half := 36.0 * 0.5
+	var standing: int = int(game.get("standing_lane"))
+	var deck_centre: float = float(game.call("tile_x", standing)) + deck_half
+	expect(is_equal_approx(float(game.call("player_left")) + cat_half, deck_centre),
+		"after landing the cat stands on the middle of its bridge")
+	game.call("tap")
+	expect(state.lane != standing, "the tap commits the other lane immediately")
+	step_frames(game, 20)
+	var leaning: float = float(game.call("player_left")) + cat_half
+	expect(absf(leaning - deck_centre) <= deck_half - cat_half,
+		"while grounded the cat leans but stays on its own deck, off by %d" % int(absf(leaning - deck_centre)))
+	expect(not is_equal_approx(leaning, float(game.call("tile_x", state.lane)) + deck_half),
+		"the cat has not moved across to hover over the empty lane")
+	# Ride the next landing out and it should be centred on the other bridge.
+	var before := state.score
+	var guard_cross := 0
+	while state.score == before and guard_cross < 400:
+		hold_safe_lane(game, state)
+		step_frames(game, 1)
+		guard_cross += 1
+	step_frames(game, int(ceil(SETTLE_MS / FRAME_MS)) + 1)
+	expect(int(game.get("standing_lane")) == state.lane, "the leap leaves the cat standing on the new lane")
+	expect(is_equal_approx(float(game.call("player_left")) + cat_half,
+		float(game.call("tile_x", state.lane)) + deck_half),
+		"and centred on that bridge")
+
 	# Twenty more landings: the score climbs and the cadence only tightens.
+	var score_before_streak := state.score
+	var streak_before := state.success_streak
 	var previous_interval := state.step_interval
 	for i in 20:
 		var guard := 0
@@ -109,8 +141,8 @@ func _run() -> void:
 		expect(state.score == score_before + 1, "landing %d resolves" % i)
 		expect(state.step_interval <= previous_interval, "the cadence never slows at landing %d" % i)
 		previous_interval = state.step_interval
-	expect(state.score == 21, "twenty-one landings scored")
-	expect(state.success_streak == 21, "the melody advanced once per landing")
+	expect(state.score == score_before_streak + 20, "twenty more landings scored")
+	expect(state.success_streak == streak_before + 20, "the melody advanced once per landing")
 	expect(state.is_running(), "the run survives a clean streak")
 
 	# Missing the platform ends the run at the player's own position.
