@@ -140,3 +140,34 @@ High-score sky regions were introduced so high-score footage itself becomes desi
 Key idea:
 Do not expose all late-game visuals in marketing.
 Players who cannot reach them should be curious about them.
+
+## Godot port of the pixel skin prototype
+
+The Godot project is a direct port of
+`reference/web-prototypes/half_step_pixel_skin.html`: same layout constants,
+step cycle, easing curves, zone table, melody, result card and share image, all
+working in the prototype's CSS pixel units.
+
+Five prototype behaviours were fixed instead of copied. They are flaws, not
+design, and each has a regression test — do not restore them:
+
+1. **A row decided two landings.** Rows stayed eligible after being landed on,
+   and the post-landing slide left the used row 14px from the player while the
+   next was 78px away, so `nearestRow()` picked the used one again. Every run
+   opened with a forced repeat of `pattern[0]`. Rows are now marked resolved.
+2. **Speed stopped increasing around score 322.** The 125ms hop and 50ms settle
+   gate each step, so their 175ms sum capped the cadence exactly where the late
+   zones begin. They now compress once the cadence is shorter than they are, so
+   acceleration continues to the 24ms technical floor.
+3. **Retry was not immediate.** Taps were swallowed for the whole fall and the
+   card only answered its own buttons. Any tap now retries at once; SHARE is the
+   only exempt target.
+4. **A resize ended the run.** `window.onresize` called `reset()`, so a phone
+   browser hiding its address bar killed a good run. The row stack is now
+   re-laid out around the new player height.
+5. **A bare strip at the top of tall screens.** Only seven rows were built at
+   the start. The opening stack is now filled to the top of the screen.
+
+Permanent lesson:
+Port the feel, not the defects. When the prototype contradicts `AGENTS.md`,
+`AGENTS.md` wins.

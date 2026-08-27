@@ -21,8 +21,14 @@ const TILE_SIZE := Vector2(86.0, 28.0)
 const TILE_GAP := 54.0
 const TILE_WRAP_HEIGHT := 36.0
 
+## The hop resolves the landing and the settle slides the row stack, so their
+## sum is a floor on how fast the game can actually step. In the prototype that
+## floor (175ms) is reached around score 322 and the run stops accelerating
+## there, which contradicts the monotonic speed curve in AGENTS.md section 7.
+## Past that point both are compressed so the cadence stays in charge.
 const HOP_MS := 125.0
 const SETTLE_MS := 50.0
+const STEP_CYCLE_MS := HOP_MS + SETTLE_MS
 const LANE_MS := 88.0
 const PLAYER_SQUASH_MS := 130.0
 const TILE_SQUASH_MS := 115.0
@@ -107,6 +113,11 @@ var hint_phase := 0.0
 
 var lane_from_x := 0.0
 var lane_to_x := 0.0
+## Durations of the cycle currently running, captured when it starts.
+var hop_length := HOP_MS
+var settle_length := SETTLE_MS
+## Player height the row stack was last laid out against.
+var layout_base_y := 0.0
 
 var clouds: Array[Dictionary] = []
 var winds: Array[Dictionary] = []
@@ -184,24 +195,32 @@ func _ready() -> void:
 	add_child(tone_player)
 	if _save.load(SAVE_PATH) == OK:
 		best = int(_save.get_value("score", "best", 0))
-	get_viewport().size_changed.connect(_on_viewport_resized)
 	result_overlay = ResultOverlay.new()
 	result_overlay.visible = false
 	add_child(result_overlay)
 	reset()
+	get_viewport().size_changed.connect(_on_viewport_resized)
 
 
+## The prototype restarts the run on any resize, which on a phone browser means
+## the address bar sliding away can end a good run. Re-lay the stack out around
+## the new player height instead and let the run continue.
 func _on_viewport_resized() -> void:
-	# `window.addEventListener('resize', () => { if(running) reset() })`
+	var size := game_size()
+	var new_base_y := size.y * BASE_Y_RATIO
 	if state.is_running():
-		reset()
+		state.shift_rows(new_base_y - layout_base_y, new_base_y, size.y)
+	layout_base_y = new_base_y
+	build_background()
+	queue_redraw()
 
 
 ## `reset()`
 func reset() -> void:
 	share_status = ""
 	was_best = false
-	state.reset(base_y(), _rng.randi())
+	layout_base_y = base_y()
+	state.reset(layout_base_y, game_size().y, _rng.randi())
 	tutorial_taps = 0
 	hop_time = -1.0
 	settle_time = -1.0
@@ -209,6 +228,8 @@ func reset() -> void:
 	player_squash_time = -1.0
 	death_time = -1.0
 	flow_time = -1.0
+	hop_length = HOP_MS
+	settle_length = SETTLE_MS
 	banner_time = -1.0
 	ghosts.clear()
 	particles.clear()
@@ -258,14 +279,14 @@ func _input(event: InputEvent) -> void:
 	if position == Vector2.INF:
 		return
 	if not state.is_running():
-		# The result card owns the pointer once it is on screen; a tap anywhere
-		# else is swallowed, exactly like `tap()` returning on `!running`.
-		if death_time >= RESULT_DELAY_MS:
-			var layout := result_layout()
-			if Rect2(layout.retry).has_point(position):
-				reset()
-			elif Rect2(layout.share).has_point(position):
-				share_score()
+		# The prototype swallows every tap until the card appears and then only
+		# listens to its buttons, so a player who taps to go again waits out the
+		# fall. AGENTS.md requires retry to feel immediate and input never to be
+		# dropped, so any tap outside SHARE restarts straight away.
+		if death_time >= RESULT_DELAY_MS and Rect2(result_layout().share).has_point(position):
+			share_score()
+		else:
+			reset()
 		return
 	tap()
 
@@ -299,12 +320,12 @@ func _advance_timers(dt: float) -> void:
 	hint_phase = fmod(hint_phase + dt, HINT_PULSE_MS)
 	if hop_time >= 0.0:
 		hop_time += dt
-		if hop_time >= HOP_MS:
+		if hop_time >= hop_length:
 			hop_time = -1.0
 			resolve_landing()
 	if settle_time >= 0.0:
 		settle_time += dt
-		if settle_time >= SETTLE_MS:
+		if settle_time >= settle_length:
 			settle_time = -1.0
 			finish_step()
 	if lane_time >= 0.0:
@@ -313,7 +334,7 @@ func _advance_timers(dt: float) -> void:
 			lane_time = -1.0
 	if player_squash_time >= 0.0:
 		player_squash_time += dt
-		if player_squash_time >= PLAYER_SQUASH_MS:
+		if player_squash_time >= PLAYER_SQUASH_MS * cycle_scale():
 			player_squash_time = -1.0
 	if death_time >= 0.0:
 		death_time += dt
@@ -393,9 +414,16 @@ func update_background(dt: float) -> void:
 
 # --- step cycle -------------------------------------------------------------
 
+## Shrinks the hop and settle once the cadence is shorter than they are, so the
+## beat keeps setting the pace instead of the animation.
+func cycle_scale() -> float:
+	return minf(1.0, state.step_interval / STEP_CYCLE_MS)
+
+
 ## `startStep()` — the hop plays first, the landing resolves when it finishes.
 func start_step() -> void:
 	state.stepping = true
+	hop_length = HOP_MS * cycle_scale()
 	hop_time = 0.0
 
 
@@ -413,6 +441,7 @@ func resolve_landing() -> void:
 	_vibrate(5)
 	apply_zone()
 	secret_flash()
+	settle_length = SETTLE_MS * cycle_scale()
 	settle_time = 0.0
 
 
@@ -560,7 +589,7 @@ func player_transform() -> Dictionary:
 		alpha = CssAnim.track(t, offsets, [1.0, 0.94, 0.62, 0.0], CssAnim.DEPTH)
 		return {"y": y, "scale": scale, "rotation": rotation, "alpha": alpha}
 	if hop_time >= 0.0:
-		var t := clampf(hop_time / HOP_MS, 0.0, 1.0)
+		var t := clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0)
 		var offsets := [0.0, 0.5, 1.0]
 		y += CssAnim.track(t, offsets, [0.0, -20.0, 0.0], CssAnim.SNAP)
 		scale = Vector2(
@@ -568,7 +597,7 @@ func player_transform() -> Dictionary:
 			CssAnim.track(t, offsets, [1.0, 1.06, 0.95], CssAnim.SNAP)
 		)
 	elif player_squash_time >= 0.0:
-		var t := clampf(player_squash_time / PLAYER_SQUASH_MS, 0.0, 1.0)
+		var t := clampf(player_squash_time / (PLAYER_SQUASH_MS * cycle_scale()), 0.0, 1.0)
 		var offsets := [0.0, 0.45, 1.0]
 		y += CssAnim.track(t, offsets, [0.0, 4.0, 0.0], CssAnim.EASE_OUT)
 		scale = Vector2(

@@ -3,6 +3,7 @@ extends SceneTree
 ## Deterministic gameplay tests plus a parity check against the HTML prototype.
 
 const PROTOTYPE := "res://reference/web-prototypes/half_step_pixel_skin.html"
+const VIEW_HEIGHT := 844.0
 
 var failures := 0
 var _source := ""
@@ -13,6 +14,7 @@ func _init() -> void:
 	_test_prototype_is_readable()
 	_test_initial_state()
 	_test_row_stack_matches_rebuild_rows()
+	_test_each_row_decides_one_landing()
 	_test_tap_is_immediate()
 	_test_nearest_row_resolves_landing()
 	_test_same_lane_success()
@@ -20,6 +22,7 @@ func _init() -> void:
 	_test_speed_matches_prototype_curve()
 	_test_speed_is_monotonic()
 	_test_row_recycling()
+	_test_resize_keeps_the_run()
 	_test_pattern_pools()
 	_test_zone_table_matches_prototype()
 	_test_zone_boundaries()
@@ -45,7 +48,7 @@ func expect_contains(needle: String, message: String) -> void:
 
 func playing_state(base_y: float = 600.0) -> HalfStepState:
 	var state := HalfStepState.new(7)
-	state.reset(base_y)
+	state.reset(base_y, VIEW_HEIGHT)
 	return state
 
 
@@ -69,10 +72,36 @@ func _test_initial_state() -> void:
 func _test_row_stack_matches_rebuild_rows() -> void:
 	var base_y := 600.0
 	var state := playing_state(base_y)
-	expect(state.rows.size() == 7, "rebuildRows() builds seven rows")
+	expect(state.rows.size() >= 7, "rebuildRows() builds at least the prototype's seven rows")
 	for i in 7:
 		expect(is_equal_approx(float(state.rows[i].y), base_y - float(i + 1) * 92.0),
 			"row %d sits at baseY - %d*92" % [i, i + 1])
+	var highest := INF
+	for row in state.rows:
+		highest = minf(highest, float(row.y))
+	expect(highest <= -HalfStepState.RECYCLE_MARGIN,
+		"the opening stack already reaches the top of the screen")
+
+
+## Regression test for the prototype's double-judged first row: there, the row
+## just landed on stays eligible and sits 14px from the player after the slide,
+## so it wins `nearestRow()` again and `pattern[0]` is forced twice.
+func _test_each_row_decides_one_landing() -> void:
+	var base_y := 600.0
+	var state := playing_state(base_y)
+	var expected := HalfStepState.ROW_SPACING - HalfStepState.ROW_ANCHOR
+	for i in 6:
+		var index := state.nearest_row_index(base_y)
+		expect(index >= 0, "landing %d has a row to judge" % i)
+		if index < 0:
+			return
+		expect(not bool(state.rows[index].resolved), "landing %d judges an unused row" % i)
+		var distance: float = absf(float(state.rows[index].y) + HalfStepState.ROW_ANCHOR - base_y)
+		expect(is_equal_approx(distance, expected),
+			"landing %d judges a fresh row %dpx above the player, not the one just used" % [i, int(expected)])
+		state.lane = int(state.rows[index].safe_lane)
+		expect(not state.resolve_landing(base_y).is_empty(), "landing %d succeeds" % i)
+		state.advance_rows(base_y, VIEW_HEIGHT)
 
 
 func _test_tap_is_immediate() -> void:
@@ -90,6 +119,8 @@ func _test_nearest_row_resolves_landing() -> void:
 	expect(state.nearest_row_index(base_y) == 0, "nearest row is the one closest to the player")
 	state.rows[0].y = base_y + 500.0
 	expect(state.nearest_row_index(base_y) == 1, "a row that slid far below is no longer nearest")
+	state.rows[1].resolved = true
+	expect(state.nearest_row_index(base_y) == 2, "a row that already decided a landing is skipped")
 
 
 func _test_same_lane_success() -> void:
@@ -148,6 +179,27 @@ func _test_row_recycling() -> void:
 	for _i in 60:
 		state.advance_rows(base_y, view_height)
 	expect(state.rows.size() < 20, "the row stack stays bounded while scrolling")
+
+
+## The prototype calls `reset()` on any resize, so a phone browser hiding its
+## address bar ends the run. The stack is re-laid out around the new player
+## height instead.
+func _test_resize_keeps_the_run() -> void:
+	var base_y := 600.0
+	var state := playing_state(base_y)
+	force_next_safe_lane(state, base_y, state.lane)
+	state.resolve_landing(base_y)
+	state.advance_rows(base_y, VIEW_HEIGHT)
+	var score_before := state.score
+	var index := state.nearest_row_index(base_y)
+	var gap_before: float = float(state.rows[index].y) - base_y
+	var taller_base_y := 671.0
+	state.shift_rows(taller_base_y - base_y, taller_base_y, 932.0)
+	expect(state.score == score_before, "a resize does not end the run")
+	expect(state.is_running(), "a resize does not end the run")
+	var moved := state.nearest_row_index(taller_base_y)
+	expect(is_equal_approx(float(state.rows[moved].y) - taller_base_y, gap_before),
+		"the next row keeps its distance to the player across a resize")
 
 
 func _test_pattern_pools() -> void:
@@ -245,12 +297,14 @@ func _test_reset() -> void:
 	var state := playing_state(base_y)
 	force_next_safe_lane(state, base_y, 1 - state.lane)
 	state.resolve_landing(base_y)
-	state.reset(base_y, 3)
+	state.reset(base_y, VIEW_HEIGHT, 3)
 	expect(state.run_state == HalfStepState.RunState.PLAYING, "retry returns to playing")
 	expect(state.score == 0 and state.success_streak == 0, "retry clears the run")
 	expect(is_equal_approx(state.step_interval, 560.0), "retry restores the opening cadence")
 	expect(state.lane == HalfStepState.Lane.LEFT, "retry starts on the left lane")
-	expect(state.rows.size() == 7, "retry rebuilds the row stack")
+	expect(state.rows.size() >= 7, "retry rebuilds the row stack")
+	for row in state.rows:
+		expect(not bool(row.resolved), "retry clears the resolved rows")
 
 
 func _test_layout_constants_match_prototype() -> void:

@@ -27,6 +27,28 @@ func step_frames(game: Node, count: int) -> void:
 		game.call("_process", FRAME_MS / 1000.0)
 
 
+## Average milliseconds between landings, measured on the real scene.
+func measure_landing_period(game: Node, state: HalfStepState, landings: int) -> float:
+	var dt := 2.0
+	var elapsed := 0.0
+	var first := -1.0
+	var seen := 0
+	var guard := 0
+	var start_score := state.score
+	while seen < landings and guard < 40000:
+		hold_safe_lane(game, state)
+		game.call("_process", dt / 1000.0)
+		elapsed += dt
+		guard += 1
+		if state.score > start_score + seen:
+			seen += 1
+			if first < 0.0:
+				first = elapsed
+	if seen < landings:
+		return INF
+	return (elapsed - first) / float(landings - 1)
+
+
 ## Keeps the row the player is about to reach under the player's own lane.
 func hold_safe_lane(game: Node, state: HalfStepState) -> void:
 	var index: int = state.nearest_row_index(game.call("base_y"))
@@ -95,6 +117,23 @@ func _run() -> void:
 	expect(float(game.get("death_time")) >= RESULT_DELAY_MS, "the card appears half a second after the fall")
 	var layout: Dictionary = game.call("result_layout")
 	expect(Rect2(layout.retry).size.x > 0.0 and Rect2(layout.share).size.x > 0.0, "the card exposes both buttons")
+
+	# The hop plus the settle is 175ms in the prototype, which becomes a hard
+	# speed ceiling from roughly score 322 onward. The cycle now compresses so
+	# the cadence stays in charge all the way to the 24ms floor.
+	game.call("reset")
+	for score: int in [40, 600, 1200]:
+		state.score = score
+		state.step_interval = maxf(HalfStepState.MIN_INTERVAL_MS, 560.0 * pow(HalfStepState.SPEED_FACTOR, float(score)))
+		state.step_timer = 0.0
+		var target := state.step_interval
+		var period := measure_landing_period(game, state, 6)
+		expect(period < target * 1.35 + 8.0,
+			"score %d steps near its %dms cadence, measured %dms" % [score, int(target), int(period)])
+		if score >= 600:
+			expect(period < HOP_MS + SETTLE_MS,
+				"score %d beats the prototype's 175ms animation ceiling (measured %dms)" % [score, int(period)])
+		expect(state.is_running(), "the run survives at score %d" % score)
 
 	root.remove_child(game)
 	game.free()

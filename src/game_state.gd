@@ -8,6 +8,12 @@ extends RefCounted
 ## the player instead of popping a queue, and it slides the whole row stack down
 ## by one spacing 50 ms after each success. Both are reproduced here, because
 ## the row layout is what decides which lane is safe.
+##
+## One prototype behaviour is deliberately NOT reproduced: there, a row stays
+## eligible after it has been landed on, and the slide leaves it 14px from the
+## player while the next row is 78px away — so the very first row is judged
+## twice and the run opens with a forced repeat of `pattern[0]`. Rows are marked
+## resolved here so each one decides exactly one landing.
 
 enum Lane { LEFT, RIGHT }
 enum RunState { PLAYING, DEAD }
@@ -61,7 +67,7 @@ func is_running() -> bool:
 
 
 ## `reset()` — restores a fresh run and rebuilds the row stack.
-func reset(base_y: float, seed_value: int = -1) -> void:
+func reset(base_y: float, view_height: float, seed_value: int = -1) -> void:
 	if seed_value >= 0:
 		_rng.seed = seed_value
 	lane = 0
@@ -71,7 +77,7 @@ func reset(base_y: float, seed_value: int = -1) -> void:
 	step_interval = START_INTERVAL_MS
 	stepping = false
 	run_state = RunState.PLAYING
-	rebuild_rows(base_y)
+	rebuild_rows(base_y, view_height)
 
 
 ## `tap()` — one tap always flips the lane, with no lock and no queue.
@@ -104,23 +110,29 @@ func next_safe() -> int:
 
 
 func make_row(y: float, safe_lane: int) -> Dictionary:
-	var row := {"y": y, "safe_lane": safe_lane, "squash": -1.0}
+	var row := {"y": y, "safe_lane": safe_lane, "squash": -1.0, "resolved": false}
 	rows.append(row)
 	return row
 
 
-func rebuild_rows(base_y: float) -> void:
+func rebuild_rows(base_y: float, view_height: float) -> void:
 	rows.clear()
 	choose_pattern()
 	for i in INITIAL_ROWS:
 		make_row(base_y - float(i + 1) * ROW_SPACING, next_safe())
+	# The prototype only builds seven rows, which leaves a bare strip at the top
+	# of a tall screen until the first landing refills it.
+	_recycle_rows(view_height)
 
 
-## `nearestRow()` — index of the row whose anchor is closest to the player.
+## `nearestRow()` — index of the row whose anchor is closest to the player,
+## ignoring rows that have already decided a landing.
 func nearest_row_index(base_y: float) -> int:
 	var best := -1
 	var best_distance := INF
 	for i in rows.size():
+		if bool(rows[i].resolved):
+			continue
 		var distance: float = absf(float(rows[i].y) + ROW_ANCHOR - base_y)
 		if distance < best_distance:
 			best_distance = distance
@@ -137,6 +149,7 @@ func resolve_landing(base_y: float) -> Dictionary:
 		run_state = RunState.DEAD
 		stepping = false
 		return {}
+	rows[index].resolved = true
 	success_streak += 1
 	score += 1
 	step_interval = maxf(MIN_INTERVAL_MS, START_INTERVAL_MS * pow(SPEED_FACTOR, score))
@@ -146,8 +159,19 @@ func resolve_landing(base_y: float) -> Dictionary:
 ## The delayed half of `resolveLanding()`: slide every row down one spacing,
 ## drop what fell past the bottom and refill the top.
 func advance_rows(base_y: float, view_height: float) -> void:
+	shift_rows(ROW_SPACING, base_y, view_height)
+
+
+## Moves the whole stack by [param offset] and re-establishes the recycle
+## window. Used by the per-landing slide and by a viewport resize, which shifts
+## the player's height without ending the run.
+func shift_rows(offset: float, base_y: float, view_height: float) -> void:
 	for row in rows:
-		row.y = float(row.y) + ROW_SPACING
+		row.y = float(row.y) + offset
+	_recycle_rows(view_height, base_y)
+
+
+func _recycle_rows(view_height: float, base_y: float = 0.0) -> void:
 	var kept: Array[Dictionary] = []
 	for row in rows:
 		if float(row.y) <= view_height + RECYCLE_MARGIN:

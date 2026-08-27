@@ -70,22 +70,28 @@ func _run() -> void:
 	expect(state.lane == HalfStepState.Lane.LEFT, "a tap during the post-landing settle still toggles")
 	game.set("settle_time", -1.0)
 
-	# `tap()` returns early on `!running`, so the fall is never interrupted.
+	# Retry is immediate: the prototype makes the player wait out the fall and
+	# then hit the button, which AGENTS.md rules out.
 	state.run_state = HalfStepState.RunState.DEAD
 	game.set("death_time", 120.0)
-	var lane_before := state.lane
 	press_touch(game, Vector2(100, 100))
-	expect(state.lane == lane_before, "taps do nothing while the fall animation plays")
-	expect(state.run_state == HalfStepState.RunState.DEAD, "the run does not restart before the card appears")
+	expect(state.run_state == HalfStepState.RunState.PLAYING, "a tap during the fall restarts straight away")
+	expect(state.score == 0, "the instant retry clears the score")
+	expect(int(game.get("tutorial_taps")) == 0, "retry brings the hint back")
 
+	state.run_state = HalfStepState.RunState.DEAD
 	game.set("death_time", 600.0)
 	var layout: Dictionary = game.call("result_layout")
-	press_touch(game, Vector2(4, 4))
-	expect(state.run_state == HalfStepState.RunState.DEAD, "tapping the overlay backdrop does not retry")
 	press_touch(game, Rect2(layout.retry).get_center())
 	expect(state.run_state == HalfStepState.RunState.PLAYING, "the RETRY button restarts the run")
-	expect(state.score == 0, "retry clears the score")
-	expect(int(game.get("tutorial_taps")) == 0, "retry brings the hint back")
+
+	# SHARE is the one target that must not be swallowed by the instant retry.
+	state.run_state = HalfStepState.RunState.DEAD
+	game.set("death_time", 600.0)
+	press_touch(game, Rect2(layout.share).get_center())
+	expect(state.run_state == HalfStepState.RunState.DEAD, "tapping SHARE does not restart the run")
+	press_touch(game, Rect2(layout.card).position + Vector2(6, 6))
+	expect(state.run_state == HalfStepState.RunState.PLAYING, "a tap anywhere else on the card retries")
 
 	root.remove_child(game)
 	game.free()

@@ -22,6 +22,20 @@ timing functions, gradients and text metrics it relies on.
 `tests/test_runner.gd` parses the prototype's own source and fails if the zone
 table, cadence formula or layout constants drift apart.
 
+### Deliberate deviations
+
+The prototype is the reference for feel, not a spec to copy bug for bug. Five of
+its behaviours are fixed rather than reproduced. Each has a regression test, so
+do not "restore" them:
+
+| Prototype behaviour | Why it is wrong | What the port does |
+| --- | --- | --- |
+| A landed row stays eligible for `nearestRow()`, and the slide leaves it 14px from the player while the next row is 78px away | The first row decides two landings, so every run opens with a forced repeat of `pattern[0]` | Rows are marked resolved; each decides exactly one landing |
+| The 125ms hop plus the 50ms settle gate the step | Their 175ms sum becomes a hard speed ceiling around score 322, so the run stops accelerating right where the late zones start — against `AGENTS.md` section 7 | Both compress once the cadence drops below their sum, so the beat stays in charge down to the 24ms floor |
+| Taps are swallowed until the card appears, then only its buttons respond | `AGENTS.md` requires immediate retry and that input is never dropped | Any tap retries at once; only SHARE is exempt |
+| `resize` calls `reset()` | A phone browser hiding its address bar ends the run | The row stack is re-laid out around the new player height and the run continues |
+| Only seven rows are built at the start | Leaves a bare strip at the top of a screen taller than 7x92px until the first landing | The opening stack is filled to the top like every later refill |
+
 ## Run
 
 ```bash
