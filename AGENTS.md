@@ -187,17 +187,19 @@ Intended sensation:
 
 Do not return to an "ascending vertically" visual interpretation.
 
-## 10. Pixel art direction
+## 10. Art direction
 
 Target final art:
-- pixel-art mobile game
+- flat vector mobile game, drawn from primitives at runtime — Flappy Bird's level
+  of simplicity and polish
 - readable silhouettes
 - clean small palette
 - warm/cute character against dramatic sky
-- no mushy anti-aliasing
+- smooth edges, generous rounding, no outlines
 - platforms remain instantly readable at speed
 - cloud forms should have depth/parallax but stay visually simple
 
+The earlier pixel-art direction was replaced on request; see `ART_DIRECTION.md`.
 Prototype CSS art is only a reference for motion/feel, not final quality.
 
 ## 11. Viral / sharing loop

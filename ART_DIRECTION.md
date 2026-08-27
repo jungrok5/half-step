@@ -2,7 +2,17 @@
 
 ## Core aesthetic
 
-Pixel-art mobile arcade game.
+Flat vector mobile arcade game.
+
+Everything is drawn from vector primitives at runtime (`src/shapes.gd`,
+`src/art.gd`) rather than from sprite sheets: solid fills, generous rounding, no
+outlines, no pixel grid. The bar is Flappy Bird — few shapes, instantly readable,
+charming at a glance.
+
+Edges are antialiased by `Shapes.fill()`, which traces each filled polygon with
+an antialiased line. Do not reach for 2D MSAA instead: the Compatibility renderer
+the web and mobile builds require rejects it ("2D MSAA is not yet supported for
+GLES3").
 
 Target:
 - cute, warm, simple character
@@ -26,28 +36,31 @@ Reference sensation:
 
 ## Character
 
-Current placeholder:
-small coral/red pixel creature.
+A round coral bird: one body ellipse, a pale belly, a darker wing, a yellow
+beak, one large white eye. Defined once in `src/art.gd` and drawn by both the
+playfield and the share card, so they cannot drift apart.
 
-Final character needs:
-- lovable at tiny scale
-- readable white eyes
-- compact shape
+The character needs:
+- lovable at tiny scale — it is about 30px wide in play
+- one big readable eye rather than two small ones
+- a silhouette that survives being scaled to 1080px on the share card
 - visible squash on landing
 - readable shrinking death animation
 
-Avoid overly detailed sprite animation for v1.
+No sprite sheets, no frame animation for v1: motion comes from squashing and
+rotating the vector shapes.
 
 ## Platforms
 
 Platforms must remain recognizable at extreme speed.
 
 Desired:
-- dark cool-grey body
-- lighter top edge
-- hard pixel edges
-- small surface details only
-- no visual noise
+- dark cool-grey rounded slab
+- lighter top face, so the platform reads as a solid with thickness
+- a darker slab offset below it for depth — no separate drop shadow, which
+  detaches and reads as a second object
+- no surface detail at all: the shape carries it
+- the empty lane is the same rounded outline, unfilled
 
 On impact:
 - original platform stays
@@ -68,8 +81,11 @@ gentle broad cloud movement.
 At high speed:
 - increasing downward movement
 - stronger foreground motion
-- wind streaks
+- wind streaks — thin, faint, round-capped; heavy bars read as solid poles
 - perspective scale variation
+
+A cloud is one merged silhouette, not stacked puffs: overlapping translucent
+circles show a seam along every join.
 
 ## Sky progression
 

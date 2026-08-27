@@ -18,8 +18,12 @@ window/handheld/orientation=1
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+; Flat vector art, so smooth sampling rather than the nearest-neighbour a
+; pixel-art project wants. 2D MSAA is deliberately not set: the Compatibility
+; renderer required for web and mobile rejects it ("2D MSAA is not yet supported
+; for GLES3"), so Shapes.fill() antialiases each polygon's edge itself.
 textures/default_filters/use_nearest_mipmap_filter=false
-textures/canvas_textures/default_texture_filter=0
+textures/canvas_textures/default_texture_filter=1
 
 [audio]
 general/default_playback_type.web=1

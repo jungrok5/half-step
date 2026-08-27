@@ -15,7 +15,6 @@ const PAGE_BACKGROUND := Color("7fc1ff")
 const BASE_Y_RATIO := 0.72
 const LANE_OFFSET := 70.0
 const PLAYER_BOX := 36.0
-const PLAYER_PIXEL := 4.0
 ## `.tile`, `.tile-wrap` and the `gap` between them.
 const TILE_SIZE := Vector2(86.0, 28.0)
 const TILE_GAP := 54.0
@@ -58,29 +57,9 @@ const INK := Color("24313d")
 
 const CLOUD_COUNT := 18
 const WIND_COUNT := 20
-## The union of the `.cloud` box and its 13 box-shadow copies, relative to the
-## element's top-left corner.
-const CLOUD_BANDS := [
-	Rect2(20.0, -16.0, 80.0, 8.0),
-	Rect2(4.0, -8.0, 112.0, 8.0),
-	Rect2(0.0, 0.0, 124.0, 24.0),
-]
-const CLOUD_ORIGIN := Vector2(36.0, 12.0)
 const WIND_SIZE := Vector2(4.0, 28.0)
 
-## `buildPlayerSprite()` cell map: [palette, column, row] on a 4px grid.
-const PLAYER_CELLS := [
-	["dark", 1, 0], ["body", 2, 0], ["body", 3, 0], ["dark", 4, 0],
-	["body", 1, 1], ["body", 2, 1], ["body", 3, 1], ["body", 4, 1],
-	["body", 0, 2], ["body", 1, 2], ["body", 2, 2], ["body", 3, 2], ["body", 4, 2], ["body", 5, 2],
-	["body", 0, 3], ["eye", 1, 3], ["body", 2, 3], ["body", 3, 3], ["eye", 4, 3], ["body", 5, 3],
-	["body", 0, 4], ["body", 1, 4], ["cheek", 2, 4], ["cheek", 3, 4], ["body", 4, 4], ["body", 5, 4],
-	["body", 1, 5], ["body", 2, 5], ["body", 3, 5], ["body", 4, 5],
-	["dark", 2, 6], ["belt", 3, 6],
-	["body", 1, 7], ["body", 2, 7], ["body", 3, 7], ["body", 4, 7],
-	["body", 1, 8], ["body", 2, 8], ["body", 3, 8], ["body", 4, 8],
-	["boot", 1, 9], ["body", 2, 9], ["body", 3, 9], ["boot", 4, 9],
-]
+const TILE_RADIUS := 9.0
 
 const HINT_TEXT := "화면을 탭해서 반대편으로"
 const HINT_SUBTEXT := "멀리 갈수록 다른 하늘이 열린다"
@@ -607,16 +586,6 @@ func player_transform() -> Dictionary:
 	return {"y": y, "scale": scale, "rotation": rotation, "alpha": alpha}
 
 
-static func player_color(kind: String) -> Color:
-	match kind:
-		"dark": return ACCENT_DARK
-		"eye": return Color("ffffff")
-		"boot": return Color("5a3030")
-		"belt": return Color("ffe38e")
-		"cheek": return Color("ffb6ab")
-		_: return ACCENT
-
-
 # --- drawing ----------------------------------------------------------------
 
 func _transform(position: Vector2, rotation := 0.0, scale := Vector2.ONE) -> void:
@@ -674,7 +643,7 @@ func _draw_stars(rect: Rect2) -> void:
 		while y < rect.size.y:
 			var x := fmod(offset.x, tile.x)
 			while x < rect.size.x:
-				draw_rect(Rect2(x - 1.0, y - 1.0, 2.0, 2.0), color)
+				draw_circle(Vector2(x, y), 1.3, color, true, -1.0, true)
 				x += tile.x
 			y += tile.y
 
@@ -697,9 +666,8 @@ func _draw_clouds() -> void:
 		var perspective: float = float(cloud.scale) + (float(cloud.y) / height) * 0.25
 		var color := CLOUD_ALT_COLOR if bool(cloud.alt) else CLOUD_COLOR
 		color.a = 0.72 if bool(cloud.alt) else 0.95
-		_transform(position + CLOUD_ORIGIN, 0.0, Vector2(perspective, perspective))
-		for band: Rect2 in CLOUD_BANDS:
-			draw_rect(Rect2(band.position - CLOUD_ORIGIN, band.size), color)
+		_transform(position + Art.CLOUD_ORIGIN, 0.0, Vector2(perspective, perspective))
+		Art.draw_cloud(self, color)
 	draw_set_transform(_origin)
 
 
@@ -708,12 +676,15 @@ func _draw_wind() -> void:
 	if opacity <= 0.0:
 		return
 	var stretch := 1.0 + minf(4.0, float(state.score) / 45.0)
-	var color := Color(1.0, 1.0, 1.0, 0.88 * opacity)
+	# Thinner and fainter than the pixel skin's hard 4px bars: with round caps and
+	# a smooth edge, the old weight read as solid poles rather than moving air.
+	var color := Color(1.0, 1.0, 1.0, 0.5 * opacity)
+	var thickness := 3.0
+	var half := WIND_SIZE.y * 0.5 * stretch
 	for wind in winds:
 		var center := Vector2(float(wind.x), float(wind.y)) + WIND_SIZE * 0.5
-		_transform(center, 0.0, Vector2(1.0, stretch))
-		draw_rect(Rect2(-WIND_SIZE * 0.5, WIND_SIZE), color)
-	draw_set_transform(_origin)
+		Shapes.capsule(self, center - Vector2(0.0, half - thickness * 0.5),
+			center + Vector2(0.0, half - thickness * 0.5), thickness, color)
 
 
 func _draw_rows(size: Vector2) -> void:
@@ -724,20 +695,13 @@ func _draw_rows(size: Vector2) -> void:
 		for lane in 2:
 			var left := tile_x(lane)
 			var safe: bool = lane == int(row.safe_lane)
-			_draw_tile_shadow(Vector2(left, y), safe)
 			if safe:
 				_draw_tile(Vector2(left, y), float(row.squash))
 			else:
 				_draw_empty_tile(Vector2(left, y))
 
 
-## `.tile-shadow`
-func _draw_tile_shadow(top_left: Vector2, safe: bool) -> void:
-	var alpha := 0.12 if safe else 0.12 * 0.12
-	draw_rect(Rect2(top_left + Vector2(12.0, TILE_WRAP_HEIGHT), Vector2(TILE_SIZE.x - 24.0, 8.0)), Color(0.0, 0.0, 0.0, alpha))
-
-
-## `.tile` plus the landing squash keyframes.
+## A platform: a rounded slab with a lighter top face, plus the landing squash.
 func _draw_tile(top_left: Vector2, squash: float) -> void:
 	var center := top_left + TILE_SIZE * 0.5
 	var offset := 0.0
@@ -752,23 +716,26 @@ func _draw_tile(top_left: Vector2, squash: float) -> void:
 		)
 	_transform(center + Vector2(0.0, offset), 0.0, scale)
 	var half := TILE_SIZE * 0.5
-	draw_rect(Rect2(Vector2(-half.x, half.y), Vector2(TILE_SIZE.x, 6.0)), PLATFORM_SHADOW_COLOR)
-	draw_rect(Rect2(-half, TILE_SIZE), PLATFORM_COLOR)
-	draw_rect(Rect2(-half, Vector2(TILE_SIZE.x, 4.0)), PLATFORM_TOP_COLOR)
-	draw_rect(Rect2(Vector2(-half.x, half.y - 3.0), Vector2(TILE_SIZE.x, 3.0)), Color(0.0, 0.0, 0.0, 0.16))
-	CssPaint.dashed_row(self, Vector2(-half.x + 8.0, -half.y + 10.0), TILE_SIZE.x - 16.0, 2.0, 8.0, 8.0, Color(1.0, 1.0, 1.0, 0.16))
-	draw_rect(Rect2(-half + Vector2(10.0, 6.0), Vector2(4.0, 4.0)), Color(1.0, 1.0, 1.0, 0.14))
-	draw_rect(Rect2(-half + Vector2(68.0, 16.0), Vector2(4.0, 4.0)), Color(1.0, 1.0, 1.0, 0.10))
-	draw_rect(Rect2(-half + Vector2(38.0, 18.0), Vector2(4.0, 4.0)), Color(1.0, 1.0, 1.0, 0.08))
+	var body := Rect2(-half, TILE_SIZE)
+	# The side that catches the light, then the slab, then the top face.
+	Shapes.rounded_rect(self, Rect2(body.position + Vector2(0.0, 5.0), body.size), TILE_RADIUS, PLATFORM_SHADOW_COLOR)
+	Shapes.rounded_rect(self, body, TILE_RADIUS, PLATFORM_COLOR)
+	Shapes.fill(self,
+		Shapes.rounded_rect_polygon(Rect2(body.position, Vector2(TILE_SIZE.x, 11.0)),
+			Vector4(TILE_RADIUS, TILE_RADIUS, 0.0, 0.0)),
+		PLATFORM_TOP_COLOR)
 	draw_set_transform(_origin)
 
 
-## `.tile.empty{outline:3px dashed rgba(255,255,255,.22); outline-offset:-3px}`
+## The lane without a platform: a hint of where one would be.
 func _draw_empty_tile(top_left: Vector2) -> void:
-	CssPaint.dashed_outline(self, Rect2(top_left, TILE_SIZE), 3.0, 6.0, 6.0, Color(1.0, 1.0, 1.0, 0.22))
+	var rect := Rect2(top_left + Vector2(3.0, 3.0), TILE_SIZE - Vector2(6.0, 6.0))
+	Shapes.rounded_rect(self, rect, TILE_RADIUS - 2.0, Color(1.0, 1.0, 1.0, 0.07))
+	draw_polyline(Shapes.closed(Shapes.rounded_rect_polygon(rect, Vector4(TILE_RADIUS - 2.0, TILE_RADIUS - 2.0, TILE_RADIUS - 2.0, TILE_RADIUS - 2.0))),
+		Color(1.0, 1.0, 1.0, 0.28), 2.0, true)
 
 
-## `.impact-ghost`
+## Shock ring that expands off the platform on a landing.
 func _draw_ghosts() -> void:
 	for ghost in ghosts:
 		var t := clampf(float(ghost.time) / GHOST_MS, 0.0, 1.0)
@@ -778,31 +745,29 @@ func _draw_ghosts() -> void:
 			CssAnim.track(t, offsets, [1.0, 1.28, 1.38], CssAnim.IMPACT)
 		)
 		var alpha := CssAnim.track(t, offsets, [0.58, 0.26, 0.0], CssAnim.IMPACT)
+		if alpha <= 0.0:
+			continue
 		var rect: Rect2 = ghost.rect
 		var half := rect.size * 0.5
 		_transform(rect.get_center(), 0.0, scale)
-		draw_rect(Rect2(Vector2(-half.x, half.y), Vector2(rect.size.x, 6.0)), Color(PLATFORM_SHADOW_COLOR, alpha))
-		draw_rect(Rect2(-half, rect.size), Color(PLATFORM_COLOR, alpha))
-		draw_rect(Rect2(-half, Vector2(rect.size.x, 4.0)), Color(PLATFORM_TOP_COLOR, alpha))
+		draw_polyline(Shapes.closed(Shapes.rounded_rect_polygon(Rect2(-half, rect.size),
+			Vector4(TILE_RADIUS, TILE_RADIUS, TILE_RADIUS, TILE_RADIUS))),
+			Color(1.0, 1.0, 1.0, alpha), 3.0, true)
 	draw_set_transform(_origin)
 
 
-## `.impact-pixel` and `.spark`
+## Round sparks thrown out of the landing.
 func _draw_particles() -> void:
 	for particle in particles:
 		var t := clampf(float(particle.time) / PARTICLE_MS, 0.0, 1.0)
 		var eased := CssAnim.curve(CssAnim.EASE_OUT, t)
 		var spark := bool(particle.spark)
-		var size := 6.0 if spark else 5.0
-		var color := Color("ffe9a8") if spark else Color(1.0, 1.0, 1.0, 0.92)
-		color.a *= lerpf(0.9, 0.0, eased)
+		var radius := (3.4 if spark else 2.8) * lerpf(1.0, 0.35, eased)
+		var color := Color("ffe9a8") if spark else Color(1.0, 1.0, 1.0)
+		color.a = lerpf(0.9, 0.0, eased)
 		var direction: Vector2 = particle.direction
 		var offset := Vector2(direction.x * 18.0, direction.y * 11.0) * eased
-		var scale := lerpf(1.0, 0.35, eased)
-		var origin: Vector2 = particle.position - Vector2(2.0, 2.0) + Vector2(size, size) * 0.5
-		_transform(origin + offset, 0.0, Vector2(scale, scale))
-		draw_rect(Rect2(-Vector2(size, size) * 0.5, Vector2(size, size)), color)
-	draw_set_transform(_origin)
+		draw_circle(Vector2(particle.position) + offset, radius, color, true, -1.0, true)
 
 
 func _draw_player() -> void:
@@ -813,9 +778,8 @@ func _draw_player() -> void:
 	var box := Vector2(player_left(), float(animation.y))
 	var center := box + Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
 	_transform(center, float(animation.rotation), animation.scale)
-	for cell: Array in PLAYER_CELLS:
-		var local := Vector2(float(cell[1]) * PLAYER_PIXEL, float(cell[2]) * PLAYER_PIXEL) - Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
-		draw_rect(Rect2(local, Vector2(PLAYER_PIXEL, PLAYER_PIXEL)), Color(player_color(String(cell[0])), alpha))
+	# Beak first so the body's edge covers where it joins.
+	Art.draw_bird(self, alpha)
 	draw_set_transform(_origin)
 
 

@@ -6,10 +6,6 @@ extends Node2D
 ## `shareScore()` hand-off to the platform share sheet.
 
 const SIZE := Vector2i(1080, 1920)
-const CLOUD_PARTS := [
-	Vector2(0, 0), Vector2(8, 0), Vector2(16, 0), Vector2(24, 0), Vector2(32, 0), Vector2(40, 0),
-	Vector2(4, -8), Vector2(12, -8), Vector2(20, -16), Vector2(28, -16), Vector2(36, -8), Vector2(44, -8),
-]
 
 const CLIPBOARD_STATUS := "공유 미지원 · 텍스트를 클립보드에 복사했어요"
 const UNSUPPORTED_STATUS := "이 브라우저는 공유를 지원하지 않아요"
@@ -126,29 +122,30 @@ func _draw() -> void:
 	rng.randomize()
 	if float(zone.stars) > 0.3:
 		for i in 180:
-			var size := float((i % 3) + 2)
-			draw_rect(Rect2(rng.randf() * width, rng.randf() * height * 0.6, size, size), Color(1.0, 1.0, 1.0, 0.9))
+			var radius := float((i % 3) + 2) * 0.6
+			draw_circle(Vector2(rng.randf() * width, rng.randf() * height * 0.6), radius,
+				Color(1.0, 1.0, 1.0, 0.9), true, -1.0, true)
 	for i in 16:
 		var scale := 0.9 + (float(i) / 16.0) * 1.2
 		var color := Color("eaf5fc") if i % 2 == 1 else Color("ffffff")
 		_draw_cloud(Vector2(60.0 + float(i * 61 % 900), 220.0 + float(i) * 95.0), scale, color)
 	for i in 26:
-		draw_rect(
-			Rect2(80.0 + float(i * 37 % 920), 180.0 + float(i) * 54.0, 4.0, 44.0 + float(score) / 18.0),
-			Color(1.0, 1.0, 1.0, 0.65)
-		)
+		var top := Vector2(82.0 + float(i * 37 % 920), 180.0 + float(i) * 54.0)
+		var length := 44.0 + float(score) / 18.0
+		Shapes.capsule(self, top, top + Vector2(0.0, length), 4.0, Color(1.0, 1.0, 1.0, 0.5))
 	draw_rect(Rect2(90.0, 90.0, 900.0, 1740.0), Color("08101a", 0.20))
 	draw_rect(Rect2(114.0, 114.0, 852.0, 1692.0), Color(1.0, 1.0, 1.0, 0.88))
 	_fill_text("HALF STEP", 170.0, 240.0, 58.0, Color("2a3b4b"))
 	_center_text(str(score), 560.0, 240.0, Color("24313d"))
 	_center_text("REACHED · %s" % zone_name, 650.0, 42.0, Color("6e8292"))
-	draw_rect(Rect2(350.0, 1000.0, 170.0, 56.0), Color("25313c"))
-	draw_rect(Rect2(350.0, 1056.0, 170.0, 12.0), Color("111921"))
-	draw_rect(Rect2(560.0, 900.0, 24.0, 24.0), Color("ef6a5b"))
-	draw_rect(Rect2(552.0, 924.0, 40.0, 16.0), Color("ef6a5b"))
-	draw_rect(Rect2(552.0, 940.0, 40.0, 16.0), Color("ef6a5b"))
-	draw_rect(Rect2(560.0, 928.0, 4.0, 4.0), Color(1.0, 1.0, 1.0))
-	draw_rect(Rect2(576.0, 928.0, 4.0, 4.0), Color(1.0, 1.0, 1.0))
+	Shapes.rounded_rect(self, Rect2(350.0, 1010.0, 170.0, 58.0), 18.0, Color("111921"))
+	Shapes.rounded_rect(self, Rect2(350.0, 1000.0, 170.0, 56.0), 18.0, Color("25313c"))
+	Shapes.fill(self, Shapes.rounded_rect_polygon(Rect2(350.0, 1000.0, 170.0, 22.0),
+		Vector4(18.0, 18.0, 0.0, 0.0)), Color("42586d"))
+	# The same bird the game draws, scaled up for the card.
+	draw_set_transform(Vector2(572.0, 928.0), 0.0, Vector2(2.6, 2.6))
+	Art.draw_bird(self)
+	draw_set_transform(Vector2.ZERO)
 	for i in 8:
 		draw_line(Vector2(572.0, 945.0), Vector2(380.0 + float(i) * 52.0, 1220.0 + float(i) * 54.0), Color("24313d", 0.16), 4.0)
 	_center_text(ZoneConfig.milestone_tag_for_score(score), 1280.0, 36.0, Color("ef6a5b"))
@@ -160,10 +157,10 @@ func _draw() -> void:
 	_center_text("PLAY. FAIL. SHARE. REPEAT.", 1740.0, 34.0, Color("24313d"))
 
 
-## `drawCloud(x, y, scale, color)`
 func _draw_cloud(position: Vector2, scale: float, color: Color) -> void:
-	for part: Vector2 in CLOUD_PARTS:
-		draw_rect(Rect2(position + part * scale, Vector2(8.0, 8.0) * scale), color)
+	draw_set_transform(position + Art.CLOUD_ORIGIN * scale, 0.0, Vector2(scale, scale))
+	Art.draw_cloud(self, color)
+	draw_set_transform(Vector2.ZERO)
 
 
 ## `ctx.fillText(text, x, y)` — [param y] is the baseline.
