@@ -1,9 +1,15 @@
 name: Deploy Private Web Test to itch.io
 
+# The only workflow that runs automatically. It validates, runs the full test
+# suite, exports the HTML5 build and pushes it to itch.io in one job, so nothing
+# else needs to run on a push.
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    # Documentation-only pushes ship an identical build.
+    paths-ignore:
+      - "**.md"
 
 concurrency:
   group: itch-web-deploy

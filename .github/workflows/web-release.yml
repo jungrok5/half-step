@@ -1,9 +1,11 @@
 name: Web Release
 
+# Manual, plus real version tags. It used to also build on every push to main,
+# which produced the same export the itch.io deploy had already built minutes
+# earlier.
 on:
   workflow_dispatch:
   push:
-    branches: [main]
     tags: ["v*"]
 
 permissions:

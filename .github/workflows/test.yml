@@ -1,9 +1,11 @@
 name: Test
 
+# Manual only. Every push to main already runs this exact suite inside
+# "Deploy Private Web Test to itch.io" before it exports, and this repository is
+# private, so running it here too spent the account's Actions minutes twice for
+# the same result. Run it by hand from the Actions tab when you want the
+# snapshots without shipping a build.
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
