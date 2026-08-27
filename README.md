@@ -80,10 +80,35 @@ Zip the complete `build/web` directory for distribution. Serve the unzipped dire
 
 ## Private phone testing on itch.io
 
-The `Deploy Private Web Test to itch.io` workflow builds and uploads the HTML5 version whenever `main` changes.
+Deployment is manual and does not use GitHub Actions:
 
-Required GitHub Actions secrets:
+```bash
+export BUTLER_API_KEY=...          # https://itch.io/user/settings/api-keys
+tools/deploy_itch.sh
+```
 
-- `BUTLER_API_KEY` — itch.io API key used by the official butler CLI.
+The script validates the project, runs all four test suites, exports the HTML5
+build and pushes it to `jungrok5/half:html5` with butler. Godot, the web export
+templates and butler are downloaded on first use and cached under
+`~/.cache/half-step`. `--build-only` stops after the export, `--skip-tests`
+exports from a tree you have already tested.
 
-The deployment target is `jungrok5/half:html5`. Keep the itch.io project visibility set to **Restricted** and optionally enable its page password.
+Keep the itch.io project visibility set to **Restricted** and optionally enable
+its page password.
+
+### Why not GitHub Actions
+
+This repository is private, so every automatic workflow run draws on the
+account's Actions allowance, and Actions is currently blocked at the account
+level ("recent account payments have failed or your spending limit needs to be
+increased"). Total usage across the repository's history is only about 42
+minutes, so this is a payment-method problem rather than an exhausted
+allowance.
+
+All three workflows are therefore manual (`workflow_dispatch`) and nothing runs
+on a push. They still work if Actions becomes available again.
+
+A GitHub repository secret is only readable inside a workflow run, so
+`secrets.BUTLERAPIKEY` cannot reach `tools/deploy_itch.sh`. To let an agent
+session deploy on request, add `BUTLER_API_KEY` to the environment variables of
+the Claude Code environment instead of pasting the key into a conversation.

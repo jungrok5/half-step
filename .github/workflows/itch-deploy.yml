@@ -1,15 +1,14 @@
 name: Deploy Private Web Test to itch.io
 
-# The only workflow that runs automatically. It validates, runs the full test
-# suite, exports the HTML5 build and pushes it to itch.io in one job, so nothing
-# else needs to run on a push.
+# Manual only. Nothing in this repository runs on a push any more: it is
+# private, so every automatic run draws on the account's GitHub Actions
+# allowance, and Actions is currently blocked at the account level.
+#
+# The supported way to ship a build is tools/deploy_itch.sh, which does the same
+# validate -> test -> export -> butler push without Actions. Keep this workflow
+# for the day Actions is available again.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    # Documentation-only pushes ship an identical build.
-    paths-ignore:
-      - "**.md"
 
 concurrency:
   group: itch-web-deploy
