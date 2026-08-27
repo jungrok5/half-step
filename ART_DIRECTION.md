@@ -40,25 +40,42 @@ Everything must be drawn from that viewpoint. Nothing may be drawn in profile.
 ## Character
 
 A ginger cat **seen from above**, jumping between bridges hung in the sky. What
-shows is its back: two ears, a striped spine, four paws poking out at the sides
-and a tail curling behind. Never a side profile. Defined once in `src/art.gd`
-and drawn by both the playfield and the share card, so they cannot drift apart.
+shows is its back: two ears, a striped spine, four paws and a tail. Never a side
+profile. Defined once in `src/art.gd` and drawn by both the playfield and the
+share card, so they cannot drift apart.
+
+**No face.** Straight down from above you see the back of a cat's head, not its
+eyes. Drawing a face there was tried and looks wrong. What tells you which end
+is the front instead:
+- the ears
+- the tabby "M" on the forehead
+- whiskers poking out past the head to the sides
 
 The character needs:
 - lovable at tiny scale — it is about 34px wide in play
-- ears and tail doing the silhouette work, since a back has no face to read
-- eyes and muzzle cheated into view anyway, because a featureless back is not
-  charming
+- ears, tail and stripes doing the silhouette work
 - paws placed clear of the body outline, or they simply do not show
 - a silhouette that survives being scaled to 1080px on the share card
 - readable shrinking death animation
 
-A jump is the cat growing as it rises toward the lens while its shadow shrinks
-and slides away below — not an arc across the screen. Straight down the camera,
-that is what height looks like.
+### Movement
 
-No sprite sheets, no frame animation for v1: motion comes from scaling and
-rotating the vector shapes.
+- **Forward jump**: the cat grows as it rises toward the lens while its shadow
+  shrinks and slides away below. Straight down the camera, that is what height
+  looks like — not an arc across the screen.
+- **Airborne pose**: the body stretches along the direction of travel and all
+  four legs are thrown out fore and aft, the shape a cat makes at the top of a
+  leap. Driven by one `leap` value, 0 planted and 1 at the apex.
+- **Crossing lanes**: a diagonal hop, not a slide. The cat arcs across and a
+  little forward, rises toward the lens and leans the way it is going, so a run
+  reads as hopping nimbly between bridges.
+- **Tail**: always swaying, a little faster as the run speeds up; it curls
+  beside the cat at rest and streams out behind it in the air.
+
+No sprite sheets and no frame animation: every pose is the vector shapes moving.
+The silhouette is merged per pose and cached, because merging it every frame
+would be wasteful and drawing the parts separately would show seams through a
+fading cat.
 
 ## Platforms
 

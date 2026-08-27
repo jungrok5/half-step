@@ -144,7 +144,8 @@ func _draw() -> void:
 		Vector4(18.0, 18.0, 0.0, 0.0)), Color("42586d"))
 	# The same cat the game draws, scaled up for the card.
 	draw_set_transform(Vector2(572.0, 928.0), 0.0, Vector2(2.6, 2.6))
-	Art.draw_cat(self)
+	# Caught mid-leap, legs out, which is the pose worth putting on a card.
+	Art.draw_cat(self, 1.0, 0.12, 0.85)
 	draw_set_transform(Vector2.ZERO)
 	for i in 8:
 		draw_line(Vector2(572.0, 945.0), Vector2(380.0 + float(i) * 52.0, 1220.0 + float(i) * 54.0), Color("24313d", 0.16), 4.0)

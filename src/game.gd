@@ -28,7 +28,9 @@ const TILE_WRAP_HEIGHT := 36.0
 const HOP_MS := 125.0
 const SETTLE_MS := 50.0
 const STEP_CYCLE_MS := HOP_MS + SETTLE_MS
-const LANE_MS := 88.0
+## Long enough for the lane change to read as a hop across rather than a slide,
+## still far inside the shortest step cycle.
+const LANE_MS := 120.0
 const PLAYER_SQUASH_MS := 130.0
 const TILE_SQUASH_MS := 115.0
 const GHOST_MS := 190.0
@@ -107,6 +109,12 @@ var lane_to_x := 0.0
 ## as the landing resolves, instead of being judged while it is still overhead
 ## and then snapping into place.
 var row_scroll := 0.0
+## Idle tail sway, advanced every frame.
+var tail_phase := 0.0
+## Duration of the lane hop currently running.
+var lane_length := LANE_MS
+## Which way the cat is hopping across, for the mid-air lean.
+var lane_direction := 0.0
 ## Durations of the cycle currently running, captured when it starts.
 var hop_length := HOP_MS
 var settle_length := SETTLE_MS
@@ -223,6 +231,8 @@ func reset() -> void:
 	death_time = -1.0
 	flow_time = -1.0
 	row_scroll = 0.0
+	lane_length = LANE_MS
+	lane_direction = 0.0
 	hop_length = HOP_MS
 	settle_length = SETTLE_MS
 	banner_time = -1.0
@@ -314,6 +324,8 @@ func tap() -> void:
 	lane_from_x = player_left()
 	state.toggle_lane()
 	lane_to_x = lane_x(state.lane)
+	lane_direction = signf(lane_to_x - lane_from_x)
+	lane_length = LANE_MS * cycle_scale()
 	lane_time = 0.0
 	tutorial_taps += 1
 	_vibrate(5)
@@ -336,6 +348,9 @@ func _process(delta: float) -> void:
 
 func _advance_timers(dt: float) -> void:
 	hint_phase = fmod(hint_phase + dt, HINT_PULSE_MS)
+	# The tail keeps swaying whatever else is happening, a little faster as the
+	# run speeds up.
+	tail_phase = fmod(tail_phase + dt * 0.00055 * (1.0 + float(state.score) / 240.0), 1.0)
 	if hop_time >= 0.0:
 		hop_time += dt
 		row_scroll = HalfStepState.ROW_SPACING * CssAnim.curve(
@@ -351,7 +366,7 @@ func _advance_timers(dt: float) -> void:
 			finish_step()
 	if lane_time >= 0.0:
 		lane_time += dt
-		if lane_time >= LANE_MS:
+		if lane_time >= lane_length:
 			lane_time = -1.0
 	if player_squash_time >= 0.0:
 		player_squash_time += dt
@@ -595,8 +610,21 @@ func share_score() -> void:
 
 func player_left() -> float:
 	if lane_time >= 0.0:
-		return lerpf(lane_from_x, lane_to_x, CssAnim.curve(CssAnim.SNAP, lane_time / LANE_MS))
+		return lerpf(lane_from_x, lane_to_x, CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001)))
 	return lane_x(state.lane)
+
+
+## How far off a bridge the cat is, 0 planted and 1 at the top of a jump. Both
+## the forward hop and the hop across the lanes contribute, so a tap mid-beat
+## still throws the legs out.
+func leap_amount() -> float:
+	var forward := 0.0
+	if hop_time >= 0.0:
+		forward = sin(PI * clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0))
+	var across := 0.0
+	if lane_time >= 0.0:
+		across = sin(PI * clampf(lane_time / maxf(lane_length, 0.001), 0.0, 1.0))
+	return clampf(maxf(forward, across), 0.0, 1.0)
 
 
 func player_transform() -> Dictionary:
@@ -622,6 +650,14 @@ func player_transform() -> Dictionary:
 		y += CssAnim.track(t, offsets, [0.0, -11.0, 0.0], CssAnim.SNAP)
 		var lift := CssAnim.track(t, offsets, [1.0, 1.16, 1.0], CssAnim.SNAP)
 		scale = Vector2(lift, lift)
+	if lane_time >= 0.0 and death_time < 0.0:
+		# Crossing lanes is a hop, not a slide: the cat arcs across and a little
+		# forward, rising toward the lens and leaning the way it is going.
+		var across := sin(PI * clampf(lane_time / maxf(lane_length, 0.001), 0.0, 1.0))
+		y -= 9.0 * across
+		var lift := 1.0 + 0.11 * across
+		scale *= lift
+		rotation += lane_direction * 0.30 * across
 	elif player_squash_time >= 0.0:
 		var t := clampf(player_squash_time / (PLAYER_SQUASH_MS * cycle_scale()), 0.0, 1.0)
 		var offsets := [0.0, 0.45, 1.0]
@@ -840,7 +876,7 @@ func _draw_player() -> void:
 	var center := box + Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
 	_transform(center, float(animation.rotation), animation.scale)
 	# Beak first so the body's edge covers where it joins.
-	Art.draw_cat(self, alpha)
+	Art.draw_cat(self, alpha, tail_phase, leap_amount())
 	draw_set_transform(_origin)
 
 
