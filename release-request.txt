@@ -1,0 +1,10 @@
+# Ask for a release by replacing this file's contents with a bare version, e.g.
+#
+#   0.1.0
+#
+# then commit and push it to main. The Web Release workflow picks it up, runs the
+# test suite, exports the HTML5 build and attaches the zip to a new GitHub
+# release tagged v<version>. Re-pushing a version that already has a release is a
+# no-op, and comment lines like these mean "no release wanted".
+#
+# The same workflow can be started from the Actions tab with a version input.

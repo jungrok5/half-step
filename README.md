@@ -62,6 +62,15 @@ xvfb-run -a -s "-screen 0 800x1200x24" \
   godot --path . --script res://tools/render_snapshots.gd -- "$PWD/snapshots"
 ```
 
+## No third-party GitHub Actions
+
+Every action used is first-party `actions/*`. Godot and the web export templates
+are installed by `tools/setup_godot.sh`, which both the workflows and
+`tools/deploy_itch.sh` call, and releases are cut with the `gh` CLI that ships on
+the runner. A marketplace action runs its own code inside the job with the job's
+token, and a `@v2` style tag can be repointed at any time — this repository has
+no such dependency to trust or to pin.
+
 ## Fonts
 
 `assets/fonts/` holds subsets of DejaVu Sans Mono Bold and GNU Unifont covering
@@ -77,6 +86,20 @@ godot --headless --path . --export-release Web build/web/index.html
 ```
 
 Zip the complete `build/web` directory for distribution. Serve the unzipped directory over HTTP(S); opening `index.html` directly is not supported by WebAssembly browser security rules.
+
+## Releases
+
+Write a bare version into `release-request.txt` and push it to `main`:
+
+```
+0.1.0
+```
+
+The Web Release workflow runs the test suite, exports the build and attaches the
+zip to a new `v0.1.0` GitHub release, with the release commit's own message as
+the notes. Re-pushing a version that already has a release does nothing, and a
+file holding only comments asks for nothing. The same workflow also takes a
+version from the Actions tab.
 
 ## Play it
 

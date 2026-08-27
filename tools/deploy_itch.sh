@@ -17,12 +17,10 @@
 
 set -euo pipefail
 
-GODOT_VERSION="${GODOT_VERSION:-4.7.2}"
 ITCH_CHANNEL="${ITCH_CHANNEL:-jungrok5/half:html5}"
 CACHE="${HALF_STEP_CACHE:-$HOME/.cache/half-step}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="$ROOT/build/web"
-TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
 
 BUILD_ONLY=0
 SKIP_TESTS=0
@@ -41,35 +39,8 @@ fetch() {
   curl --fail --location --silent --show-error --retry 5 --retry-all-errors --output "$1" "$2"
 }
 
-# --- Godot ------------------------------------------------------------------
-GODOT_BIN="${GODOT:-}"
-if [ -z "$GODOT_BIN" ] && command -v godot >/dev/null 2>&1; then
-  GODOT_BIN="$(command -v godot)"
-fi
-if [ -z "$GODOT_BIN" ]; then
-  GODOT_BIN="$CACHE/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
-  if [ ! -x "$GODOT_BIN" ]; then
-    log "Downloading Godot $GODOT_VERSION"
-    mkdir -p "$CACHE"
-    fetch "$CACHE/godot.zip" \
-      "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
-    unzip -o -q "$CACHE/godot.zip" -d "$CACHE"
-    rm -f "$CACHE/godot.zip"
-    chmod +x "$GODOT_BIN"
-  fi
-fi
-log "Godot: $("$GODOT_BIN" --version)"
-
-# --- web export templates ---------------------------------------------------
-if [ ! -f "$TEMPLATE_DIR/web_nothreads_release.zip" ]; then
-  log "Installing web export templates for $GODOT_VERSION"
-  mkdir -p "$TEMPLATE_DIR" "$CACHE"
-  fetch "$CACHE/templates.tpz" \
-    "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-  # Only the web templates are needed; the rest of the 1.2GB archive is skipped.
-  unzip -o -j -q "$CACHE/templates.tpz" 'templates/web*' -d "$TEMPLATE_DIR"
-  rm -f "$CACHE/templates.tpz"
-fi
+# --- Godot and the web export templates -------------------------------------
+GODOT_BIN="$("$ROOT/tools/setup_godot.sh")"
 
 # --- validate and test ------------------------------------------------------
 log "Importing project"

@@ -23,11 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: chickensoft-games/setup-godot@v2
+      - name: Cache Godot and the web export templates
+        uses: actions/cache@v4
         with:
-          version: 4.7.2
-          use-dotnet: false
-          include-templates: true
+          path: |
+            ~/.cache/half-step
+            ~/.local/share/godot/export_templates
+          key: godot-4.7.2-web-v1
+
+      - name: Install Godot
+        run: tools/setup_godot.sh
 
       - name: Validate and test
         run: |

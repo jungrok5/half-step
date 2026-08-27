@@ -1,49 +1,120 @@
 name: Web Release
 
-# Manual, plus real version tags. It used to also build on every push to main,
-# which produced the same export the itch.io deploy had already built minutes
-# earlier.
+# Two ways in, following jungrok5/super-vs:
+#  - workflow_dispatch with a version input
+#  - writing a version into release-request.txt and pushing it to main, which is
+#    the path open to a session that cannot reach the workflow-dispatch API
+#    (dispatch only works for workflows that already exist on the default
+#    branch, so a feature branch has no other way to ask for a release)
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag, e.g. 0.1.0"
+        required: true
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: ["release-request.txt"]
 
 permissions:
   contents: read
 
+concurrency:
+  group: web-release
+  cancel-in-progress: false
+
 jobs:
-  build-web:
+  release:
     runs-on: ubuntu-latest
-    # Needed only to attach the ZIP to a GitHub Release on a v* tag.
     permissions:
+      # gh release create
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: chickensoft-games/setup-godot@v2
         with:
-          version: 4.7.2
-          use-dotnet: false
-          include-templates: true
-      - name: Validate and test
+          # Needed for the release notes, which are the release commit's message.
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
         run: |
-          godot --headless --path . --editor --quit
+          version="${{ github.event.inputs.version }}"
+          if [ -z "$version" ]; then
+            # Comments and blank lines let the file sit in the tree without
+            # asking for anything.
+            version="$(grep -vE '^\s*(#|$)' release-request.txt | head -1 | tr -d ' \r\n' || true)"
+          fi
+          if [ -z "$version" ]; then
+            echo "::notice::release-request.txt names no version, nothing to release"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh release view "v$version" >/dev/null 2>&1; then
+            echo "::notice::v$version already exists, nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "releasing v$version"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Cache Godot and the web export templates
+        if: steps.ver.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/half-step
+            ~/.local/share/godot/export_templates
+          key: godot-4.7.2-web-v1
+
+      - name: Install Godot
+        if: steps.ver.outputs.skip != 'true'
+        run: tools/setup_godot.sh
+
+      - name: Import project
+        if: steps.ver.outputs.skip != 'true'
+        run: godot --headless --path . --editor --quit
+
+      - name: Run gameplay tests
+        if: steps.ver.outputs.skip != 'true'
+        run: |
           godot --headless --path . --script res://tests/test_runner.gd
           godot --headless --path . --script res://tests/step_cycle_test.gd
           godot --headless --path . --script res://tests/audio_test.gd
           godot --headless --path . --script res://tests/input_integration_test.gd
-      - name: Export web build
+
+      - name: Export and package the web build
+        if: steps.ver.outputs.skip != 'true'
         run: |
           mkdir -p build/web
           godot --headless --path . --export-release Web build/web/index.html
-      - name: Package web build
-        run: cd build/web && zip -r ../half-step-web-${{ github.ref_name }}.zip .
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: half-step-web-${{ github.ref_name }}
-          path: build/half-step-web-${{ github.ref_name }}.zip
-      - name: Attach ZIP to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/half-step-web-${{ github.ref_name }}.zip
+          test -s build/web/index.wasm
+          cd build/web && zip -qr "../half-step-web-v${{ steps.ver.outputs.version }}.zip" .
+
+      # The notes are the release commit's own message, so they cannot drift from
+      # what actually shipped.
+      - name: Build release notes from the commit message
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          {
+            git log -1 --pretty=%B "${{ github.sha }}" \
+              | grep -v -e '^Co-Authored-By:' -e '^Claude-Session:' -e '^Signed-off-by:' \
+              | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+            printf '\n---\n\n'
+            printf 'Unzip and serve the directory over HTTP; opening `index.html` from disk\n'
+            printf 'will not work, because WebAssembly is blocked on `file://` URLs.\n\n'
+            printf 'Playable build: https://jungrok5.github.io/half-step/\n'
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub release
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.ver.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --title "HALF STEP v${{ steps.ver.outputs.version }}" \
+            --notes-file RELEASE_NOTES.md \
+            "build/half-step-web-v${{ steps.ver.outputs.version }}.zip"

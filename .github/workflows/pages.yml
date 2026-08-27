@@ -8,10 +8,12 @@ on:
       - "**.md"
   workflow_dispatch:
 
-# Least privilege per job: the build job runs a third-party action to install
-# Godot and only ever needs to read the repository, so the Pages write and
-# OIDC token permissions stay in the deploy job, which runs first-party
-# actions only.
+# Least privilege per job: the build job only ever needs to read the repository,
+# so the Pages write and OIDC token permissions stay in the deploy job.
+#
+# No third-party actions anywhere in this repository. Godot is installed by
+# tools/setup_godot.sh — the same script local builds use — instead of a
+# marketplace action whose moving tag could change what runs here.
 permissions: {}
 
 # Never cancel a deployment that is already publishing; queue behind it.
@@ -29,11 +31,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: chickensoft-games/setup-godot@v2
+      - name: Cache Godot and the web export templates
+        uses: actions/cache@v4
         with:
-          version: 4.7.2
-          use-dotnet: false
-          include-templates: true
+          path: |
+            ~/.cache/half-step
+            ~/.local/share/godot/export_templates
+          key: godot-4.7.2-web-v1
+
+      - name: Install Godot
+        run: tools/setup_godot.sh
 
       - name: Import project
         run: godot --headless --path . --editor --quit
