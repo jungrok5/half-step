@@ -20,19 +20,12 @@ const TILE_SIZE := Vector2(86.0, 28.0)
 const TILE_GAP := 54.0
 const TILE_WRAP_HEIGHT := 36.0
 
-## The hop resolves the landing and the settle slides the row stack, so their
-## sum is a floor on how fast the game can actually step. In the prototype that
-## floor (175ms) is reached around score 322 and the run stops accelerating
-## there, which contradicts the monotonic speed curve in AGENTS.md section 7.
-## Past that point both are compressed so the cadence stays in charge.
-const HOP_MS := 125.0
-const SETTLE_MS := 50.0
-const STEP_CYCLE_MS := HOP_MS + SETTLE_MS
-## How long the cat takes to shift its weight toward the lane it has committed
-## to. It stays on its own bridge while it does.
+## How long the cat is in the air on a sideways jump. Like every other
+## animation it is clamped to a fraction of the beat, so the prototype's
+## 125+50ms hop/settle pair can never become a floor on the cadence the way it
+## did in the browser (it capped the run at 175ms per step from about score 322,
+## contradicting the monotonic speed curve in AGENTS.md section 7).
 const LANE_MS := 110.0
-## How far it leans, small enough that all four paws stay on the 86px deck.
-const LEAN_DISTANCE := 20.0
 const PLAYER_SQUASH_MS := 130.0
 const TILE_SQUASH_MS := 115.0
 const GHOST_MS := 190.0
@@ -74,7 +67,7 @@ const WIND_SIZE := Vector2(4.0, 28.0)
 
 const TILE_RADIUS := 9.0
 
-const HINT_TEXT := "화면을 탭해서 반대편으로"
+const HINT_TEXT := "발판이 다가올 때 탭해서 건너기"
 const HINT_SUBTEXT := "멀리 갈수록 다른 하늘이 열린다"
 const SAVE_PATH := "user://half_step.cfg"
 
@@ -90,8 +83,6 @@ var last_result_zone := "BLUE SKY"
 var zone_index := -1
 
 ## Presentation timers, in milliseconds. -1 means "not running".
-var hop_time := -1.0
-var settle_time := -1.0
 var lane_time := -1.0
 var player_squash_time := -1.0
 var death_time := -1.0
@@ -104,7 +95,6 @@ var banner_size := 13.0
 var hint_phase := 0.0
 
 var lane_from_x := 0.0
-var lane_to_x := 0.0
 ## How far the bridge stack has visually travelled toward the cat within the
 ## current step. The rows themselves only move once, at the end of the step; on
 ## screen they slide across the jump so the bridge arrives under the cat exactly
@@ -115,18 +105,11 @@ var row_scroll := 0.0
 var tail_phase := 0.0
 ## Duration of the lane hop currently running.
 var lane_length := LANE_MS
-## The lane the cat is physically standing on. `state.lane` is where the tap has
-## committed it to land next; the two differ between the tap and the jump, and
-## the cat spends that time leaning off the edge of its own bridge rather than
-## hovering over the gap beside it.
-var standing_lane := 0
-## Where the leap started, so a tap mid-flight re-aims it instead of teleporting.
-var hop_from_x := 0.0
+## Set when a tap jumped for a bridge that was not there. The cat completes the
+## leap and then falls, so the player sees what went wrong.
+var doomed_leap := false
 ## Frozen at death so the fall starts from the exact screen position.
 var death_x := 0.0
-## Durations of the cycle currently running, captured when it starts.
-var hop_length := HOP_MS
-var settle_length := SETTLE_MS
 ## Player height the row stack was last laid out against.
 var layout_base_y := 0.0
 
@@ -230,20 +213,16 @@ func _on_viewport_resized() -> void:
 func reset() -> void:
 	share_status = ""
 	was_best = false
-	standing_lane = 0
 	layout_base_y = base_y()
 	state.reset(layout_base_y, game_size().y, _rng.randi())
 	tutorial_taps = 0
-	hop_time = -1.0
-	settle_time = -1.0
 	lane_time = -1.0
 	player_squash_time = -1.0
 	death_time = -1.0
 	flow_time = -1.0
 	row_scroll = 0.0
 	lane_length = LANE_MS
-	hop_length = HOP_MS
-	settle_length = SETTLE_MS
+	doomed_leap = false
 	banner_time = -1.0
 	ghosts.clear()
 	particles.clear()
@@ -331,11 +310,14 @@ func _input(event: InputEvent) -> void:
 ## `tap()` — never locked, never queued.
 func tap() -> void:
 	lane_from_x = player_left()
+	# A tap is a jump, resolved where the cat is now — not a lane setting read
+	# at the next beat. Jumping for a bridge that has not arrived, or for a lane
+	# that has none, means jumping into open sky.
+	var reachable := state.can_cross(base_y(), row_scroll, 1 - state.lane)
 	state.toggle_lane()
-	# Mid-flight the leap simply re-aims; there is no weight to shift.
-	if hop_time < 0.0:
-		lane_length = LANE_MS * cycle_scale()
-		lane_time = 0.0
+	doomed_leap = doomed_leap or not reachable
+	lane_length = beat_fraction(LANE_MS)
+	lane_time = 0.0
 	tutorial_taps += 1
 	_vibrate(5)
 	queue_redraw()
@@ -349,9 +331,11 @@ func _process(delta: float) -> void:
 	if state.is_running():
 		update_background(dt)
 		state.step_timer += dt
-		if state.step_timer >= state.step_interval and not state.stepping:
+		while state.step_timer >= state.step_interval and state.is_running():
 			state.step_timer -= state.step_interval
-			start_step()
+			resolve_beat()
+		if state.is_running():
+			row_scroll = HalfStepState.ROW_SPACING * step_phase()
 	queue_redraw()
 
 
@@ -360,26 +344,17 @@ func _advance_timers(dt: float) -> void:
 	# The tail keeps swaying whatever else is happening, a little faster as the
 	# run speeds up.
 	tail_phase = fmod(tail_phase + dt * 0.00055 * (1.0 + float(state.score) / 240.0), 1.0)
-	if hop_time >= 0.0:
-		hop_time += dt
-		row_scroll = HalfStepState.ROW_SPACING * CssAnim.curve(
-			CssAnim.SNAP, clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0))
-		if hop_time >= hop_length:
-			hop_time = -1.0
-			row_scroll = HalfStepState.ROW_SPACING
-			resolve_landing()
-	if settle_time >= 0.0:
-		settle_time += dt
-		if settle_time >= settle_length:
-			settle_time = -1.0
-			finish_step()
 	if lane_time >= 0.0:
 		lane_time += dt
 		if lane_time >= lane_length:
 			lane_time = -1.0
+			if doomed_leap:
+				# The cat jumped for a bridge that was not there.
+				doomed_leap = false
+				die()
 	if player_squash_time >= 0.0:
 		player_squash_time += dt
-		if player_squash_time >= PLAYER_SQUASH_MS * cycle_scale():
+		if player_squash_time >= beat_fraction(PLAYER_SQUASH_MS):
 			player_squash_time = -1.0
 	if death_time >= 0.0:
 		death_time += dt
@@ -461,29 +436,25 @@ func update_background(dt: float) -> void:
 
 # --- step cycle -------------------------------------------------------------
 
-## Shrinks the hop and settle once the cadence is shorter than they are, so the
-## beat keeps setting the pace instead of the animation.
-func cycle_scale() -> float:
-	return minf(1.0, state.step_interval / STEP_CYCLE_MS)
+## Animations never outlast the beat they belong to.
+func beat_fraction(milliseconds: float) -> float:
+	return minf(milliseconds, state.step_interval * 0.6)
 
 
-## `startStep()` — the hop plays first, the landing resolves when it finishes.
-func start_step() -> void:
-	state.stepping = true
-	hop_from_x = player_left()
-	lane_time = -1.0
-	hop_length = HOP_MS * cycle_scale()
-	hop_time = 0.0
+## How far through the current beat the world is, 0 just after a bridge arrived
+## and 1 as the next one does. The stack slides a full row across it, so the
+## player can see the next bridge closing in and time a jump against it.
+func step_phase() -> float:
+	return clampf(state.step_timer / maxf(state.step_interval, 0.001), 0.0, 1.0)
 
 
-## `resolveLanding()`
-func resolve_landing() -> void:
+## One beat resolving: the arriving bridge is now under the cat.
+func resolve_beat() -> void:
+	row_scroll = HalfStepState.ROW_SPACING
 	var row := state.resolve_landing(base_y())
 	if row.is_empty():
 		die()
 		return
-	# The cat is now standing on the bridge it just landed on.
-	standing_lane = state.lane
 	tone_player.play_success_note(state.note_position())
 	flow_time = 0.0
 	spawn_impact(row)
@@ -492,22 +463,9 @@ func resolve_landing() -> void:
 	_vibrate(5)
 	apply_zone()
 	secret_flash()
-	settle_length = SETTLE_MS * cycle_scale()
-	settle_time = 0.0
-
-
-## The `setTimeout(..., 50)` tail of `resolveLanding()`.
-func finish_step() -> void:
-	if not state.is_running():
-		return
+	# The stack catches up with where it was already being drawn; nothing jumps.
 	state.advance_rows(base_y(), game_size().y)
-	# The stack has caught up with where it was already being drawn.
 	row_scroll = 0.0
-	# `player.getAnimations().forEach(a => a.cancel())` also drops an in-flight
-	# lane slide, snapping the player onto its lane.
-	lane_time = -1.0
-	player_squash_time = -1.0
-	state.stepping = false
 
 
 ## `platformImpact(tile)`
@@ -527,11 +485,15 @@ func spawn_impact(row: Dictionary) -> void:
 
 ## `die()`
 func die() -> void:
+	if death_time >= 0.0:
+		return
+	# A missed landing has already ended the run in the rules layer; a leap into
+	# open sky has not, so this is where both paths agree the run is over.
+	state.run_state = HalfStepState.RunState.DEAD
 	# AGENTS.md: the fall starts from the exact position the cat missed at.
 	death_x = player_left()
-	hop_time = -1.0
-	settle_time = -1.0
 	lane_time = -1.0
+	doomed_leap = false
 	player_squash_time = -1.0
 	death_time = 0.0
 	tone_player.play_fall()
@@ -623,36 +585,19 @@ func share_score() -> void:
 
 # --- player animation -------------------------------------------------------
 
-## Where the cat stands while it is on a bridge: on its own deck, leaning toward
-## the lane it has committed to. Never out over the gap.
-func grounded_x() -> float:
-	var here := lane_x(standing_lane)
-	var committed := lane_x(state.lane)
-	if is_equal_approx(here, committed):
-		return here
-	return here + signf(committed - here) * LEAN_DISTANCE
-
-
 func player_left() -> float:
 	if death_time >= 0.0:
 		return death_x
-	if hop_time >= 0.0:
-		# The leap itself carries the cat across, so crossing lanes is one
-		# diagonal jump from bridge to bridge.
-		return lerpf(hop_from_x, lane_x(state.lane),
-			CssAnim.curve(CssAnim.SNAP, hop_time / maxf(hop_length, 0.001)))
 	if lane_time >= 0.0:
-		return lerpf(lane_from_x, grounded_x(), CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001)))
-	return grounded_x()
+		return lerpf(lane_from_x, lane_x(state.lane),
+			CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001)))
+	return lane_x(state.lane)
 
 
-## How far off a bridge the cat is, 0 planted and 1 at the top of a jump. Both
-## the forward hop and the hop across the lanes contribute, so a tap mid-beat
-## still throws the legs out.
+## How far off a bridge the cat is, 0 as one arrives under it and 1 halfway
+## between two. The lane jump adds to it, so a tap mid-beat throws the legs out.
 func leap_amount() -> float:
-	var forward := 0.0
-	if hop_time >= 0.0:
-		forward = sin(PI * clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0))
+	var forward := sin(PI * step_phase())
 	var across := 0.0
 	if lane_time >= 0.0:
 		across = sin(PI * clampf(lane_time / maxf(lane_length, 0.001), 0.0, 1.0))
@@ -673,25 +618,19 @@ func player_transform() -> Dictionary:
 		rotation = deg_to_rad(CssAnim.track(t, offsets, [0.0, 20.0, 75.0, 160.0], CssAnim.DEPTH))
 		alpha = CssAnim.track(t, offsets, [1.0, 0.94, 0.62, 0.0], CssAnim.DEPTH)
 		return {"y": y, "scale": scale, "rotation": rotation, "alpha": alpha}
-	if hop_time >= 0.0:
-		# Straight down the camera, a jump is the cat growing as it rises toward
-		# the lens, not an arc across the screen. A little travel stays so the
-		# hop still points at the bridge it is heading for.
-		var t := clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0)
-		var offsets := [0.0, 0.5, 1.0]
-		y += CssAnim.track(t, offsets, [0.0, -11.0, 0.0], CssAnim.SNAP)
-		var lift := CssAnim.track(t, offsets, [1.0, 1.16, 1.0], CssAnim.SNAP)
-		scale = Vector2(lift, lift)
-	var crossing := signf(lane_x(state.lane) - lane_x(standing_lane))
-	if hop_time >= 0.0:
-		# Leaning into a diagonal leap.
-		rotation += crossing * 0.30 * sin(PI * clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0))
-	elif crossing != 0.0:
-		# Weight already shifted toward the bridge it is about to jump to.
-		var settled := 1.0 if lane_time < 0.0 else CssAnim.curve(CssAnim.SNAP, lane_time / maxf(lane_length, 0.001))
-		rotation += crossing * 0.22 * settled
-	if player_squash_time >= 0.0 and hop_time < 0.0:
-		var t := clampf(player_squash_time / (PLAYER_SQUASH_MS * cycle_scale()), 0.0, 1.0)
+	# Straight down the camera, height is the cat growing toward the lens. It is
+	# airborne through the middle of every beat and lands as a bridge arrives.
+	var airborne := sin(PI * step_phase())
+	y -= 13.0 * airborne
+	var lift := 1.0 + 0.17 * airborne
+	scale = Vector2(lift, lift)
+	if lane_time >= 0.0:
+		var across := sin(PI * clampf(lane_time / maxf(lane_length, 0.001), 0.0, 1.0))
+		var direction := signf(lane_x(state.lane) - lane_from_x)
+		scale *= 1.0 + 0.08 * across
+		rotation += direction * 0.32 * across
+	if player_squash_time >= 0.0:
+		var t := clampf(player_squash_time / maxf(beat_fraction(PLAYER_SQUASH_MS), 0.001), 0.0, 1.0)
 		var offsets := [0.0, 0.45, 1.0]
 		y += CssAnim.track(t, offsets, [0.0, 4.0, 0.0], CssAnim.EASE_OUT)
 		scale = Vector2(

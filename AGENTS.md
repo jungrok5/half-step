@@ -27,6 +27,10 @@ The core game must remain small. Do not add systems merely to create content.
 - Do not add an input lock that causes taps to be ignored.
 - Do not queue future lane decisions.
 - Do not require swipe, hold, double tap, or multi-button input.
+- A tap is a jump, judged where the cat is at the instant it is made: it only
+  reaches a bridge that has closed to within half a row spacing, on the lane
+  being jumped to. Anything else is a jump into open sky and the run ends.
+  (Approved 2026-08-27, overriding the entry in section 3 — see below.)
 
 ### Cadence
 - The player advances automatically on a fixed current cadence.
@@ -57,8 +61,15 @@ Do NOT reintroduce these unless the user explicitly asks:
 
 - Variable rhythm that slows down or changes beat length.
   - Rejected because it breaks learned rhythm and feels unpleasant.
-- Tap = immediate full physical jump toward the next platform.
-  - Rejected because timing + direction became confusing and too difficult.
+- ~~Tap = immediate full physical jump toward the next platform.~~
+  - Originally rejected because timing + direction became confusing and too
+    difficult. REINSTATED on explicit request, 2026-08-27: without it the tap
+    could be made at any point in the beat and nothing was being timed. The
+    confusion it caused the first time came from a row stack that snapped into
+    place; the world now scrolls continuously across every beat, so the
+    arriving bridge is visible to time the jump against. See
+    PROTOTYPE_HISTORY.md, "The lean was a free pass". Do not remove it again
+    without the same explicit approval.
 - Queued next-lane indicator / input buffering as visible gameplay.
   - Rejected because it gave too much planning time and made the game too easy.
 - Star risk/reward platform mechanic.

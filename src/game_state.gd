@@ -29,6 +29,15 @@ const ROW_ANCHOR := 14.0
 ## Rows below `clientHeight + 100` are dropped, rows are refilled above -100.
 const RECYCLE_MARGIN := 100.0
 const NOTE_COUNT := 24
+## A tap is a jump, not a lane setting: the cat only reaches a bridge that has
+## already closed to within this much of it. Half a row spacing opens the window
+## exactly at the midpoint of every beat, whatever the cadence, so the timing
+## demand stays proportional as the run speeds up.
+##
+## This is the design AGENTS.md section 3 records as rejected ("Tap = immediate
+## full physical jump toward the next platform"). It was reinstated on explicit
+## request on 2026-08-27; see PROTOTYPE_HISTORY.md.
+const CROSS_REACH := ROW_SPACING * 0.5
 
 const EARLY_PATTERNS: Array = [[0, 1, 0, 1], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 0]]
 const MID_PATTERNS: Array = [
@@ -46,8 +55,6 @@ var success_streak := 0
 var run_state: RunState = RunState.PLAYING
 var step_interval := START_INTERVAL_MS
 var step_timer := 0.0
-## True between the start of the hop and the post-landing settle.
-var stepping := false
 ## Row stack, nearest-to-player first is not guaranteed; each entry is
 ## `{"y": float, "safe_lane": int, "squash": float}`. `squash` is owned by the
 ## presentation layer and never read here.
@@ -75,7 +82,6 @@ func reset(base_y: float, view_height: float, seed_value: int = -1) -> void:
 	success_streak = 0
 	step_timer = 0.0
 	step_interval = START_INTERVAL_MS
-	stepping = false
 	run_state = RunState.PLAYING
 	rebuild_rows(base_y, view_height)
 
@@ -118,6 +124,10 @@ func make_row(y: float, safe_lane: int) -> Dictionary:
 func rebuild_rows(base_y: float, view_height: float) -> void:
 	rows.clear()
 	choose_pattern()
+	# The bridge the run starts standing on. It is resolved from the outset so it
+	# never decides a landing; it exists so the opening frame shows a cat on a
+	# bridge rather than a cat hanging in open sky.
+	make_row(base_y, lane).resolved = true
 	for i in INITIAL_ROWS:
 		make_row(base_y - float(i + 1) * ROW_SPACING, next_safe())
 	# The prototype only builds seven rows, which leaves a bare strip at the top
@@ -140,6 +150,21 @@ func nearest_row_index(base_y: float) -> int:
 	return best
 
 
+## Whether a jump to [param target_lane] would find a bridge under it right now.
+## [param scroll] is how far the stack has already slid toward the player within
+## the current beat, so this judges exactly what the player can see.
+func can_cross(base_y: float, scroll: float, target_lane: int) -> bool:
+	var index := nearest_row_index(base_y)
+	if index < 0:
+		return false
+	if int(rows[index].safe_lane) != target_lane:
+		return false
+	# How far the arriving bridge still has to travel to be under the cat.
+	# Negative once it has arrived, which is still a reachable jump.
+	var remaining: float = base_y - (float(rows[index].y) + scroll)
+	return remaining <= CROSS_REACH
+
+
 ## `resolveLanding()` — returns the landed row on success, or an empty
 ## dictionary when the run ends. The row is left in place; the stack only moves
 ## in [method advance_rows].
@@ -147,7 +172,6 @@ func resolve_landing(base_y: float) -> Dictionary:
 	var index := nearest_row_index(base_y)
 	if index < 0 or int(rows[index].safe_lane) != lane:
 		run_state = RunState.DEAD
-		stepping = false
 		return {}
 	rows[index].resolved = true
 	success_streak += 1

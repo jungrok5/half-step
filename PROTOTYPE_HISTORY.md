@@ -229,3 +229,46 @@ Permanent lesson:
 Do not let the character occupy a place the rules do not support, even briefly.
 Players read position as truth, and a survivable impossible position teaches
 them the obstacles are fake.
+
+### The lean was a free pass (2026-08-27)
+
+Leaning solved the floating cat but left the game trivially easy: a tap could be
+made at any point in the beat and the cat was carried across regardless. Nothing
+was being timed. As the player put it — a tap made early is not a beat spent
+hovering, it is a jump into empty space, and it should end the run.
+
+Fix, on explicit request: a tap is a jump, resolved at the instant it is made.
+`HalfStepState.can_cross()` asks whether the arriving bridge has closed to
+within `CROSS_REACH` (half a row spacing) of the cat and is on the lane being
+jumped to. If not, the cat completes its arc and falls. Because the window is a
+fraction of the row spacing rather than a fixed number of milliseconds, it opens
+at the midpoint of every beat at every cadence, so the timing demand scales with
+the speed curve instead of being outrun by it.
+
+This reinstates a design AGENTS.md section 3 records as rejected ("Tap =
+immediate full physical jump toward the next platform"). It was rejected for
+being confusing; the difference now is that the world scrolls continuously
+across the beat, so the arriving bridge is visible to time against — the
+information the original version never showed. Do not remove it again without
+the same explicit approval that put it back.
+
+Verified with a headless bot that taps at a fixed point in every beat: tapping
+before the midpoint dies within two beats; tapping anywhere from the midpoint on
+survives to score 400.
+
+Permanent lesson:
+A difficulty knob only exists if the player can see what it is measuring. The
+same rule that was unreadable against a snapping row stack is fair against a
+sliding one.
+
+### The run opened in mid-air (2026-08-27)
+
+With landings now visibly physical, the first frame of every run showed the cat
+hanging over open sky for a whole beat — the row stack started a full spacing
+above it. `rebuild_rows()` now lays a bridge at the player's own height, marked
+resolved so it never decides a landing. It only exists so the opening frame says
+"you are standing on a bridge".
+
+Permanent lesson:
+The first frame teaches the rules. It has to show the state the game wants the
+player to protect.

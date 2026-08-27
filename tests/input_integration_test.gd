@@ -60,15 +60,16 @@ func _run() -> void:
 	press_mouse(game, Vector2(100, 100), true)
 	expect(state.lane == HalfStepState.Lane.LEFT, "the emulated mouse duplicate of a touch is ignored")
 
-	# Input is never dropped, including during the hop and the settle window.
-	game.set("hop_time", 60.0)
+	# Input is never dropped, at any point in the beat or while a leap is
+	# already in the air. A tap can be a fatal jump now, but it is never ignored.
+	state.step_timer = state.step_interval * 0.5
+	game.call("_process", 0.0)
 	press_touch(game, Vector2(100, 100))
-	expect(state.lane == HalfStepState.Lane.RIGHT, "a tap during the hop still toggles")
-	game.set("hop_time", -1.0)
-	game.set("settle_time", 10.0)
+	expect(state.lane == HalfStepState.Lane.RIGHT, "a tap mid-beat still toggles")
+	expect(float(game.get("lane_time")) >= 0.0, "and starts a leap")
 	press_touch(game, Vector2(100, 100))
-	expect(state.lane == HalfStepState.Lane.LEFT, "a tap during the post-landing settle still toggles")
-	game.set("settle_time", -1.0)
+	expect(state.lane == HalfStepState.Lane.LEFT, "a tap while a leap is in the air still toggles")
+	game.call("reset")
 
 	# A tap is almost always in flight when the run ends, so the fall and the
 	# card have to survive it — otherwise the run silently restarts.

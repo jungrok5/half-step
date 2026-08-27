@@ -72,9 +72,12 @@ func _test_initial_state() -> void:
 func _test_row_stack_matches_rebuild_rows() -> void:
 	var base_y := 600.0
 	var state := playing_state(base_y)
-	expect(state.rows.size() >= 7, "rebuildRows() builds at least the prototype's seven rows")
+	expect(state.rows.size() >= 8, "rebuildRows() builds the prototype's seven rows plus the starting bridge")
+	expect(is_equal_approx(float(state.rows[0].y), base_y),
+		"the run opens standing on a bridge instead of on open sky")
+	expect(bool(state.rows[0].resolved), "the starting bridge never decides a landing")
 	for i in 7:
-		expect(is_equal_approx(float(state.rows[i].y), base_y - float(i + 1) * 92.0),
+		expect(is_equal_approx(float(state.rows[i + 1].y), base_y - float(i + 1) * 92.0),
 			"row %d sits at baseY - %d*92" % [i, i + 1])
 	var highest := INF
 	for row in state.rows:
@@ -115,12 +118,13 @@ func _test_tap_is_immediate() -> void:
 func _test_nearest_row_resolves_landing() -> void:
 	var base_y := 600.0
 	var state := playing_state(base_y)
-	# The prototype compares `r.y + 14` against baseY, so the lowest row wins.
-	expect(state.nearest_row_index(base_y) == 0, "nearest row is the one closest to the player")
-	state.rows[0].y = base_y + 500.0
-	expect(state.nearest_row_index(base_y) == 1, "a row that slid far below is no longer nearest")
-	state.rows[1].resolved = true
-	expect(state.nearest_row_index(base_y) == 2, "a row that already decided a landing is skipped")
+	# The prototype compares `r.y + 14` against baseY, so the lowest unresolved
+	# row wins. Row 0 is the starting bridge, which is resolved from the outset.
+	expect(state.nearest_row_index(base_y) == 1, "nearest row is the one closest to the player")
+	state.rows[1].y = base_y + 500.0
+	expect(state.nearest_row_index(base_y) == 2, "a row that slid far below is no longer nearest")
+	state.rows[2].resolved = true
+	expect(state.nearest_row_index(base_y) == 3, "a row that already decided a landing is skipped")
 
 
 func _test_same_lane_success() -> void:
@@ -139,7 +143,7 @@ func _test_wrong_lane_death() -> void:
 	force_next_safe_lane(state, base_y, 1 - state.lane)
 	expect(state.resolve_landing(base_y).is_empty(), "wrong lane fails")
 	expect(state.run_state == HalfStepState.RunState.DEAD, "wrong lane ends the run")
-	expect(not state.stepping, "death clears the stepping flag")
+	expect(not state.is_running(), "death stops the run")
 
 
 func _test_speed_matches_prototype_curve() -> void:
@@ -302,9 +306,9 @@ func _test_reset() -> void:
 	expect(state.score == 0 and state.success_streak == 0, "retry clears the run")
 	expect(is_equal_approx(state.step_interval, 560.0), "retry restores the opening cadence")
 	expect(state.lane == HalfStepState.Lane.LEFT, "retry starts on the left lane")
-	expect(state.rows.size() >= 7, "retry rebuilds the row stack")
-	for row in state.rows:
-		expect(not bool(row.resolved), "retry clears the resolved rows")
+	expect(state.rows.size() >= 8, "retry rebuilds the row stack")
+	for i in range(1, state.rows.size()):
+		expect(not bool(state.rows[i].resolved), "retry clears the resolved rows")
 
 
 func _test_layout_constants_match_prototype() -> void:
