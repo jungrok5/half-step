@@ -55,7 +55,16 @@ const ACCENT := Color("ef6a5b")
 const ACCENT_DARK := Color("9f4b46")
 const INK := Color("24313d")
 
-const CLOUD_COUNT := 18
+## Cloud depth layers. The camera looks down from high up, so a cloud nearer the
+## camera sweeps past faster; the layer above the cat is nearly transparent and
+## drifts across the top of the whole playfield.
+const CLOUD_LAYERS := [
+	{"name": "far", "count": 10, "scale": Vector2(0.34, 0.66), "speed": Vector2(0.024, 0.05), "alpha": 0.34, "over": false},
+	{"name": "mid", "count": 11, "scale": Vector2(0.72, 1.30), "speed": Vector2(0.062, 0.115), "alpha": 0.85, "over": false},
+	# Kept faint on purpose: AGENTS.md requires platforms to stay instantly
+	# readable at speed, and this layer sits on top of them.
+	{"name": "near", "count": 4, "scale": Vector2(1.90, 3.20), "speed": Vector2(0.20, 0.30), "alpha": 0.11, "over": true},
+]
 const WIND_COUNT := 20
 const WIND_SIZE := Vector2(4.0, 28.0)
 
@@ -225,20 +234,40 @@ func build_background() -> void:
 	var size := game_size()
 	clouds.clear()
 	winds.clear()
-	for i in CLOUD_COUNT:
-		clouds.append({
-			"x": _rng.randf() * (size.x - 110.0),
-			"y": _rng.randf() * size.y - 90.0,
-			"speed": 0.06 + _rng.randf() * 0.08,
-			"scale": 0.55 + _rng.randf() * 0.9,
-			"alt": i % 2 == 1,
-		})
+	for layer_index in CLOUD_LAYERS.size():
+		var layer: Dictionary = CLOUD_LAYERS[layer_index]
+		for i in int(layer.count):
+			var cloud := _spawn_cloud(layer_index, size)
+			cloud.y = _rng.randf() * (size.y + Art.CLOUD_BOX.y) - Art.CLOUD_BOX.y
+			cloud.alt = i % 2 == 1
+			clouds.append(cloud)
 	for _i in WIND_COUNT:
 		winds.append({
 			"x": _rng.randf() * size.x,
 			"y": _rng.randf() * size.y,
 			"speed": 0.28 + _rng.randf() * 0.36,
 		})
+
+
+## A cloud placed above the screen, ready to drift down through its layer.
+func _spawn_cloud(layer_index: int, size: Vector2) -> Dictionary:
+	var layer: Dictionary = CLOUD_LAYERS[layer_index]
+	var scale_range: Vector2 = layer.scale
+	var speed_range: Vector2 = layer.speed
+	var scale := randf_between(scale_range.x, scale_range.y)
+	var width := Art.CLOUD_BOX.x * scale
+	return {
+		"layer": layer_index,
+		"x": randf_between(-width * 0.35, size.x - width * 0.65),
+		"y": -Art.CLOUD_BOX.y * scale,
+		"speed": randf_between(speed_range.x, speed_range.y),
+		"scale": scale,
+		"alt": false,
+	}
+
+
+func randf_between(from: float, to: float) -> float:
+	return from + _rng.randf() * (to - from)
 
 
 # --- input ------------------------------------------------------------------
@@ -373,17 +402,19 @@ func _advance_transitions(dt: float) -> void:
 			scan_time = -1.0
 
 
-## `updateBackground(dt)`
+## `updateBackground(dt)` — each layer drifts at its own rate, so the sky reads
+## as depth rather than one flat sheet.
 func update_background(dt: float) -> void:
 	var size := game_size()
 	var zone := state.current_zone()
 	var speed: float = minf(42.0, (1.0 + float(state.score) / 24.0) * float(zone.boost))
-	for cloud in clouds:
+	for index in clouds.size():
+		var cloud: Dictionary = clouds[index]
 		cloud.y = float(cloud.y) + dt * float(cloud.speed) * speed
-		if float(cloud.y) > size.y + 85.0:
-			cloud.y = -100.0 - _rng.randf() * 100.0
-			cloud.x = _rng.randf() * (size.x - 110.0)
-			cloud.scale = 0.5 + _rng.randf() * 1.0
+		if float(cloud.y) > size.y + Art.CLOUD_BOX.y * float(cloud.scale):
+			var replacement := _spawn_cloud(int(cloud.layer), size)
+			replacement.alt = cloud.alt
+			clouds[index] = replacement
 	for wind in winds:
 		wind.y = float(wind.y) + dt * float(wind.speed) * speed
 		if float(wind.y) > size.y + 50.0:
@@ -568,13 +599,14 @@ func player_transform() -> Dictionary:
 		alpha = CssAnim.track(t, offsets, [1.0, 0.94, 0.62, 0.0], CssAnim.DEPTH)
 		return {"y": y, "scale": scale, "rotation": rotation, "alpha": alpha}
 	if hop_time >= 0.0:
+		# Straight down the camera, a jump is the cat growing as it rises toward
+		# the lens, not an arc across the screen. A little travel stays so the
+		# hop still points at the bridge it is heading for.
 		var t := clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0)
 		var offsets := [0.0, 0.5, 1.0]
-		y += CssAnim.track(t, offsets, [0.0, -20.0, 0.0], CssAnim.SNAP)
-		scale = Vector2(
-			CssAnim.track(t, offsets, [1.0, 0.94, 1.05], CssAnim.SNAP),
-			CssAnim.track(t, offsets, [1.0, 1.06, 0.95], CssAnim.SNAP)
-		)
+		y += CssAnim.track(t, offsets, [0.0, -11.0, 0.0], CssAnim.SNAP)
+		var lift := CssAnim.track(t, offsets, [1.0, 1.16, 1.0], CssAnim.SNAP)
+		scale = Vector2(lift, lift)
 	elif player_squash_time >= 0.0:
 		var t := clampf(player_squash_time / (PLAYER_SQUASH_MS * cycle_scale()), 0.0, 1.0)
 		var offsets := [0.0, 0.45, 1.0]
@@ -602,12 +634,14 @@ func _draw() -> void:
 	_draw_atmosphere(local)
 	_draw_stars(local)
 	_draw_scan(local)
-	_draw_clouds()
+	_draw_clouds(false)
 	_draw_wind()
 	_draw_rows(size)
 	_draw_ghosts()
 	_draw_particles()
 	_draw_player()
+	# The layer between the camera and the cat, drifting over everything.
+	_draw_clouds(true)
 	_draw_hud(size)
 	draw_set_transform(Vector2.ZERO)
 	_draw_letterbox(rect)
@@ -659,14 +693,15 @@ func _draw_scan(rect: Rect2) -> void:
 		y += 6.0
 
 
-func _draw_clouds() -> void:
-	var height := game_size().y
+func _draw_clouds(overhead: bool) -> void:
 	for cloud in clouds:
-		var position := Vector2(float(cloud.x), float(cloud.y))
-		var perspective: float = float(cloud.scale) + (float(cloud.y) / height) * 0.25
+		var layer: Dictionary = CLOUD_LAYERS[int(cloud.layer)]
+		if bool(layer.over) != overhead:
+			continue
 		var color := CLOUD_ALT_COLOR if bool(cloud.alt) else CLOUD_COLOR
-		color.a = 0.72 if bool(cloud.alt) else 0.95
-		_transform(position + Art.CLOUD_ORIGIN, 0.0, Vector2(perspective, perspective))
+		color.a = float(layer.alpha) * (0.82 if bool(cloud.alt) else 1.0)
+		var scale := float(cloud.scale)
+		_transform(Vector2(float(cloud.x), float(cloud.y)) + Art.CLOUD_ORIGIN * scale, 0.0, Vector2(scale, scale))
 		Art.draw_cloud(self, color)
 	draw_set_transform(_origin)
 
@@ -701,7 +736,9 @@ func _draw_rows(size: Vector2) -> void:
 				_draw_empty_tile(Vector2(left, y))
 
 
-## A platform: a rounded slab with a lighter top face, plus the landing squash.
+## A bridge section seen from above: a deck with plank seams and a rail down
+## each side. Nothing here suggests thickness, because from straight overhead
+## there is none to see — height is carried by the shadow on the clouds below.
 func _draw_tile(top_left: Vector2, squash: float) -> void:
 	var center := top_left + TILE_SIZE * 0.5
 	var offset := 0.0
@@ -709,21 +746,30 @@ func _draw_tile(top_left: Vector2, squash: float) -> void:
 	if squash >= 0.0:
 		var t := clampf(squash / TILE_SQUASH_MS, 0.0, 1.0)
 		var offsets := [0.0, 0.38, 1.0]
-		offset = CssAnim.track(t, offsets, [0.0, 4.0, 0.0], CssAnim.EASE_OUT)
+		offset = CssAnim.track(t, offsets, [0.0, 3.0, 0.0], CssAnim.EASE_OUT)
 		scale = Vector2(
-			CssAnim.track(t, offsets, [1.0, 1.035, 1.0], CssAnim.EASE_OUT),
-			CssAnim.track(t, offsets, [1.0, 0.90, 1.0], CssAnim.EASE_OUT)
+			CssAnim.track(t, offsets, [1.0, 1.03, 1.0], CssAnim.EASE_OUT),
+			CssAnim.track(t, offsets, [1.0, 0.94, 1.0], CssAnim.EASE_OUT)
 		)
-	_transform(center + Vector2(0.0, offset), 0.0, scale)
 	var half := TILE_SIZE * 0.5
-	var body := Rect2(-half, TILE_SIZE)
-	# The side that catches the light, then the slab, then the top face.
-	Shapes.rounded_rect(self, Rect2(body.position + Vector2(0.0, 5.0), body.size), TILE_RADIUS, PLATFORM_SHADOW_COLOR)
-	Shapes.rounded_rect(self, body, TILE_RADIUS, PLATFORM_COLOR)
-	Shapes.fill(self,
-		Shapes.rounded_rect_polygon(Rect2(body.position, Vector2(TILE_SIZE.x, 11.0)),
-			Vector4(TILE_RADIUS, TILE_RADIUS, 0.0, 0.0)),
-		PLATFORM_TOP_COLOR)
+	# Cast far below onto the cloud deck, which is what sells the height. Stacked
+	# rings stand in for a blur: one hard rectangle reads as a second bridge.
+	# Concentric rings at one offset, not a staircase of offsets, so the falloff
+	# reads as blur rather than as several stacked bridges.
+	for step in 4:
+		var spread := 1.0 + float(step) * 0.055
+		_transform(center + Vector2(2.0, 10.0))
+		Shapes.rounded_rect(self, Rect2(-half * spread, TILE_SIZE * spread), TILE_RADIUS,
+			Color(0.05, 0.09, 0.15, 0.045))
+	_transform(center + Vector2(0.0, offset), 0.0, scale)
+	Shapes.rounded_rect(self, Rect2(-half, TILE_SIZE), TILE_RADIUS, PLATFORM_COLOR)
+	for i in 2:
+		var seam := -half.y + TILE_SIZE.y * (float(i) + 1.0) / 3.0
+		draw_line(Vector2(-half.x + 7.0, seam), Vector2(half.x - 7.0, seam), Color(0.0, 0.0, 0.0, 0.20), 1.6, true)
+	# A rail down each edge, running the way the cat travels.
+	for left: float in [-half.x, half.x - 5.0]:
+		Shapes.rounded_rect(self, Rect2(Vector2(left, -half.y), Vector2(5.0, TILE_SIZE.y)),
+			2.5, PLATFORM_TOP_COLOR)
 	draw_set_transform(_origin)
 
 
@@ -779,7 +825,7 @@ func _draw_player() -> void:
 	var center := box + Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
 	_transform(center, float(animation.rotation), animation.scale)
 	# Beak first so the body's edge covers where it joins.
-	Art.draw_bird(self, alpha)
+	Art.draw_cat(self, alpha)
 	draw_set_transform(_origin)
 
 

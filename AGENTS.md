@@ -178,6 +178,9 @@ Use sparingly. The game should not become text-heavy.
 
 The game is NOT climbing upward through the sky.
 
+The camera hangs above and looks straight DOWN, as in a vertical scrolling
+flight game. Every element is drawn from overhead, never in profile.
+
 Intended sensation:
 - the character is traveling FORWARD rapidly above/in the clouds
 - similar spatial motion to a vertical-scrolling airplane game
@@ -194,7 +197,8 @@ Target final art:
   of simplicity and polish
 - readable silhouettes
 - clean small palette
-- warm/cute character against dramatic sky
+- warm/cute character against dramatic sky — a cat seen from above, crossing
+  bridges hung in the sky
 - smooth edges, generous rounding, no outlines
 - platforms remain instantly readable at speed
 - cloud forms should have depth/parallax but stay visually simple

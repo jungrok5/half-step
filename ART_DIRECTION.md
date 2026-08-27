@@ -26,40 +26,53 @@ The world can become visually surreal at high scores while core gameplay remains
 ## Camera / movement
 
 Critical:
-This is forward travel, NOT upward climbing.
+The camera hangs high in the sky and looks straight DOWN. This is forward
+travel across a top-down world, not upward climbing and not a side view.
 
 Reference sensation:
 - classic vertical scrolling flight/shooting game
 - player stays lower on screen
 - environment streams from top toward bottom
-- near clouds move more quickly than far clouds
+- clouds nearer the camera sweep past faster than distant ones
+
+Everything must be drawn from that viewpoint. Nothing may be drawn in profile.
 
 ## Character
 
-A round coral bird: one body ellipse, a pale belly, a darker wing, a yellow
-beak, one large white eye. Defined once in `src/art.gd` and drawn by both the
-playfield and the share card, so they cannot drift apart.
+A ginger cat **seen from above**, jumping between bridges hung in the sky. What
+shows is its back: two ears, a striped spine, four paws poking out at the sides
+and a tail curling behind. Never a side profile. Defined once in `src/art.gd`
+and drawn by both the playfield and the share card, so they cannot drift apart.
 
 The character needs:
-- lovable at tiny scale — it is about 30px wide in play
-- one big readable eye rather than two small ones
+- lovable at tiny scale — it is about 34px wide in play
+- ears and tail doing the silhouette work, since a back has no face to read
+- eyes and muzzle cheated into view anyway, because a featureless back is not
+  charming
+- paws placed clear of the body outline, or they simply do not show
 - a silhouette that survives being scaled to 1080px on the share card
-- visible squash on landing
 - readable shrinking death animation
 
-No sprite sheets, no frame animation for v1: motion comes from squashing and
+A jump is the cat growing as it rises toward the lens while its shadow shrinks
+and slides away below — not an arc across the screen. Straight down the camera,
+that is what height looks like.
+
+No sprite sheets, no frame animation for v1: motion comes from scaling and
 rotating the vector shapes.
 
 ## Platforms
 
 Platforms must remain recognizable at extreme speed.
 
+Platforms are bridge sections seen from above.
+
 Desired:
-- dark cool-grey rounded slab
-- lighter top face, so the platform reads as a solid with thickness
-- a darker slab offset below it for depth — no separate drop shadow, which
-  detaches and reads as a second object
-- no surface detail at all: the shape carries it
+- dark cool-grey deck, a couple of plank seams across it
+- a lighter rail down each edge, running the way the cat travels
+- no thickness, no side faces: from straight overhead there are none to see
+- height is carried by a soft shadow cast far below onto the clouds. Draw it as
+  concentric rings at one offset — a single hard rectangle, or a staircase of
+  offsets, reads as a second bridge rather than as a shadow
 - the empty lane is the same rounded outline, unfilled
 
 On impact:
@@ -70,10 +83,18 @@ On impact:
 
 ## Clouds
 
-Clouds should be layered:
-- far
-- middle
-- near
+A cloud is a flat mass **seen from above**: an irregular blob with no top and no
+bottom. It must NOT have the flat base and billowing crown of a cloud seen from
+the side — that was the earlier mistake.
+
+Three depth layers, in `CLOUD_LAYERS`:
+- **far** — small, slow, faint; reads as far below, near the ground
+- **mid** — the body of the sky, behind the bridges
+- **near** — large, fast, nearly transparent, drawn *over* the bridges and the
+  cat, so cloud passes between the camera and the world
+
+Keep the near layer faint. It sits on top of the platforms, and platforms must
+stay instantly readable at speed.
 
 At low speed:
 gentle broad cloud movement.

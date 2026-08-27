@@ -142,9 +142,9 @@ func _draw() -> void:
 	Shapes.rounded_rect(self, Rect2(350.0, 1000.0, 170.0, 56.0), 18.0, Color("25313c"))
 	Shapes.fill(self, Shapes.rounded_rect_polygon(Rect2(350.0, 1000.0, 170.0, 22.0),
 		Vector4(18.0, 18.0, 0.0, 0.0)), Color("42586d"))
-	# The same bird the game draws, scaled up for the card.
+	# The same cat the game draws, scaled up for the card.
 	draw_set_transform(Vector2(572.0, 928.0), 0.0, Vector2(2.6, 2.6))
-	Art.draw_bird(self)
+	Art.draw_cat(self)
 	draw_set_transform(Vector2.ZERO)
 	for i in 8:
 		draw_line(Vector2(572.0, 945.0), Vector2(380.0 + float(i) * 52.0, 1220.0 + float(i) * 54.0), Color("24313d", 0.16), 4.0)
