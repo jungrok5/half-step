@@ -39,6 +39,10 @@ func _ready() -> void:
 	generator.mix_rate = MIX_RATE
 	generator.buffer_length = BUFFER_LENGTH
 	stream = generator
+	# The project routes web audio through sampled playback, which a generator
+	# cannot provide — on the web export that silences the game and logs
+	# "trying to play a sample from a stream that cannot be sampled".
+	playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	play()
 	_playback = get_stream_playback()
 
@@ -96,11 +100,22 @@ func _process(_delta: float) -> void:
 		return
 	var step := 1.0 / MIX_RATE
 	for _i in frames:
-		var sample := 0.0
-		for voice in _voices:
-			sample += _advance(voice, step)
-		sample = clampf(sample, -1.0, 1.0)
+		var sample := next_sample(step)
 		_playback.push_frame(Vector2(sample, sample))
+	_prune()
+
+
+## One mixed frame, advanced by [param step] seconds. Split out from [method
+## _process] so the synthesis can be driven directly: the headless audio driver
+## never pulls frames from the generator.
+func next_sample(step: float) -> float:
+	var sample := 0.0
+	for voice in _voices:
+		sample += _advance(voice, step)
+	return clampf(sample, -1.0, 1.0)
+
+
+func _prune() -> void:
 	var alive: Array[Voice] = []
 	for voice in _voices:
 		if voice.elapsed < voice.duration:
