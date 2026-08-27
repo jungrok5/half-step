@@ -171,3 +171,40 @@ design, and each has a regression test — do not restore them:
 Permanent lesson:
 Port the feel, not the defects. When the prototype contradicts `AGENTS.md`,
 `AGENTS.md` wins.
+
+## Playtest, top-down build
+
+Two things found by actually playing the exported build in a browser rather than
+by reading code.
+
+### Retrying on the death tap ate the death
+
+An earlier change let any tap retry the moment the run ended, to satisfy the
+"restart must feel immediate" rule. But a player dies mid-rhythm, so a tap is
+almost always already in flight when the run ends: it was consumed as a retry,
+and the fall animation and the score card never appeared. In a filmstrip of six
+seconds of rhythmic tapping the card never survived a single frame — the run
+just silently started over.
+
+Fix: taps are ignored until the card is up, then a tap anywhere retries. Retry
+still costs one tap and no button hunting.
+
+Permanent lesson:
+"Never drop input" is about lane taps during play. The tap that arrives at the
+moment of death is a different tap, and consuming it destroys the death.
+
+### Platforms read as gates, not as bridges
+
+The landing was judged against the row a full spacing above the cat, and the
+stack only snapped down afterwards. On screen the cat never jumped onto
+anything: a platform hung overhead, the score ticked, and the platform then
+teleported under the cat. It read as passing through a door.
+
+Fix: the stack slides toward the cat across the jump, so the bridge arrives
+underneath exactly as the landing resolves. The rows themselves still move once,
+at the end of the step — only the drawn offset is animated, so no rule changed.
+
+Permanent lesson:
+Where the judgement happens and where the player sees it happen must be the same
+place. A correct rule that resolves somewhere the player is not looking reads as
+a different game.

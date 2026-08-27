@@ -70,13 +70,21 @@ func _run() -> void:
 	expect(state.lane == HalfStepState.Lane.LEFT, "a tap during the post-landing settle still toggles")
 	game.set("settle_time", -1.0)
 
-	# Retry is immediate: the prototype makes the player wait out the fall and
-	# then hit the button, which AGENTS.md rules out.
+	# A tap is almost always in flight when the run ends, so the fall and the
+	# card have to survive it — otherwise the run silently restarts.
 	state.run_state = HalfStepState.RunState.DEAD
 	game.set("death_time", 120.0)
 	press_touch(game, Vector2(100, 100))
-	expect(state.run_state == HalfStepState.RunState.PLAYING, "a tap during the fall restarts straight away")
-	expect(state.score == 0, "the instant retry clears the score")
+	expect(state.run_state == HalfStepState.RunState.DEAD,
+		"the tap that was already in flight when the run ended does not retry")
+	game.set("death_time", 480.0)
+	press_touch(game, Vector2(100, 100))
+	expect(state.run_state == HalfStepState.RunState.DEAD, "taps stay ignored until the card is up")
+
+	game.set("death_time", 600.0)
+	press_touch(game, Vector2(4, 4))
+	expect(state.run_state == HalfStepState.RunState.PLAYING, "once the card is up, a tap anywhere retries")
+	expect(state.score == 0, "retry clears the score")
 	expect(int(game.get("tutorial_taps")) == 0, "retry brings the hint back")
 
 	state.run_state = HalfStepState.RunState.DEAD

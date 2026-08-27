@@ -72,14 +72,29 @@ func _run() -> void:
 	expect(state.score == 0, "the landing has not resolved while the player is airborne")
 	expect(float(game.get("hop_time")) >= 0.0, "the hop animation is running")
 
+	# The bridge has to be under the cat at the instant the landing resolves.
+	# Judging it while it is still a full row overhead, then snapping it into
+	# place afterwards, reads as passing through a gate rather than jumping onto
+	# a bridge.
+	var landing_row := state.rows[state.nearest_row_index(game.call("base_y"))]
+	var landing_row_y := float(landing_row.y)
 	step_frames(game, int(ceil(HOP_MS / FRAME_MS)) + 1)
 	expect(state.score == 1, "the landing resolves when the hop finishes")
+	var scroll: float = float(game.get("row_scroll"))
+	expect(is_equal_approx(scroll, HalfStepState.ROW_SPACING),
+		"the stack has slid a full row by the time the cat lands, got %d" % int(scroll))
+	expect(is_equal_approx(landing_row_y + scroll, float(game.call("base_y"))),
+		"the bridge just landed on is drawn at the cat, not overhead")
 	expect(float(game.get("flow_time")) >= 0.0, "a successful landing shows FLOW")
 	expect(is_equal_approx(float(state.rows[0].y), first_row_y), "the row stack has not moved yet")
 
 	step_frames(game, int(ceil(SETTLE_MS / FRAME_MS)) + 1)
 	expect(is_equal_approx(float(state.rows[0].y), first_row_y + HalfStepState.ROW_SPACING),
 		"the row stack slides one spacing after the settle delay")
+	expect(is_zero_approx(float(game.get("row_scroll"))),
+		"the drawn offset resets once the rows themselves have moved")
+	expect(is_equal_approx(float(state.rows[0].y), float(game.call("base_y"))),
+		"nothing jumps on screen: the row lands exactly where it was already drawn")
 	expect(not state.stepping, "the settle delay clears the stepping flag")
 
 	# Twenty more landings: the score climbs and the cadence only tightens.

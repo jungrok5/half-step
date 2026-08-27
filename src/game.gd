@@ -101,6 +101,12 @@ var hint_phase := 0.0
 
 var lane_from_x := 0.0
 var lane_to_x := 0.0
+## How far the bridge stack has visually travelled toward the cat within the
+## current step. The rows themselves only move once, at the end of the step; on
+## screen they slide across the jump so the bridge arrives under the cat exactly
+## as the landing resolves, instead of being judged while it is still overhead
+## and then snapping into place.
+var row_scroll := 0.0
 ## Durations of the cycle currently running, captured when it starts.
 var hop_length := HOP_MS
 var settle_length := SETTLE_MS
@@ -216,6 +222,7 @@ func reset() -> void:
 	player_squash_time = -1.0
 	death_time = -1.0
 	flow_time = -1.0
+	row_scroll = 0.0
 	hop_length = HOP_MS
 	settle_length = SETTLE_MS
 	banner_time = -1.0
@@ -287,11 +294,14 @@ func _input(event: InputEvent) -> void:
 	if position == Vector2.INF:
 		return
 	if not state.is_running():
-		# The prototype swallows every tap until the card appears and then only
-		# listens to its buttons, so a player who taps to go again waits out the
-		# fall. AGENTS.md requires retry to feel immediate and input never to be
-		# dropped, so any tap outside SHARE restarts straight away.
-		if death_time >= RESULT_DELAY_MS and Rect2(result_layout().share).has_point(position):
+		# A player dies mid-rhythm, so a tap is almost always already in flight
+		# when the run ends. Retrying on that tap swallows the fall and the
+		# score card entirely — the run just silently starts over. Taps are
+		# ignored until the card is up; from then on a tap anywhere retries, so
+		# retry still costs one tap and no button hunting.
+		if death_time < RESULT_DELAY_MS:
+			return
+		if Rect2(result_layout().share).has_point(position):
 			share_score()
 		else:
 			reset()
@@ -328,8 +338,11 @@ func _advance_timers(dt: float) -> void:
 	hint_phase = fmod(hint_phase + dt, HINT_PULSE_MS)
 	if hop_time >= 0.0:
 		hop_time += dt
+		row_scroll = HalfStepState.ROW_SPACING * CssAnim.curve(
+			CssAnim.SNAP, clampf(hop_time / maxf(hop_length, 0.001), 0.0, 1.0))
 		if hop_time >= hop_length:
 			hop_time = -1.0
+			row_scroll = HalfStepState.ROW_SPACING
 			resolve_landing()
 	if settle_time >= 0.0:
 		settle_time += dt
@@ -460,6 +473,8 @@ func finish_step() -> void:
 	if not state.is_running():
 		return
 	state.advance_rows(base_y(), game_size().y)
+	# The stack has caught up with where it was already being drawn.
+	row_scroll = 0.0
 	# `player.getAnimations().forEach(a => a.cancel())` also drops an in-flight
 	# lane slide, snapping the player onto its lane.
 	lane_time = -1.0
@@ -469,7 +484,7 @@ func finish_step() -> void:
 
 ## `platformImpact(tile)`
 func spawn_impact(row: Dictionary) -> void:
-	var tile := Rect2(Vector2(tile_x(state.lane), float(row.y)), TILE_SIZE)
+	var tile := Rect2(Vector2(tile_x(state.lane), float(row.y) + row_scroll), TILE_SIZE)
 	ghosts.append({"rect": tile, "time": 0.0})
 	var center := tile.get_center()
 	var directions := [Vector2(-1.0, -1.0), Vector2(1.0, -1.0), Vector2(-1.0, 1.0), Vector2(1.0, 1.0)]
@@ -724,8 +739,8 @@ func _draw_wind() -> void:
 
 func _draw_rows(size: Vector2) -> void:
 	for row in state.rows:
-		var y := float(row.y)
-		if y > size.y + 60.0 or y < -80.0:
+		var y := float(row.y) + row_scroll
+		if y > size.y + 60.0 or y < -80.0 - HalfStepState.ROW_SPACING:
 			continue
 		for lane in 2:
 			var left := tile_x(lane)
