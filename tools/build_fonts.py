@@ -1,28 +1,43 @@
 #!/usr/bin/env python3
-"""Subset the bundled UI fonts down to the glyphs HALF STEP actually draws.
+"""Rebuild the subset UI fonts HALF STEP ships in assets/fonts/.
 
 The web prototype relies on the system `monospace` family at `font-weight:1000`
-and on the browser's Korean fallback. Godot has no such fallback chain, so the
-Godot port ships two tiny subsets instead:
+and on the browser's Korean fallback. Godot has neither, so the port bundles two
+subsets containing only the characters the UI actually draws:
 
-  HalfStepMono.ttf  DejaVu Sans Mono Bold  -> Latin, digits, punctuation
-  HalfStepKR.ttf    GNU Unifont            -> the Hangul syllables in the UI
+  HalfStepMono.ttf  DejaVu Sans Mono Bold  Bitstream Vera license  Latin, digits
+  HalfStepKR.ttf    Noto Sans KR Bold      SIL OFL 1.1             Hangul
 
-Run this again after adding new UI copy:
+Both licences permit redistributing a subset inside a closed-source game, and
+both require the licence text to travel with the font — see
+assets/fonts/licenses/. Do not swap in a GPL-licensed font such as GNU Unifont:
+the Debian build carries no font-embedding exception, so embedding it in the
+exported .pck would push its copyleft onto the whole distributed game.
 
+Run this again after adding new UI copy, then commit the rebuilt fonts:
+
+    pip install fonttools brotli
     python3 tools/build_fonts.py
 """
+import re
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "fonts"
 
 MONO_SOURCE = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
-KR_SOURCE = "/usr/share/fonts/opentype/unifont/unifont.otf"
+# Google Fonts returns a woff2 holding exactly the characters in `text`.
+KOREAN_CSS = "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700&text="
+BROWSER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)
 
-LATIN = "".join(chr(c) for c in range(0x20, 0x7F)) + "·…—–’‘“”×"
+LATIN = "".join(chr(c) for c in range(0x20, 0x7F)) + "\u00b7\u2026\u2014\u2013\u2019\u2018\u201c\u201d\u00d7"
 
 KOREAN_STRINGS = [
     # in-game hint
@@ -44,15 +59,14 @@ KOREAN_STRINGS = [
 ]
 
 
-def subset(source: str, text: str, target: Path) -> None:
-    if not Path(source).exists():
-        sys.exit(f"missing source font: {source}")
+def build_latin(target: Path) -> None:
+    if not Path(MONO_SOURCE).exists():
+        sys.exit(f"missing source font: {MONO_SOURCE}")
     subprocess.run(
         [
-            sys.executable, "-m", "fontTools.subset", source,
-            f"--text={text}",
+            sys.executable, "-m", "fontTools.subset", MONO_SOURCE,
+            f"--text={LATIN}",
             f"--output-file={target}",
-            "--flavor=",
             "--layout-features=",
             "--drop-tables+=DSIG",
             "--no-hinting",
@@ -64,12 +78,33 @@ def subset(source: str, text: str, target: Path) -> None:
     )
 
 
+def build_korean(target: Path) -> None:
+    from fontTools.ttLib import TTFont
+
+    characters = "".join(sorted(set("".join(KOREAN_STRINGS))))
+    request = urllib.request.Request(
+        KOREAN_CSS + urllib.parse.quote(characters),
+        headers={"User-Agent": BROWSER_AGENT},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        css = response.read().decode("utf-8")
+    urls = re.findall(r"url\((https://fonts\.gstatic\.com/[^)]+)\)", css)
+    if not urls:
+        sys.exit("Google Fonts returned no font URL for the requested characters")
+    with urllib.request.urlopen(urls[0], timeout=120) as response:
+        target.with_suffix(".woff2").write_bytes(response.read())
+    font = TTFont(target.with_suffix(".woff2"))
+    font.flavor = None
+    font.save(target)
+    target.with_suffix(".woff2").unlink()
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    subset(MONO_SOURCE, LATIN, OUT / "HalfStepMono.ttf")
-    subset(KR_SOURCE, "".join(sorted(set("".join(KOREAN_STRINGS)))), OUT / "HalfStepKR.ttf")
-    for f in sorted(OUT.glob("*.ttf")):
-        print(f"{f.name}: {f.stat().st_size} bytes")
+    build_latin(OUT / "HalfStepMono.ttf")
+    build_korean(OUT / "HalfStepKR.ttf")
+    for font in sorted(OUT.glob("*.ttf")):
+        print(f"{font.name}: {font.stat().st_size} bytes")
 
 
 if __name__ == "__main__":

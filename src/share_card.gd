@@ -46,9 +46,6 @@ static func render(host: Node, card_score: int, card_zone: Dictionary, card_zone
 ## prototype's clipboard fallback; elsewhere the text goes to the clipboard
 ## because Godot has no built-in native share sheet.
 static func share(text: String, image: Image, card_score: int, on_status: Callable) -> void:
-	var url := ""
-	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
-		url = str(JavaScriptBridge.eval("location.href", true))
 	if not OS.has_feature("web"):
 		DisplayServer.clipboard_set(text)
 		on_status.call(CLIPBOARD_STATUS)
@@ -58,20 +55,26 @@ static func share(text: String, image: Image, card_score: int, on_status: Callab
 		DisplayServer.clipboard_set(text)
 		on_status.call(CLIPBOARD_STATUS)
 		return
-	var callback := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		on_status.call(String(args[0]) if args.size() > 0 else "")
+	_callback_ref = JavaScriptBridge.create_callback(func(args: Array) -> void:
+		# The share sheet can resolve after the scene is gone.
+		if on_status.is_valid():
+			on_status.call(String(args[0]) if args.size() > 0 else "")
 	)
-	_callback_ref = callback
-	window.halfStepShareStatus = callback
-	var payload := JSON.stringify({
-		"title": "HALF STEP",
-		"text": text,
-		"url": url,
-	})
+	window.halfStepShareStatus = _callback_ref
+	# Every value below is interpolated through JSON.stringify, so it lands in
+	# the script as an escaped string literal and cannot close out of it. The
+	# page URL is read inside the script rather than passed in, which keeps the
+	# only value the game does not control out of the interpolation entirely.
 	var script := """
-(function(b64, name, payload){
-  var data = JSON.parse(payload);
-  var report = function(message){ if (window.halfStepShareStatus) window.halfStepShareStatus(message); };
+(function(b64, name, title, text, clipboardStatus, unsupportedStatus, cancelledStatus){
+  var report = function(message){
+    var report_to = window.halfStepShareStatus;
+    // One shot: drop the global so nothing else on the page can drive the
+    // game's share status afterwards.
+    delete window.halfStepShareStatus;
+    if (report_to) report_to(message);
+  };
+  var data = {title: title, text: text, url: location.href};
   var binary = atob(b64);
   var bytes = new Uint8Array(binary.length);
   for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -89,23 +92,25 @@ static func share(text: String, image: Image, card_score: int, on_status: Callab
       }
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(data.text + '\\n' + data.url);
-        report(%s);
+        report(clipboardStatus);
         return;
       }
-      report(%s);
+      report(unsupportedStatus);
     } catch (error) {
-      report(%s);
+      report(cancelledStatus);
     }
   })();
-})(%s, %s, %s);
+})(%s, %s, %s, %s, %s, %s, %s);
 """ % [
-		JSON.stringify(CLIPBOARD_STATUS), JSON.stringify(UNSUPPORTED_STATUS), JSON.stringify(CANCELLED_STATUS),
 		JSON.stringify(Marshalls.raw_to_base64(image.save_png_to_buffer())),
 		JSON.stringify("half-step-%d.png" % card_score),
-		JSON.stringify(payload),
+		JSON.stringify("HALF STEP"),
+		JSON.stringify(text),
+		JSON.stringify(CLIPBOARD_STATUS),
+		JSON.stringify(UNSUPPORTED_STATUS),
+		JSON.stringify(CANCELLED_STATUS),
 	]
 	JavaScriptBridge.eval(script, true)
-
 
 func _draw() -> void:
 	var width := float(SIZE.x)

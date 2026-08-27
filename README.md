@@ -78,9 +78,20 @@ godot --headless --path . --export-release Web build/web/index.html
 
 Zip the complete `build/web` directory for distribution. Serve the unzipped directory over HTTP(S); opening `index.html` directly is not supported by WebAssembly browser security rules.
 
+## Play it
+
+Every push to `main` builds the HTML5 export and publishes it to GitHub Pages
+(`.github/workflows/pages.yml`). The workflow runs the full test suite first, so
+a red test blocks the deploy.
+
+The repository is public, so the Pages build is publicly playable and the source
+— including the zone table and the secret milestone text `VIRAL_DESIGN.md` wants
+to keep unseen — is public with it. Use the itch.io channel below if you need a
+build that is not.
+
 ## Private phone testing on itch.io
 
-Deployment is manual and does not use GitHub Actions:
+Deliberate, not automatic:
 
 ```bash
 export BUTLER_API_KEY=...          # https://itch.io/user/settings/api-keys
@@ -93,22 +104,7 @@ templates and butler are downloaded on first use and cached under
 `~/.cache/half-step`. `--build-only` stops after the export, `--skip-tests`
 exports from a tree you have already tested.
 
-Keep the itch.io project visibility set to **Restricted** and optionally enable
-its page password.
-
-### Why not GitHub Actions
-
-This repository is private, so every automatic workflow run draws on the
-account's Actions allowance, and Actions is currently blocked at the account
-level ("recent account payments have failed or your spending limit needs to be
-increased"). Total usage across the repository's history is only about 42
-minutes, so this is a payment-method problem rather than an exhausted
-allowance.
-
-All three workflows are therefore manual (`workflow_dispatch`) and nothing runs
-on a push. They still work if Actions becomes available again.
-
-A GitHub repository secret is only readable inside a workflow run, so
-`secrets.BUTLERAPIKEY` cannot reach `tools/deploy_itch.sh`. To let an agent
-session deploy on request, add `BUTLER_API_KEY` to the environment variables of
-the Claude Code environment instead of pasting the key into a conversation.
+The `Deploy Private Web Test to itch.io` workflow does the same from Actions on
+manual dispatch, using the `BUTLERAPIKEY` repository secret. Keep the itch.io
+project visibility set to **Restricted** and optionally enable its page
+password.

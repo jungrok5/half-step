@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    # Documentation-only pushes ship an identical build.
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+# Least privilege per job: the build job runs a third-party action to install
+# Godot and only ever needs to read the repository, so the Pages write and
+# OIDC token permissions stay in the deploy job, which runs first-party
+# actions only.
+permissions: {}
+
+# Never cancel a deployment that is already publishing; queue behind it.
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+
+      - name: Import project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run gameplay tests
+        run: |
+          godot --headless --path . --script res://tests/test_runner.gd
+          godot --headless --path . --script res://tests/step_cycle_test.gd
+          godot --headless --path . --script res://tests/audio_test.gd
+          godot --headless --path . --script res://tests/input_integration_test.gd
+
+      - name: Export web build
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release Web build/web/index.html
+          test -s build/web/index.wasm
+          # Pages serves the artifact directly, but this keeps any Jekyll
+          # processing off for good.
+          touch build/web/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
