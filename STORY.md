@@ -1,5 +1,39 @@
 # TORI — Story, endings, and languages
 
+## 0. The name
+
+**토리: 조금만 더 / TORI: Just a Little Further.** Chosen 2026-08-28.
+
+`TORI` is the name and the wordmark; the subtitle carries the feeling and is
+translated with everything else (`TITLE`, `SUBTITLE` in the table). The longest
+of the twelve store titles is 27 characters, inside both stores' 30-character
+name field.
+
+The subtitle earns its place twice over: it is what a player actually says on a
+near miss, and the ending is gated on distance walked, so "just a little
+further" is the literal state of the save file. `Beyond the Clouds` was
+considered and dropped — it is prettier and it fits any game at all, which is
+the problem.
+
+**The subtitle does not repeat the name.** `토리: 조금만 더`, not
+`조금만 더, 토리` — the name is already in the title. The vocative form lives on
+the result card instead (`RUN_ENDED`), where the game says it to her after every
+death. The title states it; the death screen means it.
+
+### What was NOT renamed, on purpose
+
+- **`user://half_step.cfg`.** Renaming the save file takes every existing
+  player's codex, level and distance away. It keeps its name forever.
+- **`HalfStepState`, `half_step.csv`, the `res://` paths.** Internal
+  identifiers. Renaming them is churn across every file for no player-visible
+  gain, and each rename is a chance to break a save.
+- **The repository and the Pages URL.** `jungrok5/half-step` and
+  `jungrok5.github.io/half-step` are live links.
+
+The rule is the one the cat rename already followed: the product name is what
+players see, and it is free to change; identifiers that persist state are not.
+
+
 Tori's person died first and went on ahead. Tori died later, and is walking to
 find them. That is the whole game.
 

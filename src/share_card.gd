@@ -135,7 +135,7 @@ static func share(text: String, image: Image, card_score: int, on_status: Callab
 """ % [
 		JSON.stringify(Marshalls.raw_to_base64(image.save_png_to_buffer())),
 		JSON.stringify("half-step-%d.png" % card_score),
-		JSON.stringify("HALF STEP"),
+		JSON.stringify(I18n.t("TITLE")),
 		JSON.stringify(text),
 		JSON.stringify(I18n.t(CLIPBOARD_STATUS)),
 		JSON.stringify(I18n.t(UNSUPPORTED_STATUS)),
@@ -174,7 +174,7 @@ func _draw() -> void:
 		Shapes.capsule(self, top, top + Vector2(0.0, length), 4.0, Color(1.0, 1.0, 1.0, 0.5))
 	draw_rect(Rect2(90.0, 90.0, 900.0, 1740.0), Color("08101a", 0.20))
 	draw_rect(Rect2(114.0, 114.0, 852.0, 1692.0), Color(1.0, 1.0, 1.0, 0.88))
-	_fill_text("HALF STEP", 170.0, 240.0, 58.0, Color("2a3b4b"))
+	_fill_text(I18n.t("TITLE"), 170.0, 240.0, 58.0, Color("2a3b4b"))
 	_center_text(str(score), 560.0, 240.0, Color("24313d"))
 	_center_text("REACHED · %s" % zone_name, 650.0, 42.0, Color("6e8292"))
 	Shapes.rounded_rect(self, Rect2(350.0, 1010.0, 170.0, 58.0), 18.0, Color("111921"))
@@ -219,7 +219,7 @@ func _draw_acquisition() -> void:
 		_draw_cloud(Vector2(-40.0 + float(i * 131 % 1000), 300.0 + float(i) * 150.0),
 			1.1 + float(i % 3) * 0.5, Color(1.0, 1.0, 1.0, 0.16))
 
-	_fill_text("HALF STEP", 96.0, 150.0, 46.0, Color(1.0, 1.0, 1.0, 0.86))
+	_fill_text(I18n.t("TITLE"), 96.0, 150.0, 46.0, Color(1.0, 1.0, 1.0, 0.86))
 
 	var ground := Color(zone.top).lerp(zone.bottom, 0.5)
 	draw_set_transform(Vector2(width * 0.5, 760.0), 0.0, Vector2(9.0, 9.0))

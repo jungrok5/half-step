@@ -270,7 +270,8 @@ func _test_every_locale_is_complete() -> void:
 		for zone in ZoneConfig.ZONES:
 			var line := I18n.t(String(zone.share_line))
 			expect(line != String(zone.share_line), "%s has a share line in %s" % [String(zone.name), locale])
-		for key: String in ["HINT", "HINT_SUB", "RETRY", "SHARE", "CODEX", "TAP_TO_SEE",
+		for key: String in ["TITLE", "SUBTITLE", "RUN_ENDED",
+				"HINT", "HINT_SUB", "RETRY", "SHARE", "CODEX", "TAP_TO_SEE",
 				"TAP_TO_CLOSE", "LOCKED_SLOTS", "SECTION_LEVEL", "SECTION_SKY",
 				"SECTION_FEAT", "SECTION_WITNESS", "SHARE_CLIPBOARD", "STORY_SKIP",
 				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "STORY_ARRIVED"]:

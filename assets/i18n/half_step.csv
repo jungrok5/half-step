@@ -47,6 +47,7 @@ NEW_CAT,New cat · %s,새 고양이 · %s,新しい猫 · %s,新猫 · %s,新貓
 NEW_CATS,%d new cats,새 고양이 %d마리,新しい猫 %d匹,新猫 %d只,新貓 %d隻,%d gatos nuevos,%d gatos novos,%d nouveaux chats,%d neue Katzen,Новых котов: %d,%d kucing baru,%d mèo mới
 NEXT_MORE,Next · %d more,다음 · %d마리 더,次へ · あと%d匹,下一个 · 还有%d只,下一個 · 還有%d隻,Siguiente · %d más,Próximo · mais %d,Suivant · %d de plus,Weiter · noch %d,Дальше · ещё %d,Berikutnya · %d lagi,Tiếp · còn %d
 RETRY,Retry,다시하기,もう一度,再来一次,再來一次,Reintentar,Tentar de novo,Rejouer,Nochmal,Ещё раз,Coba lagi,Chơi lại
+RUN_ENDED,"Just a little further, Tori.","조금만 더, 토리.",もう少しだけ、トリ。,再走一点，托里。,再走一點，托里。,"Un poco más, Tori.","Só mais um pouco, Tori.","Encore un peu, Tori.","Nur noch ein Stück, Tori.","Ещё немного, Тори.","Sedikit lagi, Tori.","Chỉ một chút nữa, Tori."
 SECTION_FEAT,Touch,손끝,指先,指尖,指尖,Pulso,Toque,Doigté,Fingerspitzen,Мастерство,Sentuhan,Ngón tay
 SECTION_FEAT_NOTE,A feat inside one run,한 판 안의 위업,1回の中の偉業,单局中的壮举,單局中的壯舉,Una hazaña en una partida,Um feito numa partida,Un exploit en une partie,Eine Leistung in einem Lauf,Подвиг за один забег,Prestasi dalam satu ronde,Kỳ tích trong một lượt
 SECTION_LEVEL,Level,레벨,レベル,等级,等級,Nivel,Nível,Niveau,Level,Уровень,Level,Cấp
@@ -97,8 +98,10 @@ STORY_INTRO_3,Then Tori set off.,그리고 따라나섰다.,そして後を追�
 STORY_INTRO_REPLAY,Watch the intro again,인트로 다시보기,イントロをもう一度,重看开场,重看開場,Ver la intro otra vez,Ver a intro de novo,Revoir l'intro,Intro nochmal ansehen,Пересмотреть вступление,Tonton intro lagi,Xem lại phần mở đầu
 STORY_SKIP,Skip,건너뛰기,スキップ,跳过,跳過,Saltar,Pular,Passer,Überspringen,Пропустить,Lewati,Bỏ qua
 STORY_WALKED,%d steps walked,%d걸음을 걸었다,%d歩を歩いた,走了%d步,走了%d步,%d pasos recorridos,%d passos caminhados,%d pas parcourus,%d Schritte gegangen,Пройдено %d шагов,%d langkah ditempuh,Đã đi %d bước
+SUBTITLE,Just a Little Further,조금만 더,もう少しだけ,再走一点,再走一點,Un Poco Más,Só Mais Um Pouco,Encore un Peu,Nur Noch Ein Stück,Ещё Немного,Sedikit Lagi,Chỉ Một Chút Nữa
 TAP_TO_CLOSE,Tap to close,탭해서 닫기,タップで閉じる,点击关闭,點擊關閉,Toca para cerrar,Toque para fechar,Touche pour fermer,Zum Schließen tippen,"Нажми, чтобы закрыть",Ketuk untuk tutup,Chạm để đóng
 TAP_TO_SEE,Tap to see,탭해서 보기,タップで表示,点击查看,點擊查看,Toca para ver,Toque para ver,Touche pour voir,Zum Ansehen tippen,"Нажми, чтобы открыть",Ketuk untuk lihat,Chạm để xem
+TITLE,TORI,토리,トリ,托里,托里,TORI,TORI,TORI,TORI,ТОРИ,TORI,TORI
 ZONE_LINE_0,The first sky,첫 하늘,最初の空,第一片天空,第一片天空,El primer cielo,O primeiro céu,Le premier ciel,Der erste Himmel,Первое небо,Langit pertama,Bầu trời đầu tiên
 ZONE_LINE_1,Golden wind,황금빛 바람,黄金の風,金色的风,金色的風,Viento dorado,Vento dourado,Vent doré,Goldener Wind,Золотой ветер,Angin keemasan,Gió vàng
 ZONE_LINE_10,Beyond,그 너머,その向こう,在那之外,在那之外,Más allá,Além,Au-delà,Dahinter,За гранью,Di seberang,Bên kia

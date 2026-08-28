@@ -306,6 +306,12 @@ The cat is **Tori**. Its person died first and went on ahead; Tori is walking to
 find them. The game formerly had no story and the starting cat was called
 HALF-STEP; both changed, and a save from before the rename still works.
 
+The game is called **토리: 조금만 더 / TORI: Just a Little Further** (`TITLE` and
+`SUBTITLE` in the translation table). The repository, the save file
+`user://half_step.cfg` and the `HalfStep*` identifiers keep their old names on
+purpose — see STORY.md section 0. Do not "finish" the rename by touching the
+save path; that takes every player's progress.
+
 Hard rules:
 - **No player-visible string may be a literal.** Every one is a key in
   `assets/i18n/half_step.csv`. The fonts are subsets built from that file, so a

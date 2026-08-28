@@ -719,7 +719,7 @@ func draw_cat_card(canvas: CanvasItem) -> void:
 	CssPaint.linear_gradient(canvas, art, 165.0, [[0.0, zone.top], [1.0, zone.bottom]])
 	canvas.draw_rect(Rect2(art.position + Vector2(0.0, art.size.y), Vector2(card.size.x, card.size.y - art.size.y)),
 		Color("f6fbff"))
-	CssText.draw_at(canvas, "HALF STEP", art.position + Vector2(16.0, 14.0), 10.0, 2.6,
+	CssText.draw_at(canvas, I18n.t("TITLE"), art.position + Vector2(16.0, 14.0), 10.0, 2.6,
 		Color(1.0, 1.0, 1.0, 0.86))
 	canvas.draw_set_transform(_origin + art.get_center() + Vector2(0.0, 12.0), 0.0, Vector2(2.6, 2.6))
 	Art.draw_cat_portrait(canvas, cat, Color(zone.top).lerp(zone.bottom, 0.5))
@@ -1219,7 +1219,10 @@ func draw_result(canvas: CanvasItem) -> void:
 	canvas.draw_rect(inner, Color("d6e7f1"))
 	canvas.draw_rect(Rect2(inner.position + Vector2(4.0, 4.0), inner.size - Vector2(8.0, 8.0)), Color("f6fbff", 0.98))
 	var y: float = float(layout.content_top) - _origin.y
-	CssText.draw_centered(canvas, "RUN ENDED", left, content_width, y, 12.0, 2.0, Color(0.0, 0.0, 0.0, 0.44))
+	# The game's own title, said to her. It replaced a flat "RUN ENDED": the game
+	# has a story now, and this is the line the player earns several hundred times.
+	CssText.draw_centered(canvas, I18n.t("RUN_ENDED"), left, content_width, y, 12.0, 0.6,
+		Color("8a5a52"))
 	y += float(blocks[0])
 	CssText.draw_centered(canvas, str(state.score), left, content_width,
 		y + (70.0 * 1.05 - CssText.line_height(70.0)) * 0.5, 70.0, -4.0, Color("263644"))

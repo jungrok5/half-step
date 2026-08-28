@@ -1,4 +1,7 @@
-# HALF STEP
+# TORI — 조금만 더 / Just a Little Further
+
+*(the repository, the save file and the `HalfStep*` identifiers keep the
+prototype's name on purpose — see STORY.md section 0)*
 
 Portrait one-thumb rhythm/reaction game built with Godot 4.7.2 and GDScript.
 
