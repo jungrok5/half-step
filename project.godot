@@ -15,6 +15,18 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="keep_width"
 window/handheld/orientation=1
 
+[internationalization]
+
+locale/fallback="en"
+; Translations are NOT registered here on purpose; I18n.load_all() adds them at
+; startup instead. Registering them makes the exporter bundle 4.8 MB of ICU
+; data — ten times the size of everything else in the game — and
+; include_text_server_data=false does not stop it. None of the twelve shipped
+; languages need ICU: nothing in this game wraps text and none of them are
+; right-to-left. Adding Arabic, Hebrew or an Indic script means putting the
+; translations back here and taking the size. See STORY.md.
+locale/include_text_server_data=false
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

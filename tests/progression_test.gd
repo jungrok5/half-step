@@ -16,6 +16,8 @@ func _init() -> void:
 	_test_witness()
 	_test_persistence()
 	_test_roster_is_well_formed()
+	_test_reunion()
+	_test_every_locale_is_complete()
 	if failures == 0:
 		print("PASS: HALF STEP progression and codex")
 	quit(failures)
@@ -197,7 +199,7 @@ func _test_persistence() -> void:
 	expect(restored.owns("void"), "an owned cat survives")
 	expect(restored.has_witnessed("chroma"), "a witnessed cat survives")
 	expect(restored.equipped == "void", "the equipped cat survives")
-	expect(restored.bests.get("half_step", 0) == 400, "the per-cat best survives")
+	expect(restored.bests.get(CatConfig.STARTER, 0) == 400, "the per-cat best survives")
 	expect(restored.runs_this_session == 0, "a launch resets the first-run feat")
 
 	# A save that names a cat the player does not own must not equip it.
@@ -208,6 +210,81 @@ func _test_persistence() -> void:
 	expect(tampered.equipped == CatConfig.STARTER, "an unowned equipped cat falls back to the starter")
 	expect(tampered.owns(CatConfig.STARTER), "the starter is always owned")
 	expect(not tampered.owns("nonsense"), "an unknown id in the save is dropped")
+
+
+## The story: the walk is measured in landings made as Tori, and it is the one
+## unlock that a failed run still advances.
+func _test_reunion() -> void:
+	var progress := Progress.new()
+	expect(not progress.reunion_reached(), "the walk starts unfinished")
+	expect(progress.steps_remaining() == StoryConfig.REUNION_STEPS, "with the whole distance left")
+	progress.finish_run(40, 0.0, RunFeats.new())
+	expect(progress.tori_steps == 40, "a run adds its score to the distance")
+	expect(progress.steps_remaining() == StoryConfig.REUNION_STEPS - 40, "and takes it off what is left")
+	# Another cat's run is that cat's, not Tori's.
+	progress.owned["milk"] = true
+	progress.equipped = "milk"
+	progress.finish_run(100, 0.0, RunFeats.new())
+	expect(progress.tori_steps == 40, "another cat's run does not walk Tori forward")
+	progress.equipped = CatConfig.STARTER
+	progress.finish_run(StoryConfig.REUNION_STEPS, 0.0, RunFeats.new())
+	expect(progress.reunion_reached(), "enough distance finishes the walk")
+	expect(progress.steps_remaining() == 0, "and nothing is left to walk")
+
+	# The distance survives a save, or a player loses their whole journey.
+	var config := ConfigFile.new()
+	progress.seen_intro = true
+	progress.seen_ending = true
+	progress.save_to(config)
+	var restored := Progress.new()
+	restored.load_from(config)
+	expect(restored.tori_steps == progress.tori_steps, "the distance survives a save")
+	expect(restored.seen_intro and restored.seen_ending, "so does having seen the scenes")
+
+	# A save from before the rename still opens with Tori and her record.
+	var legacy := ConfigFile.new()
+	legacy.set_value(Progress.SECTION, "owned", PackedStringArray([CatConfig.STARTER_LEGACY_ID]))
+	legacy.set_value(Progress.SECTION, "equipped", CatConfig.STARTER_LEGACY_ID)
+	legacy.set_value(Progress.SECTION, "bests", {CatConfig.STARTER_LEGACY_ID: 321})
+	var migrated := Progress.new()
+	migrated.load_from(legacy)
+	expect(migrated.equipped == CatConfig.STARTER, "an old save still equips the starting cat")
+	expect(int(migrated.bests.get(CatConfig.STARTER, 0)) == 321, "and keeps its record")
+
+
+## Every string the player can see is a key with a row in every locale, and every
+## format string survives being fed its arguments.
+func _test_every_locale_is_complete() -> void:
+	var cats := CatConfig.all()
+	for locale: String in I18n.LOCALES:
+		I18n.use(locale)
+		expect(TranslationServer.get_locale() == locale, "locale %s loads" % locale)
+		for cat in cats:
+			var name := CatConfig.display_name(cat)
+			expect(not name.is_empty() and name != String(cat.name),
+				"%s has a name in %s, got %s" % [String(cat.code), locale, name])
+			expect(not CatConfig.condition_label(cat).is_empty(),
+				"%s has a badge in %s" % [String(cat.code), locale])
+			expect(not CatConfig.condition_text(cat).is_empty(),
+				"%s has a condition in %s" % [String(cat.code), locale])
+		for zone in ZoneConfig.ZONES:
+			var line := I18n.t(String(zone.share_line))
+			expect(line != String(zone.share_line), "%s has a share line in %s" % [String(zone.name), locale])
+		for key: String in ["HINT", "HINT_SUB", "RETRY", "SHARE", "CODEX", "TAP_TO_SEE",
+				"TAP_TO_CLOSE", "LOCKED_SLOTS", "SECTION_LEVEL", "SECTION_SKY",
+				"SECTION_FEAT", "SECTION_WITNESS", "SHARE_CLIPBOARD", "STORY_SKIP",
+				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "STORY_ARRIVED"]:
+			expect(I18n.t(key) != key, "%s is translated in %s" % [key, locale])
+		# A translator writing % instead of %% would crash the game here.
+		expect(not (I18n.t("CODEX_COUNT") % [1, 24, 3]).is_empty(), "CODEX_COUNT formats in %s" % locale)
+		expect(not (I18n.t("NEW_CAT") % "x").is_empty(), "NEW_CAT formats in %s" % locale)
+		expect(not (I18n.t("SHARE_RUN") % [1, "x"]).is_empty(), "SHARE_RUN formats in %s" % locale)
+		expect(not (I18n.t("SHARE_CAT") % ["x", "y"]).is_empty(), "SHARE_CAT formats in %s" % locale)
+		expect(not (I18n.t("STORY_DISTANCE") % 12).is_empty(), "STORY_DISTANCE formats in %s" % locale)
+		for frame: Dictionary in StoryConfig.INTRO + StoryConfig.ENDING:
+			expect(I18n.t(String(frame.text)) != String(frame.text),
+				"%s is written in %s" % [String(frame.text), locale])
+	I18n.use("en")
 
 
 func _test_roster_is_well_formed() -> void:

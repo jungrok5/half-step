@@ -7,9 +7,11 @@ extends Node2D
 
 const SIZE := Vector2i(1080, 1920)
 
-const CLIPBOARD_STATUS := "공유 미지원 · 텍스트를 클립보드에 복사했어요"
-const UNSUPPORTED_STATUS := "이 브라우저는 공유를 지원하지 않아요"
-const CANCELLED_STATUS := "공유를 취소했어요"
+## Translation keys. These reach the injected JavaScript as text, so they are
+## resolved at share time rather than being constants.
+const CLIPBOARD_STATUS := "SHARE_CLIPBOARD"
+const UNSUPPORTED_STATUS := "SHARE_UNSUPPORTED"
+const CANCELLED_STATUS := "SHARE_CANCELLED"
 
 var score := 0
 var zone: Dictionary = {}
@@ -75,12 +77,12 @@ static func share(text: String, image: Image, card_score: int, on_status: Callab
 		seen: String = "") -> void:
 	if not OS.has_feature("web"):
 		DisplayServer.clipboard_set(text)
-		on_status.call(CLIPBOARD_STATUS)
+		on_status.call(I18n.t(CLIPBOARD_STATUS))
 		return
 	var window := JavaScriptBridge.get_interface("window")
 	if window == null:
 		DisplayServer.clipboard_set(text)
-		on_status.call(CLIPBOARD_STATUS)
+		on_status.call(I18n.t(CLIPBOARD_STATUS))
 		return
 	_callback_ref = JavaScriptBridge.create_callback(func(args: Array) -> void:
 		# The share sheet can resolve after the scene is gone.
@@ -135,9 +137,9 @@ static func share(text: String, image: Image, card_score: int, on_status: Callab
 		JSON.stringify("half-step-%d.png" % card_score),
 		JSON.stringify("HALF STEP"),
 		JSON.stringify(text),
-		JSON.stringify(CLIPBOARD_STATUS),
-		JSON.stringify(UNSUPPORTED_STATUS),
-		JSON.stringify(CANCELLED_STATUS),
+		JSON.stringify(I18n.t(CLIPBOARD_STATUS)),
+		JSON.stringify(I18n.t(UNSUPPORTED_STATUS)),
+		JSON.stringify(I18n.t(CANCELLED_STATUS)),
 		JSON.stringify(seen),
 	]
 	JavaScriptBridge.eval(script, true)
@@ -187,9 +189,9 @@ func _draw() -> void:
 	for i in 8:
 		draw_line(Vector2(572.0, 945.0), Vector2(380.0 + float(i) * 52.0, 1220.0 + float(i) * 54.0), Color("24313d", 0.16), 4.0)
 	if not cat.is_empty():
-		var line := String(cat.name)
+		var line := CatConfig.display_name(cat)
 		if cat_best > 0:
-			line = "%s · 최고 %d" % [String(cat.name), cat_best]
+			line = "%s · %s" % [CatConfig.display_name(cat), I18n.t("BEST_WITH") % cat_best]
 		_center_text(line, 1210.0, 34.0, Color("42596d"))
 	_center_text(ZoneConfig.milestone_tag_for_score(score), 1280.0, 36.0, Color("ef6a5b"))
 	_center_text(String(zone.share_line).to_upper(), 1340.0, 30.0, Color("42596d"))
@@ -226,7 +228,7 @@ func _draw_acquisition() -> void:
 
 	var panel := Rect2(84.0, 1220.0, width - 168.0, 480.0)
 	draw_rect(panel, Color("f6fbff", 0.95))
-	_fill_text(String(cat.name), panel.position.x + 44.0, panel.position.y + 100.0, 76.0, Color("24313d"))
+	_fill_text(CatConfig.display_name(cat), panel.position.x + 44.0, panel.position.y + 100.0, 76.0, Color("24313d"))
 	_fill_text(String(cat.code), panel.position.x + 44.0, panel.position.y + 152.0, 30.0, Color("6d8293"))
 	_fill_text(CatConfig.condition_text(cat), panel.position.x + 44.0, panel.position.y + 234.0, 34.0, Color("ef6a5b"))
 	_fill_text("LV %d" % level, panel.position.x + 44.0, panel.position.y + 300.0, 26.0, Color("8ba0b3"))

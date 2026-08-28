@@ -298,7 +298,33 @@ prototype validation") predates this and was written for the validation phase.
 The port is now feature-complete against the prototype and the user approved this
 system explicitly; the rule stands for anything else.
 
-## 15. Agent completion checklist
+## 15. Story and languages
+
+Approved 2026-08-28. Full spec in `STORY.md`.
+
+The cat is **Tori**. Its person died first and went on ahead; Tori is walking to
+find them. The game formerly had no story and the starting cat was called
+HALF-STEP; both changed, and a save from before the rename still works.
+
+Hard rules:
+- **No player-visible string may be a literal.** Every one is a key in
+  `assets/i18n/half_step.csv`. The fonts are subsets built from that file, so a
+  literal is a string with no glyphs on the player's screen. This has already
+  shipped broken once — see PROTOTYPE_HISTORY.md.
+- Look strings up with `I18n.t()`, not `Object.tr()`: most text here is drawn
+  from static functions where `tr()` does not exist.
+- After changing any translated string, run `tools/build_fonts.py` and commit
+  the fonts.
+- The ending is gated on **distance walked as Tori** (`StoryConfig.REUNION_STEPS`),
+  never on score and never on level. A failed run still counts toward it. Do not
+  move it onto a skill axis: see STORY.md section 1.
+- The ending does NOT end the game. Play continues unchanged afterwards.
+- The ending's replay row appears only after it has been seen. Showing it early
+  gives away that there is an ending.
+- Zone names, milestone tags and PLAY · FAIL · SHARE · REPEAT stay English. They
+  are stylised proper nouns, not untranslated strings.
+
+## 16. Agent completion checklist
 
 After gameplay changes:
 1. Run Godot project import/validation headlessly.

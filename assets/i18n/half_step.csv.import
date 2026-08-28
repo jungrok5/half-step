@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c8630mo8wec21"
+
+[deps]
+
+files=["res://assets/i18n/half_step.en.translation", "res://assets/i18n/half_step.ko.translation", "res://assets/i18n/half_step.ja.translation", "res://assets/i18n/half_step.zh_Hans.translation", "res://assets/i18n/half_step.zh_Hant.translation", "res://assets/i18n/half_step.es.translation", "res://assets/i18n/half_step.pt_BR.translation", "res://assets/i18n/half_step.fr.translation", "res://assets/i18n/half_step.de.translation", "res://assets/i18n/half_step.ru.translation", "res://assets/i18n/half_step.id.translation", "res://assets/i18n/half_step.vi.translation"]
+
+source_file="res://assets/i18n/half_step.csv"
+dest_files=["res://assets/i18n/half_step.en.translation", "res://assets/i18n/half_step.ko.translation", "res://assets/i18n/half_step.ja.translation", "res://assets/i18n/half_step.zh_Hans.translation", "res://assets/i18n/half_step.zh_Hant.translation", "res://assets/i18n/half_step.es.translation", "res://assets/i18n/half_step.pt_BR.translation", "res://assets/i18n/half_step.fr.translation", "res://assets/i18n/half_step.de.translation", "res://assets/i18n/half_step.ru.translation", "res://assets/i18n/half_step.id.translation", "res://assets/i18n/half_step.vi.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

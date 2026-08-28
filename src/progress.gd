@@ -34,6 +34,11 @@ var equipped := CatConfig.STARTER
 
 ## Consecutive runs scoring at least [constant STEADY_SCORE].
 var steady_streak := 0
+## Landings made as Tori, across every run. This is the distance the story is
+## measured in — see STORY.md. A failed run still moved Tori forward.
+var tori_steps := 0
+var seen_intro := false
+var seen_ending := false
 ## Cleared on load: the "first run after launch" feat only counts once.
 var runs_this_session := 0
 
@@ -86,6 +91,17 @@ func experience_to_next() -> float:
 	return maxf(0.0, threshold(current + 1) - experience)
 
 
+## Whether the walk to Tori's person is done. The ending plays once this turns
+## true and can be replayed from the codex afterwards.
+func reunion_reached() -> bool:
+	return tori_steps >= StoryConfig.REUNION_STEPS
+
+
+## Steps still to walk. Zero once the ending has been earned.
+func steps_remaining() -> int:
+	return maxi(0, StoryConfig.REUNION_STEPS - tori_steps)
+
+
 func owns(id: String) -> bool:
 	return bool(owned.get(id, false))
 
@@ -111,6 +127,8 @@ func witness(id: String) -> Array[String]:
 ## order, so the caller can announce them.
 func finish_run(score: int, gained: float, feats: RunFeats) -> Array[String]:
 	experience += gained
+	if equipped == CatConfig.STARTER:
+		tori_steps += score
 	runs_this_session += 1
 	steady_streak = steady_streak + 1 if score >= STEADY_SCORE else 0
 	if score > int(bests.get(equipped, 0)):
@@ -159,6 +177,13 @@ func _condition_met(cat: Dictionary, score: int, feats: RunFeats) -> bool:
 
 # --- persistence ------------------------------------------------------------
 
+## The starting cat was renamed when the story arrived. A save written before
+## that still names the old id, and dropping it would take the player's cat and
+## its record away.
+static func _migrate(id: String) -> String:
+	return CatConfig.STARTER if id == CatConfig.STARTER_LEGACY_ID else id
+
+
 func save_to(config: ConfigFile) -> void:
 	config.set_value(SECTION, "experience", experience)
 	config.set_value(SECTION, "owned", PackedStringArray(owned.keys()))
@@ -166,24 +191,31 @@ func save_to(config: ConfigFile) -> void:
 	config.set_value(SECTION, "bests", bests)
 	config.set_value(SECTION, "equipped", equipped)
 	config.set_value(SECTION, "steady_streak", steady_streak)
+	config.set_value(SECTION, "tori_steps", tori_steps)
+	config.set_value(SECTION, "seen_intro", seen_intro)
+	config.set_value(SECTION, "seen_ending", seen_ending)
 
 
 func load_from(config: ConfigFile) -> void:
 	experience = maxf(0.0, float(config.get_value(SECTION, "experience", 0.0)))
 	steady_streak = maxi(0, int(config.get_value(SECTION, "steady_streak", 0)))
+	tori_steps = maxi(0, int(config.get_value(SECTION, "tori_steps", 0)))
+	seen_intro = bool(config.get_value(SECTION, "seen_intro", false))
+	seen_ending = bool(config.get_value(SECTION, "seen_ending", false))
 	# A launch is what makes the "first run" feat mean anything.
 	runs_this_session = 0
 	owned = {CatConfig.STARTER: true}
 	for id: String in PackedStringArray(config.get_value(SECTION, "owned", PackedStringArray())):
-		if CatConfig.has(id):
-			owned[id] = true
+		if CatConfig.has(_migrate(id)):
+			owned[_migrate(id)] = true
 	witnessed = {}
 	for id: String in PackedStringArray(config.get_value(SECTION, "witnessed", PackedStringArray())):
 		if CatConfig.has(id) and not owns(id):
 			witnessed[id] = true
 	bests = {}
-	for id: Variant in Dictionary(config.get_value(SECTION, "bests", {})):
-		if CatConfig.has(String(id)):
-			bests[String(id)] = int(Dictionary(config.get_value(SECTION, "bests", {}))[id])
-	var saved := String(config.get_value(SECTION, "equipped", CatConfig.STARTER))
+	var stored := Dictionary(config.get_value(SECTION, "bests", {}))
+	for id: Variant in stored:
+		if CatConfig.has(_migrate(String(id))):
+			bests[_migrate(String(id))] = int(stored[id])
+	var saved := _migrate(String(config.get_value(SECTION, "equipped", CatConfig.STARTER)))
 	equipped = saved if owns(saved) else CatConfig.STARTER

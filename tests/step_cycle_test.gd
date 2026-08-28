@@ -89,6 +89,10 @@ func _run() -> void:
 	var game: Node = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await process_frame
+	# A fresh profile meets the intro before the first run, so dismiss it the
+	# way a player does before driving the game.
+	if game.get("story_screen") != null:
+		game.get("story_screen").call("stop")
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	var state: HalfStepState = game.get("state")
 

@@ -58,6 +58,10 @@ func _run() -> void:
 		return
 	root.add_child(game)
 	await process_frame
+	# A fresh profile meets the intro before the first run, so dismiss it the
+	# way a player does before driving the game.
+	if game.get("story_screen") != null:
+		game.get("story_screen").call("stop")
 	var state: HalfStepState = game.get("state")
 
 	var real_mouse := InputEventMouseButton.new()

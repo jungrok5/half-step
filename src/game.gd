@@ -69,8 +69,9 @@ const WIND_SIZE := Vector2(4.0, 28.0)
 
 const TILE_RADIUS := 9.0
 
-const HINT_TEXT := "발판이 다가올 때 탭해서 건너기"
-const HINT_SUBTEXT := "멀리 갈수록 다른 하늘이 열린다"
+## Translation keys — resolved at draw time, because the locale can change.
+const HINT_TEXT := "HINT"
+const HINT_SUBTEXT := "HINT_SUB"
 const SAVE_PATH := "user://half_step.cfg"
 
 var state := HalfStepState.new()
@@ -79,6 +80,7 @@ var run_feats := RunFeats.new()
 var tone_player: TonePlayer
 var result_overlay: ResultOverlay
 var codex_screen: CodexScreen
+var story_screen: StoryScreen
 
 ## Cats that opened on the run that just ended, in table order.
 var opened_cats: PackedStringArray = PackedStringArray()
@@ -194,6 +196,7 @@ func tile_x(lane: int) -> float:
 # --- lifecycle --------------------------------------------------------------
 
 func _ready() -> void:
+	I18n.load_all()
 	_rng.randomize()
 	tone_player = TonePlayer.new()
 	add_child(tone_player)
@@ -205,9 +208,19 @@ func _ready() -> void:
 	add_child(result_overlay)
 	codex_screen = CodexScreen.new()
 	codex_screen.visible = false
+	codex_screen.replay_requested.connect(func(sequence: String) -> void:
+		codex_screen.close()
+		play_story(sequence))
 	add_child(codex_screen)
+	story_screen = StoryScreen.new()
+	story_screen.visible = false
+	add_child(story_screen)
 	_take_witness_link()
 	reset()
+	# The intro runs once, before the first run. It never blocks a returning
+	# player: after that it lives in the codex as a replay.
+	if not progress.seen_intro:
+		play_story("intro")
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
 
@@ -296,6 +309,15 @@ func randf_between(from: float, to: float) -> float:
 # --- input ------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
+	if story_screen != null and story_screen.visible:
+		var pressed: bool = (event is InputEventScreenTouch and event.pressed) \
+			or (event is InputEventMouseButton and event.pressed \
+				and event.button_index == MOUSE_BUTTON_LEFT \
+				and event.device != InputEvent.DEVICE_ID_EMULATION)
+		if pressed:
+			story_screen.handle_press(event.position)
+			queue_redraw()
+		return
 	if codex_screen != null and codex_screen.visible:
 		if event is InputEventScreenDrag:
 			codex_screen.handle_drag(event.relative.y)
@@ -383,6 +405,10 @@ func tap() -> void:
 
 func _process(delta: float) -> void:
 	var dt := minf(MAX_FRAME_MS, delta * 1000.0)
+	if story_screen != null and story_screen.visible:
+		story_screen.advance(dt)
+		queue_redraw()
+		return
 	_advance_timers(dt)
 	if state.is_running():
 		update_background(dt)
@@ -558,9 +584,14 @@ func die() -> void:
 	if was_best:
 		best = state.score
 		_save.set_value("score", "best", best)
+	var reached_before := progress.reunion_reached()
 	opened_cats = PackedStringArray(progress.finish_run(state.score, state.run_experience, run_feats))
 	progress.save_to(_save)
 	_save.save(SAVE_PATH)
+	# The walk finished on this run: the ending is the first thing the player
+	# sees, before the result card.
+	if not reached_before and progress.reunion_reached():
+		play_story("ending")
 
 
 ## `applyZone(force)`
@@ -634,13 +665,28 @@ func share_score() -> void:
 	share_status = ""
 	queue_redraw()
 	var zone := ZoneConfig.ZONES[zone_index]
-	var text := "HALF STEP %d점 · %s까지 도달! 이 기록 넘을 수 있어?" % [state.score, last_result_zone]
+	var text := I18n.t("SHARE_RUN") % [state.score, last_result_zone]
 	var cat := equipped_cat()
 	var image: Image = await ShareCard.render(self, state.score, zone, last_result_zone,
 		cat, int(progress.bests.get(progress.equipped, 0)))
 	ShareCard.share(text, image, state.score, func(status: String) -> void:
 		share_status = status
 		queue_redraw(), progress.equipped)
+
+
+# --- story ------------------------------------------------------------------
+
+## Runs a cut scene. The playfield keeps its state underneath, so an ending shown
+## after a run does not cost the player that run.
+func play_story(sequence: String) -> void:
+	story_screen.play(sequence, game_rect())
+	if sequence == "intro":
+		progress.seen_intro = true
+	else:
+		progress.seen_ending = true
+	progress.save_to(_save)
+	_save.save(SAVE_PATH)
+	queue_redraw()
 
 
 # --- cats -------------------------------------------------------------------
@@ -680,7 +726,7 @@ func draw_cat_card(canvas: CanvasItem) -> void:
 	canvas.draw_set_transform(_origin)
 
 	var text := card.position + Vector2(20.0, art.size.y + 22.0)
-	CssText.draw_at(canvas, String(cat.name), text, 22.0, 0.0, INK)
+	CssText.draw_at(canvas, CatConfig.display_name(cat), text, 22.0, 0.0, INK)
 	CssText.draw_at(canvas, String(cat.code), text + Vector2(0.0, 30.0), 10.0, 2.0, Color("6d8293"))
 	CssText.draw_at(canvas, CatConfig.condition_text(cat), text + Vector2(0.0, 52.0), 12.0, 0.0, ACCENT)
 
@@ -692,19 +738,19 @@ func draw_cat_card(canvas: CanvasItem) -> void:
 		Shapes.fill(canvas, Art.cat_polygon(0.62, 0.0, locked[i]), Color("9db2c4", 0.62))
 	canvas.draw_set_transform(_origin)
 	if not locked.is_empty():
-		CssText.draw_at(canvas, "아직 열지 못한 칸", thumb + Vector2(float(locked.size()) * 30.0 + 4.0, -6.0),
+		CssText.draw_at(canvas, I18n.t("LOCKED_SLOTS"), thumb + Vector2(float(locked.size()) * 30.0 + 4.0, -6.0),
 			9.0, 1.2, Color("8ba0b3"))
 
 	var share := Rect2(Rect2(layout.share).position - _origin, Rect2(layout.share).size)
 	canvas.draw_rect(Rect2(share.position + Vector2(0.0, 5.0), share.size), Color("111a21"))
 	canvas.draw_rect(share, INK)
-	CssText.draw_centered(canvas, "공유하기", share.position.x, share.size.x,
+	CssText.draw_centered(canvas, I18n.t("SHARE"), share.position.x, share.size.x,
 		share.position.y + (share.size.y - CssText.line_height(14.0)) * 0.5, 14.0, 0.0, Color(1.0, 1.0, 1.0))
 	if not share_status.is_empty():
 		CssText.draw_centered(canvas, share_status, card.position.x, card.size.x,
 			share.position.y - 16.0, 10.0, 0.0, Color("607585"))
 	var remaining := opened_cats.size() - card_index - 1
-	var footer := "다음 · %d마리 더" % remaining if remaining > 0 else "탭해서 닫기"
+	var footer := I18n.t("NEXT_MORE") % remaining if remaining > 0 else I18n.t("TAP_TO_CLOSE")
 	CssText.draw_centered(canvas, footer, card.position.x, card.size.x, card.position.y + card.size.y - 24.0,
 		9.0, 1.4, Color("8ba0b3"))
 	canvas.draw_set_transform(Vector2.ZERO)
@@ -728,8 +774,7 @@ func share_cat(id: String) -> void:
 	share_status = ""
 	queue_redraw()
 	var cat := CatConfig.by_id(id)
-	var text := "HALF STEP · %s을(를) 얻었다\n%s\n너는 어느 하늘까지?" % [
-		String(cat.name), CatConfig.condition_text(cat)]
+	var text := I18n.t("SHARE_CAT") % [CatConfig.display_name(cat), CatConfig.condition_text(cat)]
 	var image: Image = await ShareCard.render_cat(self, cat, progress.level())
 	ShareCard.share(text, image, 0, func(status: String) -> void:
 		share_status = status
@@ -850,11 +895,15 @@ func _draw() -> void:
 	_draw_hud(size)
 	draw_set_transform(Vector2.ZERO)
 	_draw_letterbox(rect)
+	if story_screen != null and story_screen.visible:
+		story_screen.layout(rect)
+		story_screen.queue_redraw()
 	if codex_screen != null and codex_screen.visible:
 		codex_screen.layout(rect)
 		codex_screen.queue_redraw()
 	if result_overlay != null:
-		result_overlay.visible = death_time >= RESULT_DELAY_MS and not codex_screen.visible
+		result_overlay.visible = death_time >= RESULT_DELAY_MS \
+			and not codex_screen.visible and not story_screen.visible
 		if result_overlay.visible:
 			result_overlay.refresh(rect)
 
@@ -1092,9 +1141,9 @@ func _draw_hint(size: Vector2) -> void:
 	var center := Vector2(size.x * 0.5, top + height * 0.5)
 	_transform(center, 0.0, Vector2(scale, scale))
 	var left := -size.x * 0.5
-	CssText.draw_centered_shadowed(self, HINT_TEXT, left, size.x, -height * 0.5, 16.0, 0.0,
+	CssText.draw_centered_shadowed(self, I18n.t(HINT_TEXT), left, size.x, -height * 0.5, 16.0, 0.0,
 		Color(1.0, 1.0, 1.0, alpha), Color(0.0, 0.0, 0.0, 0.13 * alpha), 3.0)
-	CssText.draw_centered_shadowed(self, HINT_SUBTEXT, left, size.x, -height * 0.5 + CssText.line_height(16.0) + 6.0,
+	CssText.draw_centered_shadowed(self, I18n.t(HINT_SUBTEXT), left, size.x, -height * 0.5 + CssText.line_height(16.0) + 6.0,
 		10.0, 0.0, Color(1.0, 1.0, 1.0, alpha * 0.82), Color(0.0, 0.0, 0.0, 0.13 * alpha * 0.82), 3.0)
 	draw_set_transform(_origin)
 
@@ -1186,11 +1235,11 @@ func draw_result(canvas: CanvasItem) -> void:
 		canvas.draw_set_transform(_origin + row.position + Vector2(20.0, row.size.y * 0.5), 0.0, Vector2(0.5, 0.5))
 		Art.draw_cat_portrait(canvas, cat, Color("fdeee9"))
 		canvas.draw_set_transform(_origin)
-		var headline := "새 고양이 · %s" % String(cat.name)
+		var headline := I18n.t("NEW_CAT") % CatConfig.display_name(cat)
 		if opened_cats.size() > 1:
-			headline = "새 고양이 %d마리" % opened_cats.size()
+			headline = I18n.t("NEW_CATS") % opened_cats.size()
 		CssText.draw_at(canvas, headline, row.position + Vector2(42.0, 6.0), 13.0, 0.0, Color("8a3b30"))
-		CssText.draw_at(canvas, "탭해서 보기", row.position + Vector2(42.0, 22.0), 9.0, 1.2, Color("b06a5e"))
+		CssText.draw_at(canvas, I18n.t("TAP_TO_SEE"), row.position + Vector2(42.0, 22.0), 9.0, 1.2, Color("b06a5e"))
 	var retry := Rect2(Rect2(layout.retry).position - _origin, Rect2(layout.retry).size)
 	var share := Rect2(Rect2(layout.share).position - _origin, Rect2(layout.share).size)
 	canvas.draw_rect(Rect2(retry.position + Vector2(0.0, 5.0), retry.size), Color("111a21"))
@@ -1198,13 +1247,13 @@ func draw_result(canvas: CanvasItem) -> void:
 	canvas.draw_rect(Rect2(share.position + Vector2(0.0, 5.0), share.size), Color("c7dce9"))
 	canvas.draw_rect(share, Color("e7f2f9"))
 	var label_offset := (50.0 - CssText.line_height(14.0)) * 0.5
-	CssText.draw_centered(canvas, "다시하기", retry.position.x, retry.size.x, retry.position.y + label_offset, 14.0, 0.0, Color(1.0, 1.0, 1.0))
-	CssText.draw_centered(canvas, "공유하기", share.position.x, share.size.x, share.position.y + label_offset, 14.0, 0.0, INK)
+	CssText.draw_centered(canvas, I18n.t("RETRY"), retry.position.x, retry.size.x, retry.position.y + label_offset, 14.0, 0.0, Color(1.0, 1.0, 1.0))
+	CssText.draw_centered(canvas, I18n.t("SHARE"), share.position.x, share.size.x, share.position.y + label_offset, 14.0, 0.0, INK)
 	y = retry.position.y + 50.0 + 8.0
 	if not share_status.is_empty():
 		CssText.draw_centered(canvas, share_status, left, content_width, y, 10.0, 0.0, Color("607585"))
 	y += 13.0 + 4.0
-	CssText.draw_centered(canvas, "도감 %d / %d · LV %d" % [progress.owned_count(),
+	CssText.draw_centered(canvas, I18n.t("CODEX_COUNT") % [progress.owned_count(),
 		CatConfig.CATS.size(), progress.level()], left, content_width, y, 10.0, 1.0, Color("6d8293"))
 	y += 18.0 + 4.0
 	CssText.draw_centered(canvas, "PLAY · FAIL · SHARE · REPEAT", left, content_width, y, 10.0, 0.0, Color(0.0, 0.0, 0.0, 0.45))

@@ -369,3 +369,64 @@ code corrected:
 Permanent lesson:
 A helper that quietly discards data is fine until the second caller arrives. Make
 it return everything and let the caller narrow.
+
+### The story arrived, and the strings were in the wrong place (2026-08-28)
+
+A scenario landed — Tori walking to the person who went ahead — along with plans
+for many languages. Every player-visible string was a GDScript literal, and the
+Hangul font was a subset scraped out of those literals, so localisation would
+have meant rewriting both at once. Everything moved to
+`assets/i18n/half_step.csv` first: 87 keys, 12 locales, and the font subsets
+derived per *script* from the same table. Twelve languages cost 291 KB, because a
+subset holds only the few hundred characters its languages use.
+
+Drawing turned out to matter too. `CssText` draws one glyph at a time so the
+HUD's letter-spacing works, which silently destroys Arabic and Indic text.
+`I18n.SEPARABLE_SCRIPTS` now decides, and a script that cannot be split loses its
+letter-spacing rather than its words.
+
+### 4.8 MB of ICU data nobody asked for (2026-08-28)
+
+The exported `.pck` went from 88 KB to 5.18 MB the moment translations were
+registered. It was not the fonts and not the translation files, which are 291 KB
+and 49 KB. It was `icudt78l` — the ICU tables for bidirectional text and word
+breaking — which Godot's exporter bundles whenever
+`internationalization/locale/translations` is set, and which
+`locale/include_text_server_data=false` does not switch off.
+
+None of the twelve shipped languages need it: nothing in this game wraps text and
+none of them are right-to-left. The translations are registered at runtime by
+`I18n.load_all()` instead, and the export is 381 KB. Verified in a browser in
+Japanese, Chinese, Vietnamese and Korean — every glyph, including Vietnamese
+diacritics, still renders.
+
+Found by looking at the exported file size, not by any test. Adding Arabic,
+Hebrew or an Indic script means putting the list back and taking the 4.8 MB.
+
+Permanent lesson:
+Check the size of what actually ships. A 60x regression passed five test suites
+and every screenshot without a murmur.
+
+Permanent lesson:
+Localisation is not a translation task, it is a "where do strings live" task. Do
+the move before the first language, not after.
+
+### Where to put the ending (2026-08-28)
+
+The question was whether the ending should be easy (so the story lands) or hard
+(so seeing it is worth bragging about). Neither: one scene cannot do both jobs.
+Gate it high and the story never resolves for most players; gate it low and there
+is nothing to film.
+
+The ending is gated on **distance walked as Tori** — 3,000 landings across every
+run — which makes it reachable by anyone who keeps coming back and makes every
+failed run count toward it. The bragging is left to a separate epilogue at score
+1000, which is designed in STORY.md and not yet built.
+
+Distance, rather than score or level, because the story is a cat walking to
+someone. It is the only measure where dying still moves you forward.
+
+Permanent lesson:
+When one feature is asked to be both the payoff and the flex, split it. The
+payoff has to be reachable and the flex has to be rare, and those are opposite
+requirements.

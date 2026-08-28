@@ -9,7 +9,7 @@ extends Node2D
 ## locked, and locked cats show a silhouette and the condition only — AGENTS.md
 ## section 8: what you have not reached, you do not see.
 
-const HEADER := 104.0
+const HEADER := 132.0
 const CARD := Vector2(106.0, 140.0)
 const GAP := 10.0
 const COLUMNS := 3
@@ -23,11 +23,13 @@ const PAPER := Color("f6fbff")
 const RULE := Color("d6e7f1")
 
 const SECTIONS := [
-	{"key": CatConfig.Unlock.LEVEL, "title": "레벨", "note": "누적 경험치"},
-	{"key": CatConfig.Unlock.SCORE, "title": "하늘", "note": "한 판의 도달 점수"},
-	{"key": CatConfig.Unlock.FEAT, "title": "손끝", "note": "한 판 안의 위업"},
-	{"key": CatConfig.Unlock.WITNESS, "title": "목격", "note": "남의 카드"},
+	{"key": CatConfig.Unlock.LEVEL, "title": "SECTION_LEVEL", "note": "SECTION_LEVEL_NOTE"},
+	{"key": CatConfig.Unlock.SCORE, "title": "SECTION_SKY", "note": "SECTION_SKY_NOTE"},
+	{"key": CatConfig.Unlock.FEAT, "title": "SECTION_FEAT", "note": "SECTION_FEAT_NOTE"},
+	{"key": CatConfig.Unlock.WITNESS, "title": "SECTION_WITNESS", "note": "SECTION_WITNESS_NOTE"},
 ]
+
+signal replay_requested(sequence: String)
 
 var progress: Progress
 var scroll := 0.0
@@ -36,6 +38,7 @@ var _rect := Rect2()
 var _cards: Array[Dictionary] = []
 var _content_height := 0.0
 var _close := Rect2()
+var _replays: Array[Dictionary] = []
 var _dragging := false
 var _drag_moved := 0.0
 
@@ -78,6 +81,18 @@ func layout(rect: Rect2) -> void:
 				y += CARD.y + GAP
 		if column > 0:
 			y += CARD.y + GAP
+	# Replays sit under the roster, where an extras menu belongs. The ending's
+	# row only exists once it has been earned — offering it earlier would give
+	# away that there is an ending at all.
+	var width := rect.size.x - PAD * 2.0
+	_replays.clear()
+	_replays.append({"sequence": "intro", "key": "STORY_INTRO_REPLAY",
+		"rect": Rect2(Vector2(rect.position.x + PAD, y + 6.0), Vector2(width, 44.0))})
+	y += 54.0
+	if progress != null and progress.seen_ending:
+		_replays.append({"sequence": "ending", "key": "STORY_ENDING_REPLAY",
+			"rect": Rect2(Vector2(rect.position.x + PAD, y + 6.0), Vector2(width, 44.0))})
+		y += 54.0
 	_content_height = y - rect.position.y + PAD
 	_close = Rect2(rect.end.x - 54.0, rect.position.y + 26.0, 36.0, 36.0)
 
@@ -111,6 +126,11 @@ func handle_release(position: Vector2) -> void:
 	_dragging = false
 	if _drag_moved > 8.0:
 		return
+	for replay in _replays:
+		var row := Rect2(Rect2(replay.rect).position - Vector2(0.0, scroll), Rect2(replay.rect).size)
+		if row.has_point(position):
+			replay_requested.emit(String(replay.sequence))
+			return
 	for card in _cards:
 		var box := Rect2(Rect2(card.rect).position - Vector2(0.0, scroll), CARD)
 		if not box.has_point(position):
@@ -140,20 +160,29 @@ func _draw() -> void:
 	# Section headings ride with the cards.
 	var seen: Dictionary = {}
 	for card in _cards:
-		var title: String = card.section
+		var title: String = I18n.t(String(card.section))
 		if seen.has(title):
 			continue
 		seen[title] = true
 		var note := ""
 		for section: Dictionary in SECTIONS:
-			if String(section.title) == title:
-				note = String(section.note)
+			if I18n.t(String(section.title)) == title:
+				note = I18n.t(String(section.note))
 		var y: float = Rect2(card.rect).position.y - _rect.position.y - scroll - SECTION_HEAD + 12.0
 		if y < HEADER - SECTION_HEAD or y > size.y:
 			continue
 		var left: float = Rect2(card.rect).position.x - _rect.position.x
 		CssText.draw_at(self, title, Vector2(left, y), 15.0, 0.0, INK)
 		CssText.draw_at(self, note, Vector2(left + CssText.width(title, 15.0, 0.0) + 10.0, y + 3.0), 10.0, 1.2, MUTED)
+
+	for replay in _replays:
+		var row := Rect2(Rect2(replay.rect).position - _rect.position - Vector2(0.0, scroll),
+			Rect2(replay.rect).size)
+		if row.end.y < HEADER or row.position.y > size.y:
+			continue
+		draw_rect(row, Color("e7f2f9"))
+		CssText.draw_at(self, I18n.t(String(replay.key)),
+			row.position + Vector2(14.0, 13.0), 13.0, 0.0, INK)
 
 	_draw_header(size)
 	draw_set_transform(Vector2.ZERO)
@@ -162,7 +191,7 @@ func _draw() -> void:
 func _draw_header(size: Vector2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, HEADER)), PAPER)
 	draw_rect(Rect2(Vector2(0.0, HEADER - 1.0), Vector2(size.x, 1.0)), RULE)
-	CssText.draw_at(self, "도감", Vector2(PAD, 34.0), 20.0, 0.0, INK)
+	CssText.draw_at(self, I18n.t("CODEX"), Vector2(PAD, 34.0), 20.0, 0.0, INK)
 	var owned := progress.owned_count()
 	var total := CatConfig.CATS.size()
 	CssText.draw_at(self, "%d / %d" % [owned, total], Vector2(PAD, 58.0), 11.0, 1.4, MUTED)
@@ -177,9 +206,20 @@ func _draw_header(size: Vector2) -> void:
 	draw_rect(bar, RULE)
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * progress.level_fraction(), bar.size.y)), ACCENT)
 
+	# The walk. This is the story, so it gets its own line and its own bar, and
+	# it stays visible after arriving — the distance walked is the keepsake.
+	var walked: float = clampf(float(progress.tori_steps) / float(StoryConfig.REUNION_STEPS), 0.0, 1.0)
+	var journey := Rect2(PAD, 108.0, size.x - PAD * 2.0, 4.0)
+	draw_rect(journey, RULE)
+	draw_rect(Rect2(journey.position, Vector2(journey.size.x * walked, journey.size.y)), INK)
+	var line := I18n.t("STORY_ARRIVED") if progress.reunion_reached() \
+		else I18n.t("STORY_DISTANCE") % progress.steps_remaining()
+	CssText.draw_at(self, line, Vector2(PAD, 90.0), 11.0, 0.6,
+		INK if progress.reunion_reached() else MUTED)
+
 	var close := Rect2(_close.position - _rect.position, _close.size)
 	draw_rect(close, Color("e7f2f9"))
-	CssText.draw_centered(self, "×", close.position.x, close.size.x, close.position.y + 8.0, 18.0, 0.0, INK)
+	CssText.draw_centered(self, "\u00d7", close.position.x, close.size.x, close.position.y + 8.0, 18.0, 0.0, INK)
 
 
 func _draw_card(box: Rect2, cat: Dictionary) -> void:
@@ -208,7 +248,7 @@ func _draw_card(box: Rect2, cat: Dictionary) -> void:
 
 	var strip := Rect2(box.position + Vector2(0.0, 92.0), Vector2(box.size.x, box.size.y - 92.0))
 	draw_rect(strip, Color("edf4fa"))
-	var name := String(cat.name) if owned or witnessed else "?"
+	var name := CatConfig.display_name(cat) if owned or witnessed else "?"
 	CssText.draw_at(self, name, Vector2(strip.position.x + 8.0, strip.position.y + 8.0), 13.0, 0.0,
 		INK if owned else MUTED)
 	var line := String(cat.code) if owned else CatConfig.condition_label(cat)
@@ -220,7 +260,7 @@ func _draw_card(box: Rect2, cat: Dictionary) -> void:
 	# which has no room for a second line.
 	var best := int(progress.bests.get(id, 0))
 	if owned and best > 0:
-		var label := "최고 %d" % best
+		var label := I18n.t("BEST_WITH") % best
 		var chip_width := CssText.width(label, 9.0, 0.8) + 12.0
 		var chip := Rect2(box.position + Vector2(box.size.x - chip_width - 6.0, 92.0 - 20.0),
 			Vector2(chip_width, 15.0))

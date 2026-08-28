@@ -1,0 +1,112 @@
+keys,en,ko,ja,zh_Hans,zh_Hant,es,pt_BR,fr,de,ru,id,vi
+BEST_WITH,Best %d,최고 %d,最高 %d,最高 %d,最高 %d,Récord %d,Recorde %d,Record %d,Best %d,Рекорд %d,Terbaik %d,Cao nhất %d
+CAT_AURORA,Aurora,오로라,オーロラ,极光,極光,Aurora,Aurora,Aurore,Aurora,Сияние,Aurora,Cực quang
+CAT_BEYOND,Beyond,너머,むこう,彼岸,彼岸,Más allá,Além,Au-delà,Jenseits,За гранью,Seberang,Bên kia
+CAT_BUTTER,Butter,버터,バター,黄油,奶油,Mantequilla,Manteiga,Beurre,Butter,Масло,Mentega,Bơ
+CAT_CALICO,Calico,삼색,三毛,三花,三花,Carey,Tricolor,Calico,Glückskatze,Трёхцветка,Belang tiga,Tam thể
+CAT_CHROMA,Chroma,색채,しきさい,色彩,色彩,Croma,Croma,Chroma,Chroma,Хрома,Kroma,Sắc màu
+CAT_CINDER,Cinder,잿불,おきび,炭火,炭火,Ceniza,Cinza,Cendre,Asche,Тлеющий,Bara api,Tro tàn
+CAT_EMBER,Ember,노을등,おき火,余烬,餘燼,Brasa,Brasa,Braise,Glut,Уголёк,Bara,Than hồng
+CAT_FROST,Frost,서리,しも,霜,霜,Escarcha,Geada,Givre,Frost,Иней,Embun beku,Sương giá
+CAT_GALAXY,Galaxy,은하,ぎんが,银河,銀河,Galaxia,Galáxia,Galaxie,Galaxie,Галактика,Galaksi,Ngân hà
+CAT_HORIZON,Horizon,백색,はくしょく,白色,白色,Horizonte,Horizonte,Horizon,Horizont,Горизонт,Horizon,Chân trời
+CAT_LAST_STEP,Last Step,마지막걸음,さいごのいっぽ,最后一步,最後一步,Último Paso,Último Passo,Dernier Pas,Letzter Schritt,Последний шаг,Langkah Terakhir,Bước Cuối
+CAT_MERIDIAN,Meridian,자오선,しごせん,子午线,子午線,Meridiano,Meridiano,Méridien,Meridian,Меридиан,Meridian,Kinh tuyến
+CAT_MIDNIGHT,Midnight,자정,真夜中,子夜,子夜,Medianoche,Meia-noite,Minuit,Mitternacht,Полночь,Tengah malam,Nửa đêm
+CAT_MILK,Milk,우유,ミルク,牛奶,牛奶,Leche,Leite,Lait,Milch,Молоко,Susu,Sữa
+CAT_NAMELESS,―,―,―,―,―,―,―,―,―,―,―,―
+CAT_NIMBUS,Nimbus,구름솜,にゅうどう,云絮,雲絮,Nimbo,Nimbo,Nimbus,Nimbus,Облако,Nimbus,Mây bông
+CAT_OBSIDIAN,Obsidian,흑요,こくよう,黑曜,黑曜,Obsidiana,Obsidiana,Obsidienne,Obsidian,Обсидиан,Obsidian,Hắc diện
+CAT_POLAR,Polar,북극,ほっきょく,北极,北極,Polar,Polar,Polaire,Polar,Полярный,Kutub,Bắc cực
+CAT_RAIN,Rain,밤비,よさめ,夜雨,夜雨,Lluvia,Chuva,Pluie,Regen,Дождь,Hujan,Mưa
+CAT_SILENCE,Silence,침묵,ちんもく,沉默,沉默,Silencio,Silêncio,Silence,Stille,Тишина,Sunyi,Tĩnh lặng
+CAT_SOOT,Soot,그을음,すす,煤灰,煤灰,Hollín,Fuligem,Suie,Ruß,Сажа,Jelaga,Bồ hóng
+CAT_TORI,Tori,토리,トリ,托里,托里,Tori,Tori,Tori,Tori,Тори,Tori,Tori
+CAT_TUXEDO,Tuxedo,턱시도,タキシード,燕尾,燕尾,Esmoquin,Smoking,Smoking,Smoking,Смокинг,Tuksedo,Tuxedo
+CAT_VOID,Void,공허,くうきょ,空虚,空虛,Vacío,Vazio,Vide,Leere,Пустота,Kehampaan,Hư không
+CODEX,Codex,도감,図鑑,图鉴,圖鑑,Códice,Códice,Codex,Codex,Кодекс,Kodeks,Bộ sưu tập
+CODEX_COUNT,Codex %d / %d · LV %d,도감 %d / %d · LV %d,図鑑 %d / %d · LV %d,图鉴 %d / %d · LV %d,圖鑑 %d / %d · LV %d,Códice %d / %d · NIV %d,Códice %d / %d · NV %d,Codex %d / %d · NIV %d,Codex %d / %d · LV %d,Кодекс %d / %d · УР %d,Kodeks %d / %d · LV %d,Bộ sưu tập %d / %d · CẤP %d
+COND_CROSSINGS,%d crossings,전환 %d회,%d回の切替,切换 %d 次,切換 %d 次,%d cambios,%d trocas,%d changements,%d Wechsel,%d смен,%d pindah,%d lần đổi
+COND_CROSSINGS_FULL,Change lanes %d times in one run,한 판에 좌우를 %d번 갈아탄다,1回で左右を%d回切り替える,单局切换左右 %d 次,單局切換左右 %d 次,Cambia de carril %d veces en una partida,Troque de lado %d vezes numa partida,Changer de voie %d fois en une partie,%d Mal die Spur wechseln in einem Lauf,Сменить сторону %d раз за забег,Pindah jalur %d kali dalam satu ronde,Đổi làn %d lần trong một lượt
+COND_EARLY,Sharp timing %d,칼타이밍 %d,ジャスト %d,精准 %d,精準 %d,Timing %d,Timing %d,Timing %d,Timing %d,Тайминг %d,Timing %d,Canh %d
+COND_EARLY_FULL,%d jumps in a row inside the first 10%% of the window,창이 열린 직후 10%% 안에 든 점프 %d회 연속,開いた直後10%%以内のジャンプ%d回連続,窗口开启前10%%内起跳，连续%d次,視窗開啟前10%%內起跳，連續%d次,%d saltos seguidos en el primer 10%% de la ventana,%d saltos seguidos nos primeiros 10%% da janela,%d Sprünge in Folge in den ersten 10%% des Fensters,%d Sprünge in Folge im ersten Zehntel des Fensters,%d прыжков подряд в первые 10%% окна,%d lompatan berturut di 10%% awal jendela,%d cú nhảy liên tiếp trong 10%% đầu cửa sổ
+COND_FIRST_RUN,First run %d,첫 판 %d,初回 %d,首局 %d,首局 %d,1ª partida %d,1ª partida %d,1re partie %d,1. Lauf %d,1-й забег %d,Ronde 1 %d,Lượt đầu %d
+COND_FIRST_RUN_FULL,Score %d on the first run after launch,앱을 켜고 첫 판에 %d점,起動後の初回で%d点,启动后首局 %d 分,啟動後首局 %d 分,%d puntos en la primera partida tras abrir,%d pontos na 1ª partida após abrir,%d points à la première partie après lancement,%d Punkte im ersten Lauf nach dem Start,%d очков в первом забеге после запуска,%d poin di ronde pertama setelah dibuka,%d điểm ở lượt đầu sau khi mở
+COND_LEVEL,LV %d,LV %d,LV %d,LV %d,LV %d,NIV %d,NV %d,NIV %d,LV %d,УР %d,LV %d,CẤP %d
+COND_LEVEL_FULL,Reach level %d,레벨 %d 도달,レベル%dに到達,达到等级 %d,達到等級 %d,Llega al nivel %d,Chegue ao nível %d,Atteindre le niveau %d,Level %d erreichen,Достичь уровня %d,Capai level %d,Đạt cấp %d
+COND_SCORE,Score %d,점수 %d,スコア %d,分数 %d,分數 %d,%d puntos,%d pontos,Score %d,Punkte %d,Очки %d,Skor %d,Điểm %d
+COND_SCORE_FULL,Score %d in one run · %s,한 판에 %d점 · %s,1回で%d点 · %s,单局 %d 分 · %s,單局 %d 分 · %s,%d puntos en una partida · %s,%d pontos numa partida · %s,%d points en une partie · %s,%d Punkte in einem Lauf · %s,%d очков за забег · %s,%d poin dalam satu ronde · %s,%d điểm một lượt · %s
+COND_STEADY,%d runs at 60,%d연전 60,%d連続で60,连续%d局60分,連續%d局60分,%d seguidas a 60,%d seguidas com 60,%d parties à 60,%d Läufe mit 60,%d забега по 60,%d ronde 60,%d lượt đạt 60
+COND_STEADY_FULL,"%d runs in a row, all 60 or more",연속 %d판 모두 60점 이상,%d回連続で60点以上,连续 %d 局都达到60分,連續 %d 局都達到60分,%d partidas seguidas con 60 o más,%d partidas seguidas com 60 ou mais,%d parties d'affilée à 60 ou plus,%d Läufe in Folge mit 60 oder mehr,%d забега подряд по 60 и больше,%d ronde berturut minimal 60,%d lượt liên tiếp đều 60 trở lên
+COND_WITNESS,Witness %d,목격 %d,目撃 %d,目击 %d,目擊 %d,Testigo %d,Testemunho %d,Témoin %d,Zeuge %d,Свидетель %d,Saksi %d,Chứng kiến %d
+COND_WITNESS_FULL,Witness %d other cats on shared cards,다른 고양이 %d마리를 남의 카드에서 목격,他の猫%d匹を誰かのカードで目撃,在别人的卡片上目击%d只猫,在別人的卡片上目擊%d隻貓,Ve %d gatos en cartas de otros,Veja %d gatos em cards de outros,Voir %d chats sur les cartes d'autres,%d Katzen auf fremden Karten sehen,Увидеть %d котов на чужих карточках,Lihat %d kucing di kartu orang lain,Thấy %d mèo trên thẻ người khác
+HINT,Tap when the bridge reaches you,발판이 다가올 때 탭해서 건너기,足場が来たらタップ,踏板靠近时点击,踏板靠近時點擊,Toca cuando llegue el puente,Toque quando a ponte chegar,Touche quand le pont arrive,"Tippe, wenn die Brücke kommt","Нажми, когда мост подойдёт",Ketuk saat jembatan tiba,Chạm khi cầu tới nơi
+HINT_SUB,"Farther on, other skies open",멀리 갈수록 다른 하늘이 열린다,進むほど違う空が開く,走得越远，天空越不同,走得越遠，天空越不同,"Más lejos, se abren otros cielos","Mais longe, outros céus se abrem","Plus loin, d'autres ciels s'ouvrent",Weiter draußen öffnen sich andere Himmel,Дальше открываются другие небеса,"Makin jauh, langit lain terbuka","Càng xa, bầu trời càng khác"
+LOCKED_SLOTS,Still closed,아직 열지 못한 칸,まだ開いていない枠,尚未开启的格子,尚未開啟的格子,Aún cerrados,Ainda fechados,Encore fermés,Noch verschlossen,Ещё закрыты,Masih terkunci,Vẫn chưa mở
+NEW_CAT,New cat · %s,새 고양이 · %s,新しい猫 · %s,新猫 · %s,新貓 · %s,Gato nuevo · %s,Gato novo · %s,Nouveau chat · %s,Neue Katze · %s,Новый кот · %s,Kucing baru · %s,Mèo mới · %s
+NEW_CATS,%d new cats,새 고양이 %d마리,新しい猫 %d匹,新猫 %d只,新貓 %d隻,%d gatos nuevos,%d gatos novos,%d nouveaux chats,%d neue Katzen,Новых котов: %d,%d kucing baru,%d mèo mới
+NEXT_MORE,Next · %d more,다음 · %d마리 더,次へ · あと%d匹,下一个 · 还有%d只,下一個 · 還有%d隻,Siguiente · %d más,Próximo · mais %d,Suivant · %d de plus,Weiter · noch %d,Дальше · ещё %d,Berikutnya · %d lagi,Tiếp · còn %d
+RETRY,Retry,다시하기,もう一度,再来一次,再來一次,Reintentar,Tentar de novo,Rejouer,Nochmal,Ещё раз,Coba lagi,Chơi lại
+SECTION_FEAT,Touch,손끝,指先,指尖,指尖,Pulso,Toque,Doigté,Fingerspitzen,Мастерство,Sentuhan,Ngón tay
+SECTION_FEAT_NOTE,A feat inside one run,한 판 안의 위업,1回の中の偉業,单局中的壮举,單局中的壯舉,Una hazaña en una partida,Um feito numa partida,Un exploit en une partie,Eine Leistung in einem Lauf,Подвиг за один забег,Prestasi dalam satu ronde,Kỳ tích trong một lượt
+SECTION_LEVEL,Level,레벨,レベル,等级,等級,Nivel,Nível,Niveau,Level,Уровень,Level,Cấp
+SECTION_LEVEL_NOTE,Total experience,누적 경험치,累計経験値,累计经验,累計經驗,Experiencia total,Experiência total,Expérience totale,Gesamterfahrung,Всего опыта,Total pengalaman,Tổng kinh nghiệm
+SECTION_SKY,Sky,하늘,空,天空,天空,Cielo,Céu,Ciel,Himmel,Небо,Langit,Bầu trời
+SECTION_SKY_NOTE,Score in one run,한 판의 도달 점수,1回のスコア,单局分数,單局分數,Puntos en una partida,Pontos numa partida,Score en une partie,Punkte in einem Lauf,Очки за один забег,Skor dalam satu ronde,Điểm trong một lượt
+SECTION_WITNESS,Witness,목격,目撃,目击,目擊,Testigo,Testemunho,Témoin,Zeuge,Свидетель,Saksi,Chứng kiến
+SECTION_WITNESS_NOTE,Someone else's card,남의 카드,誰かのカード,别人的卡片,別人的卡片,La carta de otro,O card de outra pessoa,La carte d'un autre,Die Karte eines anderen,Чужая карточка,Kartu orang lain,Thẻ của người khác
+SHARE,Share,공유하기,シェア,分享,分享,Compartir,Compartilhar,Partager,Teilen,Поделиться,Bagikan,Chia sẻ
+SHARE_CANCELLED,Sharing cancelled,공유를 취소했어요,共有をキャンセルしました,已取消分享,已取消分享,Compartir cancelado,Compartilhamento cancelado,Partage annulé,Teilen abgebrochen,Отменено,Berbagi dibatalkan,Đã hủy chia sẻ
+SHARE_CAT,"TORI · Found %s
+%s
+How far will you go?","토리 · %s을(를) 만났다
+%s
+너는 어느 하늘까지?","トリ · %sに出会った
+%s
+君はどの空まで？","托里 · 遇见了%s
+%s
+你能走到哪片天空？","托里 · 遇見了%s
+%s
+你能走到哪片天空？","TORI · Encontró a %s
+%s
+¿Hasta dónde llegarás?","TORI · Encontrou %s
+%s
+Até onde você vai?","TORI · A trouvé %s
+%s
+Jusqu'où iras-tu ?","TORI · hat %s gefunden
+%s
+Wie weit kommst du?","ТОРИ · нашёл %s
+%s
+А ты как далеко?","TORI · Menemukan %s
+%s
+Sejauh apa kamu?","TORI · Đã gặp %s
+%s
+Bạn đi được bao xa?"
+SHARE_CLIPBOARD,Sharing unavailable · copied to clipboard,공유 미지원 · 텍스트를 클립보드에 복사했어요,共有非対応 · クリップボードにコピーしました,不支持分享 · 已复制到剪贴板,不支援分享 · 已複製到剪貼簿,No se puede compartir · copiado al portapapeles,Não dá para compartilhar · copiado,Partage indisponible · copié,Teilen nicht möglich · kopiert,Поделиться нельзя · скопировано,Tak bisa berbagi · disalin,Không chia sẻ được · đã sao chép
+SHARE_RUN,TORI %d · Reached %s. Can you beat it?,토리 %d점 · %s까지 도달! 이 기록 넘을 수 있어?,トリ %d · %sまで到達。超えられる？,托里 %d · 抵达%s。你能超过吗？,托里 %d · 抵達%s。你能超過嗎？,TORI %d · Llegó a %s. ¿Puedes superarlo?,TORI %d · Chegou a %s. Consegue superar?,TORI %d · Arrivé à %s. Tu peux faire mieux ?,TORI %d · Bis %s gekommen. Schaffst du mehr?,ТОРИ %d · Дошёл до %s. Побьёшь?,TORI %d · Sampai %s. Bisa lampaui?,TORI %d · Đến %s. Vượt được không?
+SHARE_UNSUPPORTED,This browser cannot share,이 브라우저는 공유를 지원하지 않아요,このブラウザは共有できません,此浏览器不支持分享,此瀏覽器不支援分享,Este navegador no puede compartir,Este navegador não compartilha,Ce navigateur ne peut pas partager,Dieser Browser kann nicht teilen,Этот браузер не умеет делиться,Peramban ini tak bisa berbagi,Trình duyệt này không chia sẻ được
+STORY_ARRIVED,Tori arrived,토리가 도착했다,トリは着いた,托里到达了,托里到達了,Tori llegó,Tori chegou,Tori est arrivé,Tori ist angekommen,Тори добрался,Tori sampai,Tori đã tới
+STORY_DISTANCE,%d steps to Tori's person,주인까지 %d걸음,飼い主まであと%d歩,距离主人还有%d步,距離主人還有%d步,%d pasos hasta su persona,%d passos até seu humano,%d pas jusqu'à son humain,Noch %d Schritte,%d шагов до хозяина,%d langkah lagi,Còn %d bước
+STORY_ENDING_REPLAY,Watch the ending again,엔딩 다시보기,エンディングをもう一度,重看结局,重看結局,Ver el final otra vez,Ver o final de novo,Revoir la fin,Ende nochmal ansehen,Пересмотреть финал,Tonton ending lagi,Xem lại kết thúc
+STORY_END_1,The clouds went quiet.,구름이 조용해졌다.,雲が静かになった。,云安静了下来。,雲安靜了下來。,Las nubes se callaron.,As nuvens silenciaram.,Les nuages se sont tus.,Die Wolken wurden still.,Облака затихли.,Awan menjadi sunyi.,Những đám mây lặng đi.
+STORY_END_2,Someone was standing there.,누군가 서 있었다.,誰かが立っていた。,有人站在那里。,有人站在那裡。,Alguien estaba de pie allí.,Alguém estava ali de pé.,Quelqu'un se tenait là.,Jemand stand dort.,Кто-то стоял там.,Seseorang berdiri di sana.,Có ai đó đang đứng đó.
+STORY_END_3,I was waiting for you.,기다리고 있었어.,待っていたよ。,我一直在等你。,我一直在等你。,Te estaba esperando.,Eu estava te esperando.,Je t'attendais.,Ich habe auf dich gewartet.,Я тебя ждал.,Aku menunggumu.,Tớ đã đợi cậu.
+STORY_INTRO_1,His person went on ahead.,주인은 먼저 갔다.,飼い主は先に行った。,主人先走了。,主人先走了。,Su humano se fue antes.,Seu humano foi antes.,Son humain est parti avant.,Sein Mensch ging voraus.,Хозяин ушёл первым.,Majikannya pergi lebih dulu.,Chủ của nó đi trước.
+STORY_INTRO_2,Tori waited a long time.,토리는 오래 기다렸다.,トリは長く待った。,托里等了很久。,托里等了很久。,Tori esperó mucho tiempo.,Tori esperou muito tempo.,Tori a longtemps attendu.,Tori wartete lange.,Тори долго ждал.,Tori menunggu lama.,Tori đã đợi rất lâu.
+STORY_INTRO_3,Then Tori set off.,그리고 따라나섰다.,そして後を追った。,然后它出发了。,然後牠出發了。,Y entonces salió tras él.,E então saiu atrás dele.,Puis Tori s'est mis en route.,Dann machte Tori sich auf.,А потом пошёл следом.,Lalu Tori berangkat.,Rồi Tori lên đường.
+STORY_INTRO_REPLAY,Watch the intro again,인트로 다시보기,イントロをもう一度,重看开场,重看開場,Ver la intro otra vez,Ver a intro de novo,Revoir l'intro,Intro nochmal ansehen,Пересмотреть вступление,Tonton intro lagi,Xem lại phần mở đầu
+STORY_SKIP,Skip,건너뛰기,スキップ,跳过,跳過,Saltar,Pular,Passer,Überspringen,Пропустить,Lewati,Bỏ qua
+STORY_WALKED,%d steps walked,%d걸음을 걸었다,%d歩を歩いた,走了%d步,走了%d步,%d pasos recorridos,%d passos caminhados,%d pas parcourus,%d Schritte gegangen,Пройдено %d шагов,%d langkah ditempuh,Đã đi %d bước
+TAP_TO_CLOSE,Tap to close,탭해서 닫기,タップで閉じる,点击关闭,點擊關閉,Toca para cerrar,Toque para fechar,Touche pour fermer,Zum Schließen tippen,"Нажми, чтобы закрыть",Ketuk untuk tutup,Chạm để đóng
+TAP_TO_SEE,Tap to see,탭해서 보기,タップで表示,点击查看,點擊查看,Toca para ver,Toque para ver,Touche pour voir,Zum Ansehen tippen,"Нажми, чтобы открыть",Ketuk untuk lihat,Chạm để xem
+ZONE_LINE_0,The first sky,첫 하늘,最初の空,第一片天空,第一片天空,El primer cielo,O primeiro céu,Le premier ciel,Der erste Himmel,Первое небо,Langit pertama,Bầu trời đầu tiên
+ZONE_LINE_1,Golden wind,황금빛 바람,黄金の風,金色的风,金色的風,Viento dorado,Vento dourado,Vent doré,Goldener Wind,Золотой ветер,Angin keemasan,Gió vàng
+ZONE_LINE_10,Beyond,그 너머,その向こう,在那之外,在那之外,Más allá,Além,Au-delà,Dahinter,За гранью,Di seberang,Bên kia
+ZONE_LINE_2,Sunset run,노을 질주,夕焼けを駆ける,夕阳飞驰,夕陽飛馳,Carrera al atardecer,Corrida no pôr do sol,Course au couchant,Lauf im Abendrot,Бег на закате,Lari senja,Băng qua hoàng hôn
+ZONE_LINE_3,Through the night,밤을 뚫고,夜を突き抜けて,穿越夜色,穿越夜色,A través de la noche,Atravessando a noite,À travers la nuit,Durch die Nacht,Сквозь ночь,Menembus malam,Xuyên qua đêm
+ZONE_LINE_4,Between the stars,별 사이를 통과,星の間を抜けて,穿过群星,穿過群星,Entre las estrellas,Entre as estrelas,Entre les étoiles,Zwischen den Sternen,Между звёзд,Di antara bintang,Giữa những vì sao
+ZONE_LINE_5,The aurora's edge,오로라 경계,オーロラの境,极光的边缘,極光的邊緣,El borde de la aurora,A borda da aurora,Le bord de l'aurore,Der Rand der Aurora,Край сияния,Tepi aurora,Rìa cực quang
+ZONE_LINE_6,The red stratosphere,붉은 성층권,赤い成層圏,赤色平流层,赤色平流層,La estratosfera roja,A estratosfera vermelha,La stratosphère rouge,Die rote Stratosphäre,Красная стратосфера,Stratosfer merah,Tầng bình lưu đỏ
+ZONE_LINE_7,The current of the void,공허의 흐름,虚空の流れ,虚空之流,虛空之流,La corriente del vacío,A corrente do vazio,Le courant du vide,Die Strömung der Leere,Течение пустоты,Arus kehampaan,Dòng chảy hư không
+ZONE_LINE_8,Storm of colour,색채 폭풍,色彩の嵐,色彩风暴,色彩風暴,Tormenta de color,Tempestade de cor,Tempête de couleurs,Sturm der Farben,Буря цвета,Badai warna,Bão sắc màu
+ZONE_LINE_9,The white horizon,백색 지평선,白い地平線,白色地平线,白色地平線,El horizonte blanco,O horizonte branco,L'horizon blanc,Der weiße Horizont,Белый горизонт,Cakrawala putih,Chân trời trắng

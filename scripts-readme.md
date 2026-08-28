@@ -18,10 +18,11 @@
   be checked at a glance. Same display requirements as the snapshots.
 
 - `tools/build_fonts.py`
-  Rebuild the subset UI fonts in `assets/fonts/`. The Hangul subset is scraped
-  out of `src/*.gd`, so it can never fall behind the UI — but it is a build
-  step, not a runtime one. **Run it and commit the fonts after changing any
-  Korean string**, or that string draws as tofu boxes on a player's screen.
+  Rebuild the subset UI fonts in `assets/fonts/`, one per script, from
+  `assets/i18n/half_step.csv`. It can never fall behind the UI — but it is a
+  build step, not a runtime one. **Run it and commit the fonts after changing
+  any translated string or adding a language**, or that string draws as tofu
+  boxes on a player's screen.
 
 Still missing:
 

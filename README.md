@@ -8,8 +8,9 @@ Read `AGENTS.md` before changing gameplay. A tap immediately toggles lane. Landi
 
 ## Design documents
 
-`AGENTS.md` is the authority. `PROGRESSION.md` specifies the experience curve and
-the 24-cat codex; `docs/progression/sky-cat-codex.html` is the same document with
+`AGENTS.md` is the authority. `STORY.md` covers Tori's story, where the ending
+sits and how the twelve languages are built. `PROGRESSION.md` specifies the
+experience curve and the 24-cat codex; `docs/progression/sky-cat-codex.html` is the same document with
 every cat drawn from the game's own geometry — open it in a browser.
 `GAME_DESIGN.md`, `VIRAL_DESIGN.md`, `ART_DIRECTION.md` and `AUDIO_RULES.md` cover
 their areas, and `PROTOTYPE_HISTORY.md` records what was tried and rejected.

@@ -246,7 +246,11 @@ func _test_zone_table_matches_prototype() -> void:
 		expect(is_equal_approx(float(tails[i].get_string(1)), float(zone.stars)), "zone %d star opacity matches" % i)
 		expect(is_equal_approx(float(tails[i].get_string(2)), float(zone.scan)), "zone %d scanline opacity matches" % i)
 		expect(is_equal_approx(float(tails[i].get_string(3)), float(zone.boost)), "zone %d speed boost matches" % i)
-		expect(tails[i].get_string(4) == String(zone.share_line), "zone %d share line matches" % i)
+		# The share line is a translation key now; Korean is the language the
+		# prototype was written in, so that is what it has to come back as.
+		I18n.use("ko")
+		expect(tails[i].get_string(4) == I18n.t(String(zone.share_line)),
+			"zone %d share line still reads as the prototype's" % i)
 
 
 func _test_zone_boundaries() -> void:
