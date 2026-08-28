@@ -81,6 +81,23 @@ Drop art at `res://assets/story/intro_1.png` and the rest; a frame whose image i
 missing still plays, painting the sky it names. So the sequence runs, and is
 testable, before any art exists.
 
+**Generating them:** `python3 tools/imagegen/story_art.py` draws all six with
+the Codex CLI, six at a time. The prompts are `docs/story/PROMPTS.md`; the
+shared style spec, Tori's description and the no-text rule live in the script
+itself, and it refuses a prompt that drops the palette, the overhead camera or
+Tori's fur colour. That is deliberate — a spec kept only in a document
+evaporates between sessions.
+
+It needs `codex` on PATH and signed in (`codex login`; subscription auth, not an
+API key), so it does not run in CI and it did not run in the session that wrote
+it. `--check` lints without generating and works anywhere.
+
+The palettes in the prompts are the game's own — `ZoneConfig` skies and `Art`
+fur — so the cut scenes and the playfield stay one world. `intro_1` and
+`intro_2` are deliberately the same room from the same camera: the repetition is
+what makes the time pass. `ending_3` returns to `intro_1`'s amber, which closes
+the loop.
+
 | | |
 |---|---|
 | Intro | Plays once, before the first run ever. |

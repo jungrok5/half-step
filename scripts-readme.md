@@ -13,6 +13,13 @@
   Render one portrait screenshot per sky zone plus the result card and the share
   image. Needs a display; `xvfb-run` with a software GL driver is enough.
 
+- `tools/imagegen/story_art.py`
+  Draw the six intro/ending stills with the Codex CLI, six at a time. Needs
+  `codex` on PATH and signed in (`codex login` — subscription auth, not an API
+  key); it will not run in CI. `--check` lints the prompts in
+  `docs/story/PROMPTS.md` without generating anything, and that part does run
+  anywhere. Adapted from jungrok5/super-vs `tools/imagegen/gen.py`.
+
 - `tools/render_cats.gd`
   Render all 24 codex cats onto their own skies as one sheet, so the roster can
   be checked at a glance. Same display requirements as the snapshots.
