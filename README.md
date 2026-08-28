@@ -57,6 +57,7 @@ godot --headless --path . --script res://tests/test_runner.gd
 godot --headless --path . --script res://tests/step_cycle_test.gd
 godot --headless --path . --script res://tests/audio_test.gd
 godot --headless --path . --script res://tests/input_integration_test.gd
+godot --headless --path . --script res://tests/progression_test.gd
 ```
 
 ## Portrait snapshots

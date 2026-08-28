@@ -13,8 +13,15 @@
   Render one portrait screenshot per sky zone plus the result card and the share
   image. Needs a display; `xvfb-run` with a software GL driver is enough.
 
+- `tools/render_cats.gd`
+  Render all 24 codex cats onto their own skies as one sheet, so the roster can
+  be checked at a glance. Same display requirements as the snapshots.
+
 - `tools/build_fonts.py`
-  Rebuild the subset UI fonts in `assets/fonts/` after adding new UI copy.
+  Rebuild the subset UI fonts in `assets/fonts/`. The Hangul subset is scraped
+  out of `src/*.gd`, so it can never fall behind the UI — but it is a build
+  step, not a runtime one. **Run it and commit the fonts after changing any
+  Korean string**, or that string draws as tofu boxes on a player's screen.
 
 Still missing:
 

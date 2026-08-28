@@ -47,7 +47,7 @@ log "Importing project"
 "$GODOT_BIN" --headless --path "$ROOT" --editor --quit >/dev/null
 
 if [ "$SKIP_TESTS" -eq 0 ]; then
-  for suite in test_runner step_cycle_test audio_test input_integration_test; do
+  for suite in test_runner step_cycle_test audio_test input_integration_test progression_test; do
     log "Running $suite"
     "$GODOT_BIN" --headless --path "$ROOT" --script "res://tests/$suite.gd"
   done

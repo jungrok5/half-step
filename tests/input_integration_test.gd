@@ -34,6 +34,21 @@ func press_mouse(game: Node, position: Vector2, emulated := false) -> void:
 	game.call("_input", mouse)
 
 
+func release_touch(game: Node, position: Vector2) -> void:
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = false
+	touch.position = position
+	game.call("_input", touch)
+
+
+func drag_touch(game: Node, by: float) -> void:
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.relative = Vector2(0.0, by)
+	game.call("_input", drag)
+
+
 func _run() -> void:
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	var game: Node = scene.instantiate() if scene != null else null
@@ -102,8 +117,77 @@ func _run() -> void:
 	press_touch(game, Rect2(layout.card).position + Vector2(6, 6))
 	expect(state.run_state == HalfStepState.RunState.PLAYING, "a tap anywhere else on the card retries")
 
+	# --- the codex and the acquisition card ---------------------------------
+	var progress: Progress = game.get("progress")
+	var codex: Node = game.get("codex_screen")
+
+	# A cat that opened puts one line on the result card, and that line is the
+	# only way to the acquisition card. Everything else still retries, because
+	# AGENTS.md section 2 requires restart to stay immediate.
+	state.run_state = HalfStepState.RunState.DEAD
+	game.set("death_time", 600.0)
+	game.set("opened_cats", PackedStringArray(["milk", "soot"]))
+	layout = game.call("result_layout")
+	press_touch(game, Rect2(layout.new_cat).get_center())
+	expect(int(game.get("card_index")) == 0, "the new-cat line opens the acquisition card")
+	expect(state.run_state == HalfStepState.RunState.DEAD, "and does not retry")
+	var card: Dictionary = game.call("card_layout")
+	press_touch(game, Rect2(card.share).get_center())
+	expect(int(game.get("card_index")) == 0, "tapping SHARE stays on the card")
+	press_touch(game, Rect2(card.card).position + Vector2(6, 6))
+	expect(int(game.get("card_index")) == 1, "a tap anywhere else steps to the next new cat")
+	press_touch(game, Rect2(card.card).position + Vector2(6, 6))
+	expect(int(game.get("card_index")) == -1, "and the last one closes it")
+	expect(state.run_state == HalfStepState.RunState.DEAD, "closing the card does not retry")
+
+	# The codex opens from the result card and takes input until it closes.
+	game.set("opened_cats", PackedStringArray())
+	layout = game.call("result_layout")
+	press_touch(game, Rect2(layout.codex).get_center())
+	expect(bool(codex.get("visible")), "the codex row opens the codex")
+	expect(state.run_state == HalfStepState.RunState.DEAD, "opening the codex does not retry")
+	press_touch(game, Vector2(4, 4))
+	expect(state.run_state == HalfStepState.RunState.DEAD, "taps behind the codex never reach the game")
+
+	# Dragging scrolls; a tap on an owned cat equips it and a locked one does not.
+	codex.call("layout", game.call("game_rect"))
+	drag_touch(game, -60.0)
+	expect(float(codex.get("scroll")) > 0.0, "dragging scrolls the codex")
+	codex.set("scroll", 0.0)
+	progress.owned["milk"] = true
+	var milk := _card_rect(codex, "milk")
+	press_touch(game, milk.get_center())
+	release_touch(game, milk.get_center())
+	expect(progress.equipped == "milk", "tapping an owned cat equips it")
+	var locked := _card_rect(codex, "galaxy")
+	press_touch(game, locked.get_center())
+	release_touch(game, locked.get_center())
+	expect(progress.equipped == "milk", "tapping a locked cat changes nothing")
+
+	# A drag that ends over a cat is a scroll, not a tap.
+	progress.owned["soot"] = true
+	var soot := _card_rect(codex, "soot")
+	press_touch(game, soot.get_center())
+	drag_touch(game, -40.0)
+	release_touch(game, soot.get_center())
+	expect(progress.equipped == "milk", "a drag that ends over a cat does not equip it")
+
+	press_touch(game, Rect2(codex.get("_close")).get_center())
+	expect(not bool(codex.get("visible")), "the close button closes the codex")
+
 	root.remove_child(game)
 	game.free()
 	if failures == 0:
 		print("PASS: mouse and touch input reach HALF STEP")
 	quit(failures)
+
+
+## Where a cat's card currently sits on screen.
+func _card_rect(codex: Node, id: String) -> Rect2:
+	for card: Dictionary in codex.get("_cards"):
+		if String(card.cat.id) == id:
+			return Rect2(Rect2(card.rect).position - Vector2(0.0, float(codex.get("scroll"))),
+				CodexScreen.CARD)
+	push_error("FAIL: no codex card for " + id)
+	failures += 1
+	return Rect2()

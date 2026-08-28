@@ -85,11 +85,12 @@ static func capsule(canvas: CanvasItem, from: Vector2, to: Vector2, thickness: f
 	canvas.draw_line(from, to, color, thickness, true)
 
 
-## Union of [param parts] as one polygon, largest ring first. Used to build a
-## silhouette that can then be filled once at a single opacity.
-static func merge(parts: Array) -> PackedVector2Array:
+## Every ring of the union of [param parts]. Parts that touch become one ring;
+## parts that do not stay separate. Filling the rings instead of the parts is
+## what lets a translucent shape be drawn without seams along every join.
+static func merge_all(parts: Array) -> Array:
 	if parts.is_empty():
-		return PackedVector2Array()
+		return []
 	var merged: Array = [parts[0]]
 	for i in range(1, parts.size()):
 		var next: Array = []
@@ -107,11 +108,26 @@ static func merge(parts: Array) -> PackedVector2Array:
 		if not absorbed:
 			next.append(parts[i])
 		merged = next
+	return merged
+
+
+## The largest ring of that union. Only correct where the caller knows the parts
+## are connected — [method merge_all] keeps the rest.
+static func merge(parts: Array) -> PackedVector2Array:
+	var merged := merge_all(parts)
+	if merged.is_empty():
+		return PackedVector2Array()
 	var largest: PackedVector2Array = merged[0]
 	for shape: PackedVector2Array in merged:
 		if _area(shape) > _area(largest):
 			largest = shape
 	return largest
+
+
+## Fills every ring of a union at one opacity.
+static func fill_all(canvas: CanvasItem, parts: Array, color: Color) -> void:
+	for ring: PackedVector2Array in merge_all(parts):
+		fill(canvas, ring, color)
 
 
 static func _area(polygon: PackedVector2Array) -> float:
@@ -125,6 +141,33 @@ static func _area(polygon: PackedVector2Array) -> float:
 
 ## Scales a polygon about the origin. Cheaper than rebuilding a merged
 ## silhouette every frame.
+## The half of [param polygon] on the +X side of the origin, for a cat whose
+## two sides are different colours. Returns an empty array when nothing of it
+## lies there.
+static func clipped_right(polygon: PackedVector2Array) -> PackedVector2Array:
+	if polygon.size() < 3:
+		return PackedVector2Array()
+	var bounds := Rect2(polygon[0], Vector2.ZERO)
+	for point in polygon:
+		bounds = bounds.expand(point)
+	if bounds.end.x <= 0.0:
+		return PackedVector2Array()
+	var half := PackedVector2Array([
+		Vector2(0.0, bounds.position.y - 1.0),
+		Vector2(bounds.end.x + 1.0, bounds.position.y - 1.0),
+		Vector2(bounds.end.x + 1.0, bounds.end.y + 1.0),
+		Vector2(0.0, bounds.end.y + 1.0),
+	])
+	var pieces := Geometry2D.intersect_polygons(polygon, half)
+	if pieces.is_empty():
+		return PackedVector2Array()
+	var best: PackedVector2Array = pieces[0]
+	for piece: PackedVector2Array in pieces:
+		if absf(_area(piece)) > absf(_area(best)):
+			best = piece
+	return best
+
+
 static func scaled(polygon: PackedVector2Array, factor: Vector2, offset := Vector2.ZERO) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	for point in polygon:

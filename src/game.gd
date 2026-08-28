@@ -32,6 +32,8 @@ const GHOST_MS := 190.0
 const PARTICLE_MS := 160.0
 const DEATH_MS := 760.0
 const RESULT_DELAY_MS := 500.0
+## Height of the "new cat" row on the result card, when there is one.
+const NEW_CAT_ROW := 46.0
 const ZONE_BANNER_MS := 1250.0
 const SECRET_BANNER_MS := 1800.0
 const FLOW_MS := 380.0
@@ -72,8 +74,16 @@ const HINT_SUBTEXT := "멀리 갈수록 다른 하늘이 열린다"
 const SAVE_PATH := "user://half_step.cfg"
 
 var state := HalfStepState.new()
+var progress := Progress.new()
+var run_feats := RunFeats.new()
 var tone_player: TonePlayer
 var result_overlay: ResultOverlay
+var codex_screen: CodexScreen
+
+## Cats that opened on the run that just ended, in table order.
+var opened_cats: PackedStringArray = PackedStringArray()
+## Which of those the acquisition card is showing, or -1 when it is closed.
+var card_index := -1
 
 var best := 0
 ## `wasBest` in `die()`, captured before the stored best is replaced.
@@ -189,9 +199,14 @@ func _ready() -> void:
 	add_child(tone_player)
 	if _save.load(SAVE_PATH) == OK:
 		best = int(_save.get_value("score", "best", 0))
+		progress.load_from(_save)
 	result_overlay = ResultOverlay.new()
 	result_overlay.visible = false
 	add_child(result_overlay)
+	codex_screen = CodexScreen.new()
+	codex_screen.visible = false
+	add_child(codex_screen)
+	_take_witness_link()
 	reset()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
@@ -216,6 +231,9 @@ func reset() -> void:
 	layout_base_y = base_y()
 	state.reset(layout_base_y, game_size().y, _rng.randi())
 	tutorial_taps = 0
+	run_feats.reset()
+	opened_cats = PackedStringArray()
+	card_index = -1
 	lane_time = -1.0
 	player_squash_time = -1.0
 	death_time = -1.0
@@ -278,6 +296,22 @@ func randf_between(from: float, to: float) -> float:
 # --- input ------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
+	if codex_screen != null and codex_screen.visible:
+		if event is InputEventScreenDrag:
+			codex_screen.handle_drag(event.relative.y)
+			return
+		if event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			codex_screen.handle_drag(event.relative.y)
+			return
+		if event is InputEventScreenTouch and not event.pressed:
+			codex_screen.handle_release(event.position)
+			queue_redraw()
+			return
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			if event.device != InputEvent.DEVICE_ID_EMULATION:
+				codex_screen.handle_release(event.position)
+				queue_redraw()
+			return
 	var position := Vector2.INF
 	if event is InputEventScreenTouch and event.pressed:
 		position = event.position
@@ -291,6 +325,21 @@ func _input(event: InputEvent) -> void:
 		position = Vector2.ZERO
 	if position == Vector2.INF:
 		return
+	if codex_screen != null and codex_screen.visible:
+		codex_screen.handle_press(position)
+		queue_redraw()
+		return
+	if card_index >= 0:
+		# The acquisition card is up. A tap on the share button shares it;
+		# anywhere else steps to the next new cat, then closes.
+		if Rect2(card_layout().share).has_point(position):
+			share_cat(opened_cats[card_index])
+		else:
+			card_index += 1
+			if card_index >= opened_cats.size():
+				card_index = -1
+		queue_redraw()
+		return
 	if not state.is_running():
 		# A player dies mid-rhythm, so a tap is almost always already in flight
 		# when the run ends. Retrying on that tap swallows the fall and the
@@ -299,10 +348,16 @@ func _input(event: InputEvent) -> void:
 		# retry still costs one tap and no button hunting.
 		if death_time < RESULT_DELAY_MS:
 			return
-		if Rect2(result_layout().share).has_point(position):
+		var layout := result_layout()
+		if not opened_cats.is_empty() and Rect2(layout.new_cat).has_point(position):
+			card_index = 0
+		elif Rect2(layout.codex).has_point(position):
+			codex_screen.open(progress, game_rect())
+		elif Rect2(layout.share).has_point(position):
 			share_score()
 		else:
 			reset()
+		queue_redraw()
 		return
 	tap()
 
@@ -313,9 +368,10 @@ func tap() -> void:
 	# A tap is a jump, resolved where the cat is now — not a lane setting read
 	# at the next beat. Jumping for a bridge that has not arrived, or for a lane
 	# that has none, means jumping into open sky.
-	var reachable := state.can_cross(base_y(), row_scroll, 1 - state.lane)
+	var depth := state.cross_depth(base_y(), row_scroll, 1 - state.lane)
+	run_feats.record_jump(depth)
 	state.toggle_lane()
-	doomed_leap = doomed_leap or not reachable
+	doomed_leap = doomed_leap or depth < 0.0
 	lane_length = beat_fraction(LANE_MS)
 	lane_time = 0.0
 	tutorial_taps += 1
@@ -502,7 +558,9 @@ func die() -> void:
 	if was_best:
 		best = state.score
 		_save.set_value("score", "best", best)
-		_save.save(SAVE_PATH)
+	opened_cats = PackedStringArray(progress.finish_run(state.score, state.run_experience, run_feats))
+	progress.save_to(_save)
+	_save.save(SAVE_PATH)
 
 
 ## `applyZone(force)`
@@ -577,10 +635,135 @@ func share_score() -> void:
 	queue_redraw()
 	var zone := ZoneConfig.ZONES[zone_index]
 	var text := "HALF STEP %d점 · %s까지 도달! 이 기록 넘을 수 있어?" % [state.score, last_result_zone]
-	var image: Image = await ShareCard.render(self, state.score, zone, last_result_zone)
+	var cat := equipped_cat()
+	var image: Image = await ShareCard.render(self, state.score, zone, last_result_zone,
+		cat, int(progress.bests.get(progress.equipped, 0)))
 	ShareCard.share(text, image, state.score, func(status: String) -> void:
 		share_status = status
-		queue_redraw())
+		queue_redraw(), progress.equipped)
+
+
+# --- cats -------------------------------------------------------------------
+
+## Layout of the acquisition card. Kept apart from drawing so hit testing never
+## depends on a frame having been rendered.
+func card_layout() -> Dictionary:
+	var rect := game_rect()
+	var size := rect.size
+	var width := minf(size.x * 0.84, 340.0)
+	var height := minf(size.y * 0.78, 520.0)
+	var card := Rect2(rect.position + Vector2((size.x - width) * 0.5, (size.y - height) * 0.5),
+		Vector2(width, height))
+	var button := Rect2(card.position + Vector2(20.0, height - 78.0), Vector2(width - 40.0, 46.0))
+	return {"card": card, "share": button, "art": Rect2(card.position, Vector2(width, height * 0.54))}
+
+
+## `#overlay` for a cat that just opened. Drawn onto the same canvas as the
+## result card so the blurred backdrop stays underneath.
+func draw_cat_card(canvas: CanvasItem) -> void:
+	var cat := CatConfig.by_id(opened_cats[card_index])
+	var zone := CatConfig.zone_of(cat)
+	var layout := card_layout()
+	var rect := game_rect()
+	_origin = rect.position
+	canvas.draw_set_transform(_origin)
+	canvas.draw_rect(Rect2(Vector2.ZERO, rect.size), Color("0b1526", 0.55))
+	var card := Rect2(Rect2(layout.card).position - _origin, Rect2(layout.card).size)
+	var art := Rect2(Rect2(layout.art).position - _origin, Rect2(layout.art).size)
+	CssPaint.linear_gradient(canvas, art, 165.0, [[0.0, zone.top], [1.0, zone.bottom]])
+	canvas.draw_rect(Rect2(art.position + Vector2(0.0, art.size.y), Vector2(card.size.x, card.size.y - art.size.y)),
+		Color("f6fbff"))
+	CssText.draw_at(canvas, "HALF STEP", art.position + Vector2(16.0, 14.0), 10.0, 2.6,
+		Color(1.0, 1.0, 1.0, 0.86))
+	canvas.draw_set_transform(_origin + art.get_center() + Vector2(0.0, 12.0), 0.0, Vector2(2.6, 2.6))
+	Art.draw_cat_portrait(canvas, cat, Color(zone.top).lerp(zone.bottom, 0.5))
+	canvas.draw_set_transform(_origin)
+
+	var text := card.position + Vector2(20.0, art.size.y + 22.0)
+	CssText.draw_at(canvas, String(cat.name), text, 22.0, 0.0, INK)
+	CssText.draw_at(canvas, String(cat.code), text + Vector2(0.0, 30.0), 10.0, 2.0, Color("6d8293"))
+	CssText.draw_at(canvas, CatConfig.condition_text(cat), text + Vector2(0.0, 52.0), 12.0, 0.0, ACCENT)
+
+	# What is still shut, so the card asks a question it does not answer.
+	var locked := _locked_preview(3)
+	var thumb := card.position + Vector2(26.0, card.size.y - 108.0)
+	for i in locked.size():
+		canvas.draw_set_transform(_origin + thumb + Vector2(float(i) * 30.0, 0.0), 0.0, Vector2(0.42, 0.42))
+		Shapes.fill(canvas, Art.cat_polygon(0.62, 0.0, locked[i]), Color("9db2c4", 0.62))
+	canvas.draw_set_transform(_origin)
+	if not locked.is_empty():
+		CssText.draw_at(canvas, "아직 열지 못한 칸", thumb + Vector2(float(locked.size()) * 30.0 + 4.0, -6.0),
+			9.0, 1.2, Color("8ba0b3"))
+
+	var share := Rect2(Rect2(layout.share).position - _origin, Rect2(layout.share).size)
+	canvas.draw_rect(Rect2(share.position + Vector2(0.0, 5.0), share.size), Color("111a21"))
+	canvas.draw_rect(share, INK)
+	CssText.draw_centered(canvas, "공유하기", share.position.x, share.size.x,
+		share.position.y + (share.size.y - CssText.line_height(14.0)) * 0.5, 14.0, 0.0, Color(1.0, 1.0, 1.0))
+	if not share_status.is_empty():
+		CssText.draw_centered(canvas, share_status, card.position.x, card.size.x,
+			share.position.y - 16.0, 10.0, 0.0, Color("607585"))
+	var remaining := opened_cats.size() - card_index - 1
+	var footer := "다음 · %d마리 더" % remaining if remaining > 0 else "탭해서 닫기"
+	CssText.draw_centered(canvas, footer, card.position.x, card.size.x, card.position.y + card.size.y - 24.0,
+		9.0, 1.4, Color("8ba0b3"))
+	canvas.draw_set_transform(Vector2.ZERO)
+
+
+## A few cats the player has not opened, for the teaser strip. Never reveals
+## which ones — they are drawn as silhouettes.
+func _locked_preview(count: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for cat in CatConfig.all():
+		if out.size() >= count:
+			break
+		if not progress.owns(String(cat.id)):
+			out.append(cat)
+	return out
+
+
+## Shares one cat. The URL carries the cat id, so opening the link records it as
+## witnessed in the receiver's codex — see PROGRESSION.md section 7.
+func share_cat(id: String) -> void:
+	share_status = ""
+	queue_redraw()
+	var cat := CatConfig.by_id(id)
+	var text := "HALF STEP · %s을(를) 얻었다\n%s\n너는 어느 하늘까지?" % [
+		String(cat.name), CatConfig.condition_text(cat)]
+	var image: Image = await ShareCard.render_cat(self, cat, progress.level())
+	ShareCard.share(text, image, 0, func(status: String) -> void:
+		share_status = status
+		queue_redraw(), id)
+
+
+
+## The equipped cat, ready to draw. LAST-STEP is a window onto the sky the run
+## is crossing, so it is the one cat whose colours come from the live zone.
+func equipped_cat() -> Dictionary:
+	var cat := CatConfig.by_id(progress.equipped)
+	if String(cat.pattern) == "window":
+		cat = cat.duplicate()
+		cat["window_top"] = sky_top
+		cat["window_bottom"] = sky_bottom
+	return cat
+
+
+## Reads `?seen=<id>` once at startup and records it in the codex. This is the
+## whole witness mechanism: a share link carries the cat, and opening it puts
+## that cat in the receiver's codex. No backend, no account.
+func _take_witness_link() -> void:
+	if not OS.has_feature("web"):
+		return
+	var window := JavaScriptBridge.get_interface("window")
+	if window == null:
+		return
+	var seen := String(JavaScriptBridge.eval(
+		"(new URLSearchParams(location.search).get('seen') || '').slice(0, 32)", true))
+	if seen.is_empty():
+		return
+	if not progress.witness(seen).is_empty() or progress.has_witnessed(seen):
+		progress.save_to(_save)
+		_save.save(SAVE_PATH)
 
 
 # --- player animation -------------------------------------------------------
@@ -667,8 +850,11 @@ func _draw() -> void:
 	_draw_hud(size)
 	draw_set_transform(Vector2.ZERO)
 	_draw_letterbox(rect)
+	if codex_screen != null and codex_screen.visible:
+		codex_screen.layout(rect)
+		codex_screen.queue_redraw()
 	if result_overlay != null:
-		result_overlay.visible = death_time >= RESULT_DELAY_MS
+		result_overlay.visible = death_time >= RESULT_DELAY_MS and not codex_screen.visible
 		if result_overlay.visible:
 			result_overlay.refresh(rect)
 
@@ -846,8 +1032,7 @@ func _draw_player() -> void:
 	var box := Vector2(player_left(), float(animation.y))
 	var center := box + Vector2(PLAYER_BOX, PLAYER_BOX) * 0.5
 	_transform(center, float(animation.rotation), animation.scale)
-	# Beak first so the body's edge covers where it joins.
-	Art.draw_cat(self, alpha, tail_phase, leap_amount())
+	Art.draw_cat(self, alpha, tail_phase, leap_amount(), equipped_cat())
 	draw_set_transform(_origin)
 
 
@@ -927,6 +1112,10 @@ func result_layout() -> Dictionary:
 		70.0 * 1.05,
 		7.0 + CssText.line_height(11.0),
 		4.0 + 18.0,
+		# One line for a new cat, and nothing at all when none opened. It must
+		# stay a line: AGENTS.md section 2 requires retry to feel immediate, so
+		# nothing here may take the screen.
+		NEW_CAT_ROW if not opened_cats.is_empty() else 0.0,
 		16.0 + 50.0,
 		8.0 + 13.0,
 		10.0 + CssText.line_height(10.0),
@@ -942,9 +1131,14 @@ func result_layout() -> Dictionary:
 	)
 	var inner := Rect2(card.position + Vector2(24.0, 24.0), card.size - Vector2(48.0, 48.0))
 	var content_left := inner.position.x + 4.0 + 16.0
-	var button_top: float = inner.position.y + 4.0 + 18.0 + float(blocks[0]) + float(blocks[1]) + float(blocks[2]) + float(blocks[3]) + 16.0
+	var stack: float = inner.position.y + 4.0 + 18.0 + float(blocks[0]) + float(blocks[1]) + float(blocks[2]) + float(blocks[3])
+	var new_cat := Rect2(content_left, stack + 6.0, content_width, maxf(0.0, NEW_CAT_ROW - 12.0))
+	var button_top: float = stack + float(blocks[4]) + 16.0
 	var button_width := (content_width - 9.0) * 0.5
+	var codex_row := Rect2(content_left, button_top + 50.0 + 8.0 + 13.0 + 4.0, content_width, 18.0)
 	return {
+		"new_cat": new_cat,
+		"codex": codex_row,
 		"card": card,
 		"inner": inner,
 		"content_left": content_left,
@@ -985,6 +1179,18 @@ func draw_result(canvas: CanvasItem) -> void:
 	y += CssText.line_height(11.0) + 4.0
 	var best_line := "NEW BEST!" if was_best else "BEST %d" % best
 	CssText.draw_centered(canvas, best_line, left, content_width, y, 12.0, 0.0, ACCENT)
+	if not opened_cats.is_empty():
+		var row := Rect2(Rect2(layout.new_cat).position - _origin, Rect2(layout.new_cat).size)
+		canvas.draw_rect(row, Color("fdeee9"))
+		var cat := CatConfig.by_id(opened_cats[0])
+		canvas.draw_set_transform(_origin + row.position + Vector2(20.0, row.size.y * 0.5), 0.0, Vector2(0.5, 0.5))
+		Art.draw_cat_portrait(canvas, cat, Color("fdeee9"))
+		canvas.draw_set_transform(_origin)
+		var headline := "새 고양이 · %s" % String(cat.name)
+		if opened_cats.size() > 1:
+			headline = "새 고양이 %d마리" % opened_cats.size()
+		CssText.draw_at(canvas, headline, row.position + Vector2(42.0, 6.0), 13.0, 0.0, Color("8a3b30"))
+		CssText.draw_at(canvas, "탭해서 보기", row.position + Vector2(42.0, 22.0), 9.0, 1.2, Color("b06a5e"))
 	var retry := Rect2(Rect2(layout.retry).position - _origin, Rect2(layout.retry).size)
 	var share := Rect2(Rect2(layout.share).position - _origin, Rect2(layout.share).size)
 	canvas.draw_rect(Rect2(retry.position + Vector2(0.0, 5.0), retry.size), Color("111a21"))
@@ -997,7 +1203,10 @@ func draw_result(canvas: CanvasItem) -> void:
 	y = retry.position.y + 50.0 + 8.0
 	if not share_status.is_empty():
 		CssText.draw_centered(canvas, share_status, left, content_width, y, 10.0, 0.0, Color("607585"))
-	y += 13.0 + 10.0
+	y += 13.0 + 4.0
+	CssText.draw_centered(canvas, "도감 %d / %d · LV %d" % [progress.owned_count(),
+		CatConfig.CATS.size(), progress.level()], left, content_width, y, 10.0, 1.0, Color("6d8293"))
+	y += 18.0 + 4.0
 	CssText.draw_centered(canvas, "PLAY · FAIL · SHARE · REPEAT", left, content_width, y, 10.0, 0.0, Color(0.0, 0.0, 0.0, 0.45))
 	canvas.draw_set_transform(Vector2.ZERO)
 

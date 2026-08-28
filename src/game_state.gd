@@ -50,6 +50,11 @@ const LATE_PATTERNS: Array = [
 
 var lane := 0
 var score := 0
+## Experience earned by this run. A landing pays the square of how fast the game
+## is at that instant, so going deep always beats repeating a short run. Adding
+## the score itself would make farming the optimal strategy, because the cadence
+## decays exponentially — see PROGRESSION.md section 2. Do NOT simplify this.
+var run_experience := 0.0
 ## `successStreak` — drives the melody and the FLOW readout.
 var success_streak := 0
 var run_state: RunState = RunState.PLAYING
@@ -80,6 +85,7 @@ func reset(base_y: float, view_height: float, seed_value: int = -1) -> void:
 	lane = 0
 	score = 0
 	success_streak = 0
+	run_experience = 0.0
 	step_timer = 0.0
 	step_interval = START_INTERVAL_MS
 	run_state = RunState.PLAYING
@@ -150,19 +156,26 @@ func nearest_row_index(base_y: float) -> int:
 	return best
 
 
-## Whether a jump to [param target_lane] would find a bridge under it right now.
-## [param scroll] is how far the stack has already slid toward the player within
-## the current beat, so this judges exactly what the player can see.
-func can_cross(base_y: float, scroll: float, target_lane: int) -> bool:
+## How deep into the crossing window a jump to [param target_lane] would be:
+## 0 the instant the window opens, 1 as the bridge arrives under the cat.
+## Negative when the jump cannot reach — the wrong lane, or a bridge still too
+## far away. [param scroll] is how far the stack has already slid within the
+## current beat, so this judges exactly what the player can see.
+func cross_depth(base_y: float, scroll: float, target_lane: int) -> float:
 	var index := nearest_row_index(base_y)
-	if index < 0:
-		return false
-	if int(rows[index].safe_lane) != target_lane:
-		return false
+	if index < 0 or int(rows[index].safe_lane) != target_lane:
+		return -1.0
 	# How far the arriving bridge still has to travel to be under the cat.
 	# Negative once it has arrived, which is still a reachable jump.
 	var remaining: float = base_y - (float(rows[index].y) + scroll)
-	return remaining <= CROSS_REACH
+	if remaining > CROSS_REACH:
+		return -1.0
+	return clampf((CROSS_REACH - remaining) / CROSS_REACH, 0.0, 1.0)
+
+
+## Whether a jump to [param target_lane] would find a bridge under it right now.
+func can_cross(base_y: float, scroll: float, target_lane: int) -> bool:
+	return cross_depth(base_y, scroll, target_lane) >= 0.0
 
 
 ## `resolveLanding()` — returns the landed row on success, or an empty
@@ -177,6 +190,8 @@ func resolve_landing(base_y: float) -> Dictionary:
 	success_streak += 1
 	score += 1
 	step_interval = maxf(MIN_INTERVAL_MS, START_INTERVAL_MS * pow(SPEED_FACTOR, score))
+	var speed := START_INTERVAL_MS / step_interval
+	run_experience += speed * speed
 	return rows[index]
 
 

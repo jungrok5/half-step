@@ -48,7 +48,13 @@ class CardLayer:
 	var game: Node = null
 
 	func _draw() -> void:
-		if game != null:
+		if game == null:
+			return
+		# The acquisition card replaces the result card while it is open, so the
+		# blurred backdrop is shared and retry stays one tap away behind it.
+		if int(game.get("card_index")) >= 0:
+			game.draw_cat_card(self)
+		else:
 			game.draw_result(self)
 
 

@@ -70,9 +70,13 @@ Requirement multiplies each level: ×1.24 for Lv 1–9, ×1.27 for 10–19, ×1.
 rounded to two significant figures. Ten levels costs roughly ten times the
 previous ten — the Lineage shape.
 
+**Level 1 is free.** The player starts there owning HALF-STEP, and each row's
+"Need" is the cost of arriving at that level from the one below. The table is
+`Progress.LEVEL_STEPS`, and `progression_test.gd` asserts these exact numbers.
+
 **Level cats stop at Lv 30. Everything above is a prestige number**: the level
 keeps climbing and appears on the share card, but no content is locked behind it.
-Hiding six cats behind an 8,110-hour wall would mean building content nobody ever
+Hiding six cats behind a 5,918-hour wall would mean building content nobody ever
 sees, which contradicts AGENTS.md section 8's requirement that later content
 exist to be *wanted*.
 
@@ -88,22 +92,22 @@ score across runs (7 s of overhead per run is included):
 
 | Lv | Need | Cumulative | Cat | Beginner | Regular | Strong | Elite |
 |---:|---:|---:|---|---:|---:|---:|---:|
-| 1 | 40 | 40 | HALF-STEP | 38s | 20s | 8s | 2s |
-| 2 | 50 | 90 | MILK | 1m | 44s | 17s | 5s |
-| 3 | 62 | 152 | SOOT | 2m | 1m | 29s | 8s |
-| 4 | 76 | 228 | BUTTER | 4m | 2m | 44s | 12s |
-| 5 | 95 | 323 | TUXEDO | 5m | 3m | 1m | 17s |
-| 7 | 150 | 593 | CALICO | 9m | 5m | 2m | 32s |
-| 9 | 220 | 993 | EMBER | 16m | 8m | 3m | 53s |
-| 12 | 450 | 2,073 | MIDNIGHT | 33m | 17m | 7m | 2m |
-| 16 | 1,200 | 5,483 | NIMBUS | 1.5h | 45m | 18m | 5m |
-| 20 | 3,000 | 14,283 | RAIN | 3.8h | 2.0h | 46m | 13m |
-| 25 | 11,000 | 49,483 | FROST | 13h | 6.8h | 2.6h | 44m |
-| 30 | 42,000 | 182,483 | GALAXY | 48h | 25h | 9.8h | 2.7h |
-| 35 | 170,000 | 709,483 | prestige | 188h | 97h | 38h | 11h |
-| 40 | 720,000 | 2,919,483 | prestige | 773h | 400h | 156h | 43h |
-| 45 | 3,400,000 | 12,899,483 | prestige | 3,417h | 1,767h | 690h | 191h |
-| 50 | 16,000,000 | 59,199,483 | prestige | 15,682h | 8,110h | 3,169h | 876h |
+| 1 | — | 0 | HALF-STEP | 1s | 1s | 1s | 1s |
+| 2 | 40 | 40 | MILK | 38s | 20s | 8s | 2s |
+| 3 | 50 | 90 | SOOT | 1m | 44s | 17s | 5s |
+| 4 | 62 | 152 | BUTTER | 2m | 1m | 29s | 8s |
+| 5 | 76 | 228 | TUXEDO | 4m | 2m | 44s | 12s |
+| 7 | 120 | 443 | CALICO | 7m | 4m | 1m | 24s |
+| 9 | 180 | 773 | EMBER | 12m | 6m | 2m | 41s |
+| 12 | 350 | 1,623 | MIDNIGHT | 26m | 13m | 5m | 1m |
+| 16 | 920 | 4,283 | NIMBUS | 1.1h | 35m | 14m | 4m |
+| 20 | 2,400 | 11,283 | RAIN | 3.0h | 1.5h | 36m | 10m |
+| 25 | 8,600 | 38,483 | FROST | 10h | 5.3h | 2.1h | 34m |
+| 30 | 32,000 | 140,483 | GALAXY | 37h | 19h | 7.5h | 2.1h |
+| 35 | 130,000 | 539,483 | prestige | 143h | 74h | 29h | 8.0h |
+| 40 | 540,000 | 2,199,483 | prestige | 583h | 301h | 118h | 33h |
+| 45 | 2,500,000 | 9,499,483 | prestige | 2,516h | 1,301h | 508h | 141h |
+| 50 | 11,000,000 | 43,199,483 | prestige | 11,444h | 5,918h | 2,312h | 640h |
 
 These hours assume each archetype sustains that average. Real averages sit well
 below a player's best, so measured times will be longer. The shape holds.
@@ -206,14 +210,14 @@ so every existing call keeps working.
 ## 6. Why the difficulty sits on the run axis
 
 The first draft of this system put all 24 cats on the level curve, with the last
-six behind 400–8,110 hours. That was rejected. Scarcity does not produce sharing;
+six behind hundreds to thousands of hours. That was rejected. Scarcity does not produce sharing;
 **provable** scarcity does.
 
 | | Time axis | Run axis |
 |---|---|---|
 | Proof | No screenshot exists. One number, unverifiable. | The sky reached is the card's background. |
 | Frequency | 24 events per lifetime, 20 of them in month one. | Fires whenever skill improves — follows the growth curve. |
-| Receiver | "8,110 hours? I'm out." A deterrent, not an invitation. | "I got to 320" — one more run away. |
+| Receiver | "Thousands of hours? I'm out." A deterrent, not an invitation. | "I got to 320" — one more run away. |
 | Skill | Skill cannot fold time. | The difficulty *is* the brag. |
 
 **The total difficulty went up, not down.** Completing the codex now requires
@@ -267,12 +271,14 @@ Must not fight AGENTS.md section 2's "restart must feel immediate":
 |---|---|
 | `src/cat_config.gd` | The 24-cat table and unlock conditions. Static data shaped like `ZoneConfig`. |
 | `src/progress.gd` | Cumulative EXP, level, owned/witnessed sets, per-cat best score, equipped cat. Persists into the existing `user://half_step.cfg`. |
-| `src/run_feats.gd` | Per-run tallies — crossings, consecutive early-window jumps, the streak that spans runs. Handed to `progress` when a run ends. |
+| `src/run_feats.gd` | Per-run tallies — crossings and the longest run of early-window jumps. The streaks that span runs live in `progress` instead, because they outlast a run. |
 | `src/art.gd` | `draw_cat()` gains a `cat` argument, default HALF-STEP. |
 | `src/game_state.gd` | Accrue EXP in `resolve_landing()`. |
 | `src/codex_screen.gd` | The grid, four tabs, the bar to the next unlock. |
 | `src/share_card.gd` | Acquisition card; run card gains the equipped cat and its best. |
-| `src/game.gd` | Read `?seen=` at start — `JavaScriptBridge` on web, deep link on mobile. |
+| `src/game.gd` | Equips the cat, feeds `run_feats`, folds the run into `progress` on death, draws the acquisition card, and reads `?seen=` at start (`JavaScriptBridge` on web; a mobile deep link is still to do). |
+| `tools/render_cats.gd` | Renders all 24 cats onto their skies as one sheet, for checking the roster at a glance. |
+| `tests/progression_test.gd` | The experience formula, the curve, all four unlock paths, and the save round-trip. |
 
 ---
 

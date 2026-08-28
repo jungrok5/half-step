@@ -293,9 +293,11 @@ pays the wrong behaviour.
 
 ### First draft: all 24 cats on the level curve — rejected
 
-The curve was built and the numbers computed: Lv40 at 400 hours for a regular
-player, Lv50 at 8,110. Six cats sat behind that. It was rejected before shipping,
-on the grounds that the difficulty was on an axis nobody can see.
+The curve was built and the numbers computed. Six cats sat behind hundreds to
+thousands of hours. It was rejected before shipping, on the grounds that the
+difficulty was on an axis nobody can see. (That draft also indexed the curve one
+level off, charging for level 1; the shipped code starts the player at level 1
+for free, so the numbers in the two are not directly comparable.)
 
 The user's intent was that difficulty itself be the viral driver. Half right:
 scarcity does not produce sharing, provable scarcity does. "I ground for 400
@@ -325,3 +327,45 @@ witnesses, so the codex cannot be completed alone.
 Permanent lesson:
 A share that gives the receiver nothing is a boast, not a loop. Make opening the
 link change something on the receiver's side.
+
+### The font subset fell behind the UI (2026-08-28)
+
+`도감 1 / 24` drew as `도[tofu] 1 / 24` in the exported build. The Hangul font is
+a subset built from a hand-written list of strings in `tools/build_fonts.py`, and
+every new piece of Korean copy since that list was last touched had no glyph. The
+playfield hint had been broken this way for two commits without anyone noticing,
+because the tests never render text and the editor falls back to a system font.
+
+Fixed at the source: the subset is now scraped out of `src/*.gd` with a Hangul
+regex, so it cannot fall behind the UI again. It is still a build step — after
+changing Korean copy, run `tools/build_fonts.py` and commit the fonts.
+
+Found by playing the real exported build in a browser. Four test suites and every
+in-engine screenshot missed it, because both use a font that is not the one that
+ships.
+
+Permanent lesson:
+An asset derived from the source by hand will drift, and the drift is invisible
+everywhere except on a player's screen. Derive it, or it will be wrong.
+
+### Shipping the codex (2026-08-28)
+
+Implemented as specified in PROGRESSION.md. Two things the spec got wrong and the
+code corrected:
+
+- **The level curve was indexed one level off.** The proposal charged 40
+  experience to reach level 1, which would mean starting the game at level 0. The
+  player now starts at level 1 for free and each step is the cost of arriving at
+  the next one, so every published hour shifted down one row — level 30 is 19
+  hours for a regular player, not 25. `progression_test.gd` pins the exact
+  numbers so the document and the code cannot drift apart again.
+- **`Shapes.merge` silently dropped disjoint parts.** It returned only the
+  largest ring, which was correct for the one silhouette it was written for. A
+  Siamese point or a van cap is deliberately disjoint from the tail, so those
+  markings simply vanished. Split into `merge_all`, which keeps every ring, and
+  `merge`, which is now documented as only being correct where the caller knows
+  the parts are connected.
+
+Permanent lesson:
+A helper that quietly discards data is fine until the second caller arrives. Make
+it return everything and let the caller narrow.
