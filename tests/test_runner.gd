@@ -286,11 +286,15 @@ func _test_share_card_tags() -> void:
 
 func _test_note_scale() -> void:
 	expect_contains("const scale=[0,2,4,5,7,9,11,12]", "major scale is the prototype's")
-	expect_contains("const base=260", "root note is 260Hz")
+	expect_contains("const base=260", "the prototype's root note is 260Hz")
 	expect_contains("const phraseLen=24", "phrase is 24 notes")
-	expect(is_equal_approx(TonePlayer.note_frequency(0), 260.0), "phrase starts on the root")
-	expect(is_equal_approx(TonePlayer.note_frequency(8), 520.0), "the phrase climbs an octave every eight notes")
-	expect(is_equal_approx(TonePlayer.note_frequency(16), 1040.0), "third octave doubles again")
+	# The shape is the prototype's; the tuning is not. 260 Hz is eleven cents
+	# below middle C, which beats against anything tuned to A=440 — and the
+	# music being written for this game is all in C major, under this melody.
+	# AUDIO_RULES.md allows the base frequency to be tuned.
+	expect(is_equal_approx(TonePlayer.note_frequency(0), 261.63), "the phrase starts on middle C")
+	expect(is_equal_approx(TonePlayer.note_frequency(8), 523.26), "and climbs an octave every eight notes")
+	expect(is_equal_approx(TonePlayer.note_frequency(16), 1046.52), "third octave doubles again")
 	expect(is_equal_approx(TonePlayer.note_frequency(24), TonePlayer.note_frequency(0)),
 		"the phrase restarts in the low register after 24 notes")
 	var state := playing_state()

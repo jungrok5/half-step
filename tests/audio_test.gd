@@ -43,6 +43,73 @@ func peak(samples: PackedFloat32Array) -> float:
 	return loudest
 
 
+## The crossing cue has two lives: a recording when one exists, and a synthesised
+## stand-in until then. Both are checked, because which one is live depends on
+## whether anyone has dropped a file in yet.
+##
+## The stand-in must not sound like the melody — that difference is the whole
+## point of the cue. See docs/audio/PROMPTS.md.
+func _test_cross(player: TonePlayer) -> void:
+	player.stop_all()
+	render(player, 0.2)
+	player.play_cross()
+	var cross := render(player, 0.06)
+
+	if AudioBank.sfx(AudioBank.CUE_CROSS) != null:
+		# A recording is playing through its own player, so the generator stays
+		# silent — that is what "the file replaces the synth" means here.
+		expect(is_zero_approx(peak(cross)),
+			"with a recording in place the synthesised stand-in does not also fire")
+		var playing := false
+		for child in player.get_children():
+			if child is AudioStreamPlayer and child.playing:
+				playing = true
+		expect(playing, "the recorded crossing cue is playing")
+		player.stop_all()
+		return
+
+	expect(peak(cross) > 0.01, "the crossing stand-in is audible")
+	var pitch := frequency_of(cross, 0.06)
+	# It sweeps 520 to 900 Hz, so it lands well clear of the melody's root and
+	# of the octave above it.
+	expect(pitch > 560.0, "the crossing stand-in sits above the melody's root, measured %d" % int(pitch))
+	expect(absf(pitch - TonePlayer.note_frequency(0)) > 200.0,
+		"and is nowhere near a landing note")
+	player.stop_all()
+	render(player, 0.2)
+	expect(is_zero_approx(peak(render(player, 0.02))), "and it ends")
+
+
+## Where the game looks for recordings, and what it does before they exist.
+func _test_audio_bank() -> void:
+	# Nothing is recorded yet, so every slot has to come back empty rather than
+	# erroring — that is what keeps the synthesised fallbacks reachable.
+	for id: String in [AudioBank.CUE_CROSS, AudioBank.CUE_FALL,
+			AudioBank.CUE_UNLOCK, AudioBank.CUE_ARRIVE]:
+		var stream := AudioBank.sfx(id)
+		expect(stream == null or stream is AudioStream,
+			"the %s slot is either a stream or empty" % id)
+	for id: String in ["day", "dusk", "star", "deep", "beyond",
+			AudioBank.MUSIC_TITLE, AudioBank.MUSIC_INTRO, AudioBank.MUSIC_ENDING]:
+		var stream := AudioBank.music(id)
+		expect(stream == null or stream is AudioStream,
+			"the %s track is either a stream or empty" % id)
+
+	# Every sky has a band, the bands only ever move forward, and the first one
+	# starts at zero — a gap would leave a stretch of the game silent.
+	expect(int(AudioBank.MUSIC_BANDS[0].score) == 0, "the first band starts at score 0")
+	var previous := -1
+	for band: Dictionary in AudioBank.MUSIC_BANDS:
+		expect(int(band.score) > previous, "the bands climb")
+		previous = int(band.score)
+	for zone in ZoneConfig.ZONES:
+		expect(not AudioBank.music_for_score(int(zone.score)).is_empty(),
+			"%s has a track" % String(zone.name))
+	expect(AudioBank.music_for_score(0) == "day", "the run opens on the day bed")
+	expect(AudioBank.music_for_score(StoryConfig.EPILOGUE_SCORE) == "beyond",
+		"and the epilogue plays under the last one")
+
+
 func _run() -> void:
 	var player := TonePlayer.new()
 	root.add_child(player)
@@ -60,14 +127,18 @@ func _run() -> void:
 	var note := render(player, 0.05)
 	expect(peak(note) > 0.01, "a landing note is audible")
 	var measured := frequency_of(note, 0.05)
-	expect(absf(measured - 260.0) < 12.0, "the root note is near 260Hz, measured %d" % int(measured))
+	expect(absf(measured - 261.63) < 12.0, "the root note is middle C, measured %d" % int(measured))
 	render(player, 0.045)
 	expect(is_zero_approx(peak(render(player, 0.02))), "the note is over within its 90ms envelope")
 
 	# An octave up after eight landings.
 	player.play_success_note(8)
 	var octave := frequency_of(render(player, 0.05), 0.05)
-	expect(absf(octave - 520.0) < 24.0, "the ninth note is an octave up, measured %d" % int(octave))
+	expect(absf(octave - 523.26) < 24.0, "the ninth note is an octave up, measured %d" % int(octave))
+	render(player, 0.06)
+
+	_test_cross(player)
+	_test_audio_bank()
 	render(player, 0.05)
 
 	# Notes overlap rather than cut each other off once the cadence is short.

@@ -20,6 +20,11 @@
   `docs/story/PROMPTS.md` without generating anything, and that part does run
   anywhere. Adapted from jungrok5/super-vs `tools/imagegen/gen.py`.
 
+- `docs/audio/PROMPTS.md`
+  Not a script — the prompts for every music bed and sound effect, which tool
+  makes which, and the rules a track has to obey to sit under the landing
+  melody. Files go in `assets/audio/`; missing ones fall back.
+
 - `tools/render_story.gd`
   Bake the six intro/ending stills and the wordmark into `assets/story/` from
   `src/story_art.gd`. These are the placeholders that ship until real art

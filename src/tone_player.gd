@@ -12,11 +12,18 @@ enum Wave { TRIANGLE, SINE }
 
 const MIX_RATE := 44100.0
 const BUFFER_LENGTH := 0.06
-## `successSound()` — major scale across three octaves from a 260 Hz root.
+## `successSound()` — major scale across three octaves.
 const SCALE := [0, 2, 4, 5, 7, 9, 11, 12]
 const PHRASE_LENGTH := 24
-const BASE_FREQUENCY := 260.0
+## Middle C. The prototype used a round 260 Hz, which is eleven cents flat and
+## beats audibly against anything tuned to A=440 — and music is coming, all of
+## it in C major so it sits under this melody (docs/audio/PROMPTS.md).
+## AUDIO_RULES.md allows the base frequency to be tuned; this is that.
+const BASE_FREQUENCY := 261.63
 const MAX_VOICES := 12
+## Two crossings inside this many seconds play one cue. Past a few hundred
+## points the cadence is shorter than the sound, and a meow per beat is noise.
+const CUE_GAP := 0.16
 
 class Voice:
 	var wave: int = Wave.TRIANGLE
@@ -32,6 +39,11 @@ class Voice:
 
 var _playback: AudioStreamGeneratorPlayback
 var _voices: Array[Voice] = []
+## Recorded cues, when the files exist. Several players so a fall can ring under
+## a crossing without cutting it off.
+var _cue_players: Array[AudioStreamPlayer] = []
+var _next_player := 0
+var _last_cue := {}
 
 
 func _ready() -> void:
@@ -45,6 +57,10 @@ func _ready() -> void:
 	playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	play()
 	_playback = get_stream_playback()
+	for i in 4:
+		var player := AudioStreamPlayer.new()
+		add_child(player)
+		_cue_players.append(player)
 
 
 ## Frequency of the note played for [param phrase_position] (0-23).
@@ -68,8 +84,32 @@ func play_success_note(phrase_position: int) -> void:
 	_push(voice)
 
 
+## The cat leaving one bridge for the other — the tap, not the landing.
+##
+## The landing melody keeps advancing whether or not the player crossed
+## (AUDIO_RULES.md), so this rides on top of it rather than replacing it: the
+## melody says "you survived", this says "you jumped".
+func play_cross() -> void:
+	if _play_cue(AudioBank.CUE_CROSS):
+		return
+	# Placeholder until the recording exists: a short rising chirp, sine against
+	# the melody's triangle, so the two are never mistaken for each other.
+	var voice := Voice.new()
+	voice.wave = Wave.SINE
+	voice.frequency_from = 520.0
+	voice.frequency_to = 900.0
+	voice.frequency_seconds = 0.05
+	voice.gain_from = 0.045
+	voice.gain_to = 0.001
+	voice.gain_seconds = 0.13
+	voice.duration = 0.14
+	_push(voice)
+
+
 ## `fallSound()` — 780 Hz sliding down to 80 Hz while fading out.
 func play_fall() -> void:
+	if _play_cue(AudioBank.CUE_FALL):
+		return
 	var voice := Voice.new()
 	voice.wave = Wave.SINE
 	voice.frequency_from = 780.0
@@ -82,8 +122,31 @@ func play_fall() -> void:
 	_push(voice)
 
 
+func play_cue(id: String) -> void:
+	_play_cue(id)
+
+
 func stop_all() -> void:
 	_voices.clear()
+	for player in _cue_players:
+		player.stop()
+
+
+## Plays a recorded cue. Returns false when there is no file for it yet, which
+## is the caller's signal to fall back to synthesis.
+func _play_cue(id: String) -> bool:
+	var stream := AudioBank.sfx(id)
+	if stream == null:
+		return false
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - float(_last_cue.get(id, -99.0)) < CUE_GAP:
+		return true
+	_last_cue[id] = now
+	var player := _cue_players[_next_player]
+	_next_player = (_next_player + 1) % _cue_players.size()
+	player.stream = stream
+	player.play()
+	return true
 
 
 func _push(voice: Voice) -> void:

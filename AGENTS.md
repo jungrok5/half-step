@@ -112,6 +112,13 @@ Later improvements that should remain:
 - Keep the audio family coherent.
 - Do not insert random reward chords or unrelated sound effects between landing notes.
 
+### Music
+- Every track is C major at A=440, has no percussion and no tempo, and stays out
+  of 250–1100 Hz. The cadence accelerates continuously inside one run, so
+  anything with a beat fights it. See AUDIO_RULES.md and docs/audio/PROMPTS.md.
+- A missing audio file must never break the game. Slots fall back to synthesis
+  or to silence.
+
 ### Death
 - Falling sound should descend in pitch and volume.
 - It should communicate distance: "falling away into depth."

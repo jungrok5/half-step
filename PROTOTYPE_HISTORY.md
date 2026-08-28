@@ -475,3 +475,33 @@ channel.
 
 Permanent lesson:
 Check the exported size after adding art, not after shipping it.
+
+### Sound, and the two things that decided its shape (2026-08-28)
+
+The request was AI-generated music and effects. Two constraints fell out of the
+game as it now is, and both are in `docs/audio/PROMPTS.md` as rules rather than
+preferences.
+
+**No music can have a tempo.** The cadence runs from 560 ms per beat to 24 ms
+inside a single run, continuously. Anything with a kick drum drifts against it
+within seconds. The player's tapping is the rhythm section and the landing
+melody is the lead, so the music is harmony and weather — pads and drones only.
+
+**Every track has to be in C major.** The landing melody is a C major scale
+firing several times a second over whatever is playing. It was also eleven cents
+flat: the prototype used a round 260 Hz where middle C is 261.63, which beats
+audibly against anything tuned to A=440. Retuned, with AUDIO_RULES.md's own
+permission.
+
+Also worth writing down: **Suno cannot make a cat meow.** It writes songs; asked
+for a meow it returns a song about a cat. The document splits the work by tool
+and says plainly that a phone recording of a real cat beats all of it.
+
+The crossing cue is new. Until now the tap made no sound at all — only the
+landing did — so "the jump across sounds different from the jump in place" had
+nowhere to live. It fires on the tap and layers over the melody, which keeps
+AUDIO_RULES' rule that the melody ignores lane direction.
+
+Permanent lesson:
+Ask what the game's mechanics forbid before writing the brief. Half of this
+document is constraints that only exist because the cadence accelerates.

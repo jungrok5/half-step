@@ -78,6 +78,7 @@ var state := HalfStepState.new()
 var progress := Progress.new()
 var run_feats := RunFeats.new()
 var tone_player: TonePlayer
+var music_player: MusicPlayer
 var result_overlay: ResultOverlay
 var codex_screen: CodexScreen
 var story_screen: StoryScreen
@@ -201,6 +202,8 @@ func _ready() -> void:
 	_rng.randomize()
 	tone_player = TonePlayer.new()
 	add_child(tone_player)
+	music_player = MusicPlayer.new()
+	add_child(music_player)
 	if _save.load(SAVE_PATH) == OK:
 		best = int(_save.get_value("score", "best", 0))
 		progress.load_from(_save)
@@ -229,6 +232,7 @@ func _ready() -> void:
 	# Cold launch only. Retry never comes back here: AGENTS.md section 2 wants
 	# restart immediate, and a title screen between deaths is the opposite.
 	title_screen.open(progress, game_rect())
+	music_player.play(AudioBank.MUSIC_TITLE)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
 
@@ -270,6 +274,8 @@ func reset() -> void:
 	build_background()
 	zone_index = -1
 	apply_zone(true)
+	if music_player != null:
+		music_player.play(AudioBank.music_for_score(state.score))
 	queue_redraw()
 
 
@@ -417,6 +423,7 @@ func tap() -> void:
 	lane_length = beat_fraction(LANE_MS)
 	lane_time = 0.0
 	tutorial_taps += 1
+	tone_player.play_cross()
 	_vibrate(5)
 	queue_redraw()
 
@@ -568,6 +575,8 @@ func resolve_beat() -> void:
 	tone_player.play_success_note(state.note_position())
 	flow_time = 0.0
 	spawn_impact(row)
+	if music_player != null:
+		music_player.play(AudioBank.music_for_score(state.score))
 	row.squash = 0.0
 	player_squash_time = 0.0
 	_vibrate(5)
@@ -614,11 +623,14 @@ func die() -> void:
 		_save.set_value("score", "best", best)
 	var reached_before := progress.reunion_reached()
 	opened_cats = PackedStringArray(progress.finish_run(state.score, state.run_experience, run_feats))
+	if not opened_cats.is_empty():
+		tone_player.play_cue(AudioBank.CUE_UNLOCK)
 	progress.save_to(_save)
 	_save.save(SAVE_PATH)
 	# The walk finished on this run: the ending is the first thing the player
 	# sees, before the result card.
 	if not reached_before and progress.reunion_reached():
+		tone_player.play_cue(AudioBank.CUE_ARRIVE)
 		play_story("ending")
 
 
@@ -708,6 +720,7 @@ func share_score() -> void:
 ## after a run does not cost the player that run.
 func play_story(sequence: String) -> void:
 	story_screen.play(sequence, game_rect())
+	music_player.play(AudioBank.MUSIC_ENDING if sequence == "ending" else AudioBank.MUSIC_INTRO)
 	if sequence == "intro":
 		progress.seen_intro = true
 	else:

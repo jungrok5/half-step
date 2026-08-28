@@ -1,8 +1,39 @@
-# HALF STEP — Audio Rules
+# TORI — Audio Rules
+
+Prompts for producing the music and the effects: `docs/audio/PROMPTS.md`.
+Slots live in `assets/audio/`; a slot with no file falls back to synthesis or to
+silence, so the game is never broken by audio that has not been made yet.
 
 ## Core principle
 
 Audio is part of the rhythm loop, not decoration.
+
+## Music
+
+Added 2026-08-28. Eight beds — five bands of skies, plus title, intro and ending
+(`AudioBank.MUSIC_BANDS`), crossfaded over 2.2 s when the score crosses a band.
+
+Three rules, and they are not stylistic:
+
+- **C major, A=440.** The landing melody plays over everything, several times a
+  second. Another key is a wrong note dozens of times a minute. The melody's
+  root was retuned from the prototype's 260 Hz to exactly middle C (261.63) for
+  this; AUDIO_RULES already allowed the base frequency to be tuned.
+- **No percussion, no tempo.** The cadence runs from 560 ms to 24 ms per beat
+  inside one run, continuously. Nothing with a fixed tempo can stay with it.
+  The player's tapping is the rhythm section; the music is harmony and weather.
+- **Quiet, and out of the way.** Keep 250–1100 Hz clear — that is where the
+  melody lives.
+
+## The two jumps
+
+Staying in the same lane costs no tap and makes only the landing note. Crossing
+adds a cat: `sfx/cross` fires on the TAP, not the landing, and rides on top of
+the melody rather than replacing it. The melody says *you survived*; the cue
+says *you jumped*.
+
+It can fire several times a second at speed, so it is short, and the engine
+refuses to retrigger it inside 160 ms.
 
 ## Landing success melody
 
