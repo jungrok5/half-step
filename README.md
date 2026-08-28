@@ -6,6 +6,14 @@ Portrait one-thumb rhythm/reaction game built with Godot 4.7.2 and GDScript.
 
 Read `AGENTS.md` before changing gameplay. A tap immediately toggles lane. Landings occur on a monotonically accelerating cadence. Input is never locked or queued.
 
+## Design documents
+
+`AGENTS.md` is the authority. `PROGRESSION.md` specifies the experience curve and
+the 24-cat codex; `docs/progression/sky-cat-codex.html` is the same document with
+every cat drawn from the game's own geometry — open it in a browser.
+`GAME_DESIGN.md`, `VIRAL_DESIGN.md`, `ART_DIRECTION.md` and `AUDIO_RULES.md` cover
+their areas, and `PROTOTYPE_HISTORY.md` records what was tried and rejected.
+
 ## Reference prototype
 
 `reference/web-prototypes/half_step_pixel_skin.html` is the current reference

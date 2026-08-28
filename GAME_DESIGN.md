@@ -108,6 +108,12 @@ Gameplay rule does NOT change just because the world changes.
 
 Do not solve repetition by adding currencies, missions, upgrade trees, or level complexity during prototype validation.
 
+Superseded in one place, 2026-08-28: the cat codex adds an experience level and a
+collection. It was approved explicitly, after the prototype port was
+feature-complete, and it adds no currency, no upgrade tree and no gameplay
+complexity — cats are purely cosmetic. See `PROGRESSION.md`. The rule stands for
+everything else.
+
 First validate:
 - replay urge
 - speed curve
@@ -134,6 +140,7 @@ Do not interrupt every retry.
 - high-score sky zones
 - result screen
 - share
+- cat codex (24 cats, experience levels, acquisition card, witness link)
 - Android
 - ads
 

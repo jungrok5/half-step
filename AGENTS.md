@@ -240,6 +240,9 @@ Preferred shared image:
 
 Web prototype used navigator.share(). Native Godot implementation should use appropriate Android/iOS native sharing integration.
 
+A second card exists on cat acquisition, and the share URL carries the cat id so
+the receiver's codex records it as witnessed. See section 14 and `PROGRESSION.md`.
+
 ## 12. Ads
 
 Target monetization:
@@ -268,7 +271,34 @@ Prefer:
 - testable lane / landing / score logic
 - no unnecessary service architecture
 
-## 14. Agent completion checklist
+## 14. Progression / cat codex
+
+Approved 2026-08-28. Full spec in `PROGRESSION.md`; the illustrated version is
+`docs/progression/sky-cat-codex.html`.
+
+Hard rules:
+- Cats are PURELY cosmetic. Never let an equipped cat change judgement, cadence,
+  score, hitbox or death.
+- Score is not experience. One landing pays `(560 / step_interval)²`, so depth
+  always beats repetition. Do NOT simplify this to "score += exp".
+- EXP is never deducted. Lineage's experience loss is deliberately not carried
+  over; it fights section 2's "restart must feel immediate".
+- Level cats stop at Lv 30. Levels above that are a prestige number only — never
+  hang content behind them.
+- 11 of the 24 cats open on a single run's score or feat, not on level. That
+  placement is the design, not an oversight: it is what makes acquisition
+  shareable. See PROGRESSION.md section 6 before moving any of them.
+- The acquisition card must not block retry. One line on the result card, opened
+  only by tapping it.
+- The share URL carries `?seen=<cat>`, which marks that cat witnessed in the
+  receiver's codex. No backend.
+
+Section 3 of `GAME_DESIGN.md` ("do not add currencies or level complexity during
+prototype validation") predates this and was written for the validation phase.
+The port is now feature-complete against the prototype and the user approved this
+system explicitly; the rule stands for anything else.
+
+## 15. Agent completion checklist
 
 After gameplay changes:
 1. Run Godot project import/validation headlessly.

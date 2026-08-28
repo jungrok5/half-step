@@ -97,6 +97,46 @@ The game should naturally look more extreme as score rises:
 
 This means a screen recording of a skilled run is itself marketing content.
 
+## Acquisition card (added 2026-08-28)
+
+A second card, shown when a new cat opens. Full spec in `PROGRESSION.md`.
+
+Contents:
+- HALF STEP
+- the cat, large, on the sky it came from
+- its name and the condition that opened it
+- three silhouettes of slots the player has NOT opened — curiosity, without
+  revealing what they are
+- the challenge line
+
+Text example:
+
+HALF STEP · Got AURORA
+210 in one run · AURORA EDGE
+How far can you go?
+
+The acquisition card must never block retry. The result card gains one line and a
+thumbnail; only tapping that line opens the card. Not tapping it retries exactly
+as before.
+
+## Witness link
+
+The share URL carries the cat id: `?seen=aurora`.
+
+Opening the link marks that cat **witnessed** in the receiver's codex — art, name
+and unlock condition are revealed, but it stays locked. No backend, no account:
+one query parameter, read at startup.
+
+This is the part that makes sharing a loop rather than a boast. Sharing used to
+give the receiver nothing. And NAMELESS opens only after witnessing five
+different cats, so the codex cannot be completed alone.
+
+## Per-cat records
+
+Each cat remembers the best score reached while equipped, printed on the run card
+("HALF-STEP · best 412"). 24 cats become 24 personal records, so the same cat
+keeps producing new content instead of being a one-time collectible.
+
 ## Leaderboard
 
 Not required for v1.

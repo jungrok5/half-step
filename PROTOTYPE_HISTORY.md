@@ -272,3 +272,56 @@ resolved so it never decides a landing. It only exists so the opening frame says
 Permanent lesson:
 The first frame teaches the rules. It has to show the state the game wants the
 player to protect.
+
+## Progression design — the cat codex (2026-08-28)
+
+The goal was collection with a Lineage-grade levelling curve: score is experience,
+and reaching certain levels opens cats one at a time.
+
+### Score itself cannot be experience
+
+Rejected immediately. The cadence decays exponentially, so score 400 is hundreds
+of times harder than score 40, not ten times. Adding score straight to a lifetime
+pool makes **farming short runs the optimal strategy** and turns the codex into a
+measure of patience. One landing pays `(560 / step_interval)²` instead, which is
+the game's own speed constant squared — no new tuning value, and one score-1000
+run is worth 1,900 score-60 runs.
+
+Permanent lesson:
+When a game's difficulty curve is exponential, any linear reward on top of it
+pays the wrong behaviour.
+
+### First draft: all 24 cats on the level curve — rejected
+
+The curve was built and the numbers computed: Lv40 at 400 hours for a regular
+player, Lv50 at 8,110. Six cats sat behind that. It was rejected before shipping,
+on the grounds that the difficulty was on an axis nobody can see.
+
+The user's intent was that difficulty itself be the viral driver. Half right:
+scarcity does not produce sharing, provable scarcity does. "I ground for 400
+hours" has no screenshot, no verification and no envy. "Score 750, WHITE HORIZON"
+is a picture, and the receiver compares it to their own best instantly. A wall of
+hours reads to a viewer as *give up*; a wall of skill reads as *one more run*.
+
+The fix moved 11 of 24 cats onto single-run conditions — seven sky scores and four
+in-run feats — and stopped level cats at Lv 30. **The curve was not softened.**
+Levels 31–50 keep the brutal shape as a pure prestige number that appears on the
+share card, because a wall with content behind it is content nobody sees, while a
+wall with a number behind it costs nothing. Completing the codex now needs score
+1000 in one run, which is far harder than the version that was rejected.
+
+Permanent lesson:
+Difficulty and virality are not the same axis. Put the wall where a screenshot
+can prove it was climbed, and leave the invisible grind carrying nothing but a
+number.
+
+### The witness link
+
+Every share of a run or a cat carries `?seen=<cat>`. Opening the link records
+that cat as witnessed in the receiver's codex — fully drawn and named, still
+locked. It needs no backend, and NAMELESS opens only after five different
+witnesses, so the codex cannot be completed alone.
+
+Permanent lesson:
+A share that gives the receiver nothing is a boast, not a loop. Make opening the
+link change something on the receiver's side.
