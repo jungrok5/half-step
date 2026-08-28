@@ -58,11 +58,25 @@ func _run() -> void:
 		return
 	root.add_child(game)
 	await process_frame
-	# A fresh profile meets the intro before the first run, so dismiss it the
-	# way a player does before driving the game.
-	if game.get("story_screen") != null:
-		game.get("story_screen").call("stop")
+	# A cold launch shows the title, and a fresh profile shows the intro after
+	# it. Walk through both the way a player does before driving the game — and
+	# check on the way that each one actually holds the run back.
 	var state: HalfStepState = game.get("state")
+	var title: Node = game.get("title_screen")
+	var story: Node = game.get("story_screen")
+	# `user://half_step.cfg` survives between runs, so a machine that has run
+	# this suite before already has the intro marked seen. State the precondition
+	# rather than inheriting it, or this passes in CI and fails locally.
+	game.get("progress").set("seen_intro", false)
+	expect(bool(title.get("visible")), "a cold launch opens on the title")
+	press_touch(game, Vector2(100, 100))
+	expect(not bool(title.get("visible")), "a tap leaves the title")
+	expect(bool(story.get("visible")), "and a first launch runs the intro next")
+	expect(int(state.score) == 0, "no tap during either reaches the run")
+	for _frame in 3:
+		press_touch(game, Vector2(100, 100))
+	expect(not bool(story.get("visible")), "tapping through the intro ends it")
+	expect(state.lane == HalfStepState.Lane.LEFT, "and none of those taps moved the cat")
 
 	var real_mouse := InputEventMouseButton.new()
 	real_mouse.button_index = MOUSE_BUTTON_LEFT

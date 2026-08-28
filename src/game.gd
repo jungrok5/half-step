@@ -81,6 +81,7 @@ var tone_player: TonePlayer
 var result_overlay: ResultOverlay
 var codex_screen: CodexScreen
 var story_screen: StoryScreen
+var title_screen: TitleScreen
 
 ## Cats that opened on the run that just ended, in table order.
 var opened_cats: PackedStringArray = PackedStringArray()
@@ -214,13 +215,20 @@ func _ready() -> void:
 	add_child(codex_screen)
 	story_screen = StoryScreen.new()
 	story_screen.visible = false
+	story_screen.finished.connect(func() -> void: queue_redraw())
 	add_child(story_screen)
+	title_screen = TitleScreen.new()
+	title_screen.visible = false
+	# Tap the title and the run begins — with the intro in between, once ever.
+	title_screen.started.connect(func() -> void:
+		if not progress.seen_intro:
+			play_story("intro"))
+	add_child(title_screen)
 	_take_witness_link()
 	reset()
-	# The intro runs once, before the first run. It never blocks a returning
-	# player: after that it lives in the codex as a replay.
-	if not progress.seen_intro:
-		play_story("intro")
+	# Cold launch only. Retry never comes back here: AGENTS.md section 2 wants
+	# restart immediate, and a title screen between deaths is the opposite.
+	title_screen.open(progress, game_rect())
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
 
@@ -309,12 +317,13 @@ func randf_between(from: float, to: float) -> float:
 # --- input ------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
+	if title_screen != null and title_screen.visible:
+		if _is_press(event):
+			title_screen.handle_press(event.position)
+			queue_redraw()
+		return
 	if story_screen != null and story_screen.visible:
-		var pressed: bool = (event is InputEventScreenTouch and event.pressed) \
-			or (event is InputEventMouseButton and event.pressed \
-				and event.button_index == MOUSE_BUTTON_LEFT \
-				and event.device != InputEvent.DEVICE_ID_EMULATION)
-		if pressed:
+		if _is_press(event):
 			story_screen.handle_press(event.position)
 			queue_redraw()
 		return
@@ -384,6 +393,17 @@ func _input(event: InputEvent) -> void:
 	tap()
 
 
+## A real press: a touch, or a mouse click that is not the synthetic duplicate
+## touch already produces.
+func _is_press(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		return event.pressed
+	if event is InputEventMouseButton:
+		return event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
+			and event.device != InputEvent.DEVICE_ID_EMULATION
+	return false
+
+
 ## `tap()` — never locked, never queued.
 func tap() -> void:
 	lane_from_x = player_left()
@@ -405,6 +425,12 @@ func tap() -> void:
 
 func _process(delta: float) -> void:
 	var dt := minf(MAX_FRAME_MS, delta * 1000.0)
+	if title_screen != null and title_screen.visible:
+		# The sky keeps drifting behind the wordmark; only the run is held.
+		update_background(dt)
+		title_screen.advance(dt)
+		queue_redraw()
+		return
 	if story_screen != null and story_screen.visible:
 		story_screen.advance(dt)
 		queue_redraw()
@@ -418,6 +444,8 @@ func _process(delta: float) -> void:
 			resolve_beat()
 		if state.is_running():
 			row_scroll = HalfStepState.ROW_SPACING * step_phase()
+		if state.score >= StoryConfig.EPILOGUE_SCORE and not progress.seen_epilogue:
+			progress.seen_epilogue = true
 	queue_redraw()
 
 
@@ -886,15 +914,22 @@ func _draw() -> void:
 	_draw_scan(local)
 	_draw_clouds(false)
 	_draw_wind()
+	var titled := title_screen != null and title_screen.visible
 	_draw_rows(size)
-	_draw_ghosts()
-	_draw_particles()
-	_draw_player()
+	if not titled:
+		_draw_companion()
+		_draw_ghosts()
+		_draw_particles()
+		_draw_player()
 	# The layer between the camera and the cat, drifting over everything.
 	_draw_clouds(true)
-	_draw_hud(size)
+	if not titled:
+		_draw_hud(size)
 	draw_set_transform(Vector2.ZERO)
 	_draw_letterbox(rect)
+	if title_screen != null and title_screen.visible:
+		title_screen.layout(rect)
+		title_screen.queue_redraw()
 	if story_screen != null and story_screen.visible:
 		story_screen.layout(rect)
 		story_screen.queue_redraw()
@@ -903,7 +938,8 @@ func _draw() -> void:
 		codex_screen.queue_redraw()
 	if result_overlay != null:
 		result_overlay.visible = death_time >= RESULT_DELAY_MS \
-			and not codex_screen.visible and not story_screen.visible
+			and not codex_screen.visible and not story_screen.visible \
+			and not title_screen.visible
 		if result_overlay.visible:
 			result_overlay.refresh(rect)
 
@@ -1039,6 +1075,39 @@ func _draw_empty_tile(top_left: Vector2) -> void:
 
 
 ## Shock ring that expands off the platform on a landing.
+## The epilogue. Past `EPILOGUE_SCORE` someone is up ahead on the bridges,
+## walking them the same way Tori is, always a few rows further on. There is no
+## announcement and no card: whoever gets here has earned finding it themselves.
+func _draw_companion() -> void:
+	if not state.is_running() or state.score < StoryConfig.EPILOGUE_SCORE:
+		return
+	var index := state.nearest_row_index(base_y())
+	if index < 0:
+		return
+	# The row the figure walks is the one `EPILOGUE_LEAD` ahead of the one Tori
+	# is about to reach, found by height rather than by list order — the row
+	# array is not sorted.
+	var target := float(state.rows[index].y) - HalfStepState.ROW_SPACING * StoryConfig.EPILOGUE_LEAD
+	var ahead := -1
+	var best := INF
+	for i in state.rows.size():
+		var distance: float = absf(float(state.rows[i].y) - target)
+		if distance < best:
+			best = distance
+			ahead = i
+	if ahead < 0:
+		return
+	var row: Dictionary = state.rows[ahead]
+	var centre := Vector2(tile_x(int(row.safe_lane)) + TILE_SIZE.x * 0.5,
+		float(row.y) + row_scroll + TILE_SIZE.y * 0.5)
+	# Backlit, so it reads as a person without ever resolving into one.
+	CssPaint.radial_gradient_at(self, _origin + centre, 78.0,
+		[[0.0, Color(1.0, 1.0, 1.0, 0.46)], [1.0, Color(1.0, 1.0, 1.0, 0.0)]])
+	_transform(centre + Vector2(0.0, -4.0), 0.0, Vector2(0.22, 0.22))
+	StoryArt.draw_person(self, Vector2.ZERO, 1.0, Color("f6fbff", 0.82), 0.0)
+	draw_set_transform(_origin)
+
+
 func _draw_ghosts() -> void:
 	for ghost in ghosts:
 		var t := clampf(float(ghost.time) / GHOST_MS, 0.0, 1.0)

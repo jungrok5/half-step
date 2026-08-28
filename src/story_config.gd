@@ -14,6 +14,19 @@ extends RefCounted
 ## Roughly 40 to 60 minutes of total play, across two to four sessions.
 const REUNION_STEPS := 3000
 
+## The epilogue: past this score in a single run, someone is walking the bridges
+## ahead of Tori. No card, no text, no interruption — it is a thing the player
+## sees, and almost nobody will.
+##
+## This is the rare half of the split STORY.md section 1 describes. The ending
+## is the story's payoff and has to be reachable; this is the part worth
+## filming, and it reuses a threshold the game already has (BEYOND, and the
+## hardest cat in the codex) instead of inventing one.
+const EPILOGUE_SCORE := 1000
+## How many rows ahead the figure walks. Always a little further.
+const EPILOGUE_LEAD := 3
+
+
 ## One frame of a cut scene. `image` is optional: with no art the frame paints
 ## the sky beneath its caption, so the sequence runs before the assets exist.
 ## `ms` is how long the frame holds once it has faded in.

@@ -20,6 +20,11 @@
   `docs/story/PROMPTS.md` without generating anything, and that part does run
   anywhere. Adapted from jungrok5/super-vs `tools/imagegen/gen.py`.
 
+- `tools/render_story.gd`
+  Bake the six intro/ending stills and the wordmark into `assets/story/` from
+  `src/story_art.gd`. These are the placeholders that ship until real art
+  replaces them. Needs a display, same as the other renderers.
+
 - `tools/render_cats.gd`
   Render all 24 codex cats onto their own skies as one sheet, so the roster can
   be checked at a glance. Same display requirements as the snapshots.

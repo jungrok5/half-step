@@ -430,3 +430,48 @@ Permanent lesson:
 When one feature is asked to be both the payoff and the flex, split it. The
 payoff has to be reachable and the flex has to be rare, and those are opposite
 requirements.
+
+### Drawing a person from directly overhead (2026-08-28)
+
+The story stills needed a human, and this game's camera looks straight down. Two
+attempts were wrong in ways that only showed up once rendered:
+
+- Head circle with an ellipse on each side for arms. It read as **pigtails**.
+- Head circle balanced on top of a wide shoulder ellipse. It read as a **flying
+  saucer**.
+
+What works is the head **overlapping** a rounded torso only a little wider than
+itself, with a long shadow. Which is, on reflection, what looking down at
+somebody actually looks like — the two failures both came from drawing the parts
+separately instead of drawing what the eye receives.
+
+Permanent lesson:
+Render it before believing it. Neither failure was visible in the code, and both
+were obvious in the first frame.
+
+### The font subset fell behind again (2026-08-28)
+
+`탭해서 시작` shipped as `탭해서 시[tofu]`. A key was added to the translation
+table and `tools/build_fonts.py` was not re-run — the same failure as three
+weeks earlier, which had been fixed by deriving the subset from the source and
+writing the rule down in three documents.
+
+Writing it down did not work. `progression_test.gd` now walks every string in
+every locale through `Font.has_char()` and fails with the missing character and
+its language: `Missing: 작(ko)`. Verified by rebuilding the Korean subset one
+string behind and watching the suite catch it.
+
+Permanent lesson:
+A rule that has been broken twice is not a documentation problem. Make the build
+fail.
+
+### The story stills tripled the download, then did not (2026-08-28)
+
+Six 1080x1920 PNGs took the exported `.pck` from 383 KB to 1.27 MB. They are
+flat gradients, which is the worst case for PNG and the best case for lossy
+WebP: importing them with `compress/mode=1` put it back to 531 KB with nothing
+visible lost. The wordmark stays lossless — it has hard edges and an alpha
+channel.
+
+Permanent lesson:
+Check the exported size after adding art, not after shipping it.

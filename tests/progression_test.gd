@@ -17,6 +17,9 @@ func _init() -> void:
 	_test_persistence()
 	_test_roster_is_well_formed()
 	_test_reunion()
+	_test_every_character_has_a_glyph()
+	_test_epilogue()
+	_test_story_frames()
 	_test_every_locale_is_complete()
 	if failures == 0:
 		print("PASS: HALF STEP progression and codex")
@@ -254,6 +257,45 @@ func _test_reunion() -> void:
 
 ## Every string the player can see is a key with a row in every locale, and every
 ## format string survives being fed its arguments.
+## The epilogue is the rare half of the split in STORY.md section 1. It reuses a
+## threshold the game already has rather than inventing one, and this is what
+## keeps that true.
+func _test_epilogue() -> void:
+	expect(StoryConfig.EPILOGUE_SCORE == 1000, "the epilogue sits at 1000")
+	expect(int(ZoneConfig.ZONES[ZoneConfig.ZONES.size() - 1].score) == StoryConfig.EPILOGUE_SCORE,
+		"which is where the last sky opens")
+	var beyond := CatConfig.by_id("beyond")
+	expect(int(beyond.unlock) == CatConfig.Unlock.SCORE
+		and int(beyond.value) == StoryConfig.EPILOGUE_SCORE,
+		"and where the codex's last cat opens")
+	expect(StoryConfig.EPILOGUE_LEAD > 0, "the figure walks ahead, never beside")
+
+	var progress := Progress.new()
+	expect(not progress.seen_epilogue, "it starts unseen")
+	progress.seen_epilogue = true
+	var config := ConfigFile.new()
+	progress.save_to(config)
+	var restored := Progress.new()
+	restored.load_from(config)
+	expect(restored.seen_epilogue, "and having seen it survives a save")
+
+
+## Every cut scene frame names a caption key that exists and a sky that does.
+func _test_story_frames() -> void:
+	expect(StoryConfig.INTRO.size() > 0 and StoryConfig.ENDING.size() > 0, "both sequences exist")
+	expect(StoryArt.FRAMES.size() == StoryConfig.INTRO.size() + StoryConfig.ENDING.size(),
+		"the placeholder art covers every frame")
+	for frame: Dictionary in StoryConfig.INTRO + StoryConfig.ENDING:
+		var sky := int(frame.get("sky", 0))
+		expect(sky >= 0 and sky < ZoneConfig.ZONES.size(),
+			"%s names a real sky" % String(frame.text))
+		# A frame with no art still plays; one pointing at art that is not there
+		# is a typo, and this is where it shows up.
+		var image := String(frame.get("image", ""))
+		expect(image.is_empty() or ResourceLoader.exists(image),
+			"%s points at art that exists: %s" % [String(frame.text), image])
+
+
 func _test_every_locale_is_complete() -> void:
 	var cats := CatConfig.all()
 	for locale: String in I18n.LOCALES:
@@ -274,7 +316,8 @@ func _test_every_locale_is_complete() -> void:
 				"HINT", "HINT_SUB", "RETRY", "SHARE", "CODEX", "TAP_TO_SEE",
 				"TAP_TO_CLOSE", "LOCKED_SLOTS", "SECTION_LEVEL", "SECTION_SKY",
 				"SECTION_FEAT", "SECTION_WITNESS", "SHARE_CLIPBOARD", "STORY_SKIP",
-				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "STORY_ARRIVED"]:
+				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "STORY_ARRIVED",
+				"TAP_TO_START"]:
 			expect(I18n.t(key) != key, "%s is translated in %s" % [key, locale])
 		# A translator writing % instead of %% would crash the game here.
 		expect(not (I18n.t("CODEX_COUNT") % [1, 24, 3]).is_empty(), "CODEX_COUNT formats in %s" % locale)
@@ -286,6 +329,56 @@ func _test_every_locale_is_complete() -> void:
 			expect(I18n.t(String(frame.text)) != String(frame.text),
 				"%s is written in %s" % [String(frame.text), locale])
 	I18n.use("en")
+
+
+## Every character the game can draw has a glyph in the fonts that ship.
+##
+## The subsets are built from the translation table by `tools/build_fonts.py`,
+## which is a build step — so adding a string and forgetting to run it leaves
+## tofu boxes on a player's screen and nothing else notices. That has now
+## happened twice. It is a test failure from here on.
+func _test_every_character_has_a_glyph() -> void:
+	var font := CssText.font()
+	expect(font != null, "the UI font loads")
+	if font == null:
+		return
+	var table := ConfigFile.new()
+	var missing := {}
+	for locale: String in I18n.LOCALES:
+		I18n.use(locale)
+		var strings: Array[String] = []
+		for cat in CatConfig.all():
+			strings.append(CatConfig.display_name(cat))
+			strings.append(CatConfig.condition_label(cat))
+			strings.append(CatConfig.condition_text(cat))
+		for zone in ZoneConfig.ZONES:
+			strings.append(I18n.t(String(zone.share_line)))
+			strings.append(String(zone.name))
+		for frame: Dictionary in StoryConfig.INTRO + StoryConfig.ENDING:
+			strings.append(I18n.t(String(frame.text)))
+		for key: String in ["TITLE", "SUBTITLE", "RUN_ENDED", "TAP_TO_START", "HINT",
+				"HINT_SUB", "RETRY", "SHARE", "CODEX", "CODEX_COUNT", "NEW_CAT", "NEW_CATS",
+				"TAP_TO_SEE", "TAP_TO_CLOSE", "NEXT_MORE", "LOCKED_SLOTS", "BEST_WITH",
+				"SECTION_LEVEL", "SECTION_LEVEL_NOTE", "SECTION_SKY", "SECTION_SKY_NOTE",
+				"SECTION_FEAT", "SECTION_FEAT_NOTE", "SECTION_WITNESS", "SECTION_WITNESS_NOTE",
+				"SHARE_CLIPBOARD", "SHARE_UNSUPPORTED", "SHARE_CANCELLED", "SHARE_RUN",
+				"SHARE_CAT", "STORY_SKIP", "STORY_DISTANCE", "STORY_ARRIVED", "STORY_WALKED",
+				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY"]:
+			strings.append(I18n.t(key))
+		for text: String in strings:
+			for i in text.length():
+				var code := text.unicode_at(i)
+				# Format placeholders and newlines never reach a glyph lookup.
+				if code <= 32 or char(code) == "%":
+					continue
+				if not font.has_char(code):
+					missing[char(code)] = locale
+	I18n.use("en")
+	var report := ""
+	for character: String in missing:
+		report += "%s(%s) " % [character, missing[character]]
+	expect(missing.is_empty(),
+		"every character the UI draws has a glyph — run tools/build_fonts.py. Missing: " + report)
 
 
 func _test_roster_is_well_formed() -> void:

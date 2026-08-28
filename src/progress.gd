@@ -39,6 +39,7 @@ var steady_streak := 0
 var tori_steps := 0
 var seen_intro := false
 var seen_ending := false
+var seen_epilogue := false
 ## Cleared on load: the "first run after launch" feat only counts once.
 var runs_this_session := 0
 
@@ -194,6 +195,7 @@ func save_to(config: ConfigFile) -> void:
 	config.set_value(SECTION, "tori_steps", tori_steps)
 	config.set_value(SECTION, "seen_intro", seen_intro)
 	config.set_value(SECTION, "seen_ending", seen_ending)
+	config.set_value(SECTION, "seen_epilogue", seen_epilogue)
 
 
 func load_from(config: ConfigFile) -> void:
@@ -202,6 +204,7 @@ func load_from(config: ConfigFile) -> void:
 	tori_steps = maxi(0, int(config.get_value(SECTION, "tori_steps", 0)))
 	seen_intro = bool(config.get_value(SECTION, "seen_intro", false))
 	seen_ending = bool(config.get_value(SECTION, "seen_ending", false))
+	seen_epilogue = bool(config.get_value(SECTION, "seen_epilogue", false))
 	# A launch is what makes the "first run" feat mean anything.
 	runs_this_session = 0
 	owned = {CatConfig.STARTER: true}

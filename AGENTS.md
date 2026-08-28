@@ -320,11 +320,17 @@ Hard rules:
 - Look strings up with `I18n.t()`, not `Object.tr()`: most text here is drawn
   from static functions where `tr()` does not exist.
 - After changing any translated string, run `tools/build_fonts.py` and commit
-  the fonts.
+  the fonts. `progression_test.gd` fails if you forget, naming the character and
+  the locale — this shipped broken twice before that guard existed.
 - The ending is gated on **distance walked as Tori** (`StoryConfig.REUNION_STEPS`),
   never on score and never on level. A failed run still counts toward it. Do not
   move it onto a skill axis: see STORY.md section 1.
 - The ending does NOT end the game. Play continues unchanged afterwards.
+- The title screen appears on a **cold launch only**. Retry must never pass
+  through it.
+- The epilogue at score 1000 has no card and no text. It is a thing seen, not a
+  thing announced, and it shares its threshold with the BEYOND sky and the
+  codex's last cat. Do not give it a threshold of its own.
 - The ending's replay row appears only after it has been seen. Showing it early
   gives away that there is an ending.
 - Zone names, milestone tags and PLAY · FAIL · SHARE · REPEAT stay English. They

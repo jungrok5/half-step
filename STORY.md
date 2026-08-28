@@ -85,7 +85,21 @@ This was the open question, and the answer is that one thing cannot do both jobs
 Trying to make the ending do both breaks both: gate it high and the story never
 lands; gate it low and there is nothing to brag about. So they are separated.
 
-**Recommended, not yet built — the epilogue at score 1000 in one run.** The
+### The epilogue — built
+
+Past **score 1000 in a single run** (`StoryConfig.EPILOGUE_SCORE`), someone is
+walking the bridges ahead of Tori, three rows further on, always a little
+further. Backlit, small, never resolving into a face. No card, no text, no
+interruption — whoever gets there has earned finding it themselves.
+
+It reuses a threshold the game already has: 1000 is where the BEYOND sky opens
+and where the codex's last cat unlocks. `progression_test.gd` asserts those three
+numbers stay the same one, so the epilogue can never drift onto a threshold of
+its own.
+
+The design note that produced it follows.
+
+**The epilogue at score 1000 in one run.** The
 BEYOND zone already exists there, already says NO ONE WAS SUPPOSED TO SEE THIS,
 and already gates the game's hardest cat. After the reunion, Tori keeps running;
 at 1000 a second silhouette is running the bridges alongside. No text, no ending
@@ -115,6 +129,21 @@ Drop art at `res://assets/story/intro_1.png` and the rest; a frame whose image i
 missing still plays, painting the sky it names. So the sequence runs, and is
 testable, before any art exists.
 
+**What ships today** is placeholder art drawn from the game's own primitives by
+`src/story_art.gd` and baked by `tools/render_story.gd`. Nothing reads that class
+at run time — it exists so the cut scenes are finished now, and replacing a frame
+is dropping a file with the same name into `assets/story/`.
+
+Three attempts at drawing a person from directly overhead are worth remembering,
+because the first two looked wrong in ways that were not obvious until rendered:
+ellipses beside the head read as **pigtails**; a head balanced above a wide
+shoulder ellipse read as a **flying saucer**. What works is the head overlapping
+a rounded torso only a little wider than it is.
+
+The stills import as **lossy WebP** (`compress/mode=1`). They are smooth
+gradients, where lossy shows nothing and lossless costs six times as much: the
+exported `.pck` is 531 KB instead of 1.27 MB.
+
 **Generating them:** `python3 tools/imagegen/story_art.py` draws all six with
 the Codex CLI, six at a time. The prompts are `docs/story/PROMPTS.md`; the
 shared style spec, Tori's description and the no-text rule live in the script
@@ -134,7 +163,8 @@ the loop.
 
 | | |
 |---|---|
-| Intro | Plays once, before the first run ever. |
+| Title | Every cold launch. A tap starts the run. Never between deaths — AGENTS.md section 2 wants restart immediate, and a title screen between attempts is the opposite. |
+| Intro | Plays once, after the first tap on the title. |
 | Ending | Plays on the run that completes the walk, before the result card. |
 | Skip | Always. A tap anywhere else steps a frame, so a replay is fast. |
 | Replay | Both live at the bottom of the codex. |
@@ -218,8 +248,8 @@ default — if it is not, take it out of `SEPARABLE_SCRIPTS` in the same commit.
 1. **`REUNION_STEPS = 3000`** is calibrated from the archetype table in
    `PROGRESSION.md`, not from measurement. First thing to check against real
    sessions.
-2. **The epilogue at score 1000** is designed above and not built.
-3. **Art.** Six stills, and whatever the title screen becomes.
+2. **Art.** The six stills and the wordmark are placeholders drawn from the
+   game's own shapes. `tools/imagegen/story_art.py` replaces them.
 4. **A language picker.** The locale currently follows the device. Some players
    want to override it.
 5. **The mobile deep link** for `?seen=` — web only so far.
