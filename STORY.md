@@ -130,9 +130,11 @@ missing still plays, painting the sky it names. So the sequence runs, and is
 testable, before any art exists.
 
 **What ships today** is placeholder art drawn from the game's own primitives by
-`src/story_art.gd` and baked by `tools/render_story.gd`. Nothing reads that class
-at run time — it exists so the cut scenes are finished now, and replacing a frame
-is dropping a file with the same name into `assets/story/`.
+`src/story_art.gd` and baked by `tools/render_story.gd`. Nothing loads those
+stills from that class at run time — it exists so the cut scenes are finished
+now, and replacing a frame is dropping a file with the same name into
+`assets/story/`. The memorial's portrait (section 2b) is the one thing in there
+the game draws live.
 
 Three attempts at drawing a person from directly overhead are worth remembering,
 because the first two looked wrong in ways that were not obvious until rendered:
@@ -175,6 +177,55 @@ it earlier would give away that there is an ending at all.
 The current captions are placeholders written from the scenario. Replace them in
 `assets/i18n/half_step.csv` — the rows are `STORY_INTRO_1..3` and
 `STORY_END_1..3`.
+
+---
+
+## 2b. The memorial
+
+The ending finishes on a fourth frame that is not a still. It is a card, drawn
+live, carrying Tori's portrait, her name, **2019. 09. 21.**, two lines, and four
+numbers out of the save file.
+
+**It holds.** Every other frame times out after `FRAME_MS`; this one waits until
+the player leaves it (`"hold": true` in `StoryConfig.ENDING`). It is the last
+thing they see of this cat, and taking it away on a timer would be the one unkind
+thing in the game.
+
+**It has a face.** `Art` is explicit that the camera looks straight down and a
+cat therefore has no face — see ART_DIRECTION.md. `StoryArt.draw_tori_portrait`
+suspends that rule, and only here: everywhere else the cat is being *followed*,
+and here she is being *looked at*. A memorial without a face is a memorial to
+nobody. Do not "fix" the portrait to match the playfield camera.
+
+**The photograph slot.** If `res://assets/story/tori_photo.png` exists, it is
+drawn instead — cropped to the same circle, with UVs, because Godot's 2D canvas
+has no clipping. Drop a square photo in and nothing else changes.
+
+### The four numbers
+
+| Line | Key | Source |
+|---|---|---|
+| Times she came back | `MEMORIAL_STEPS` | `progress.total_steps` — every landing, by any cat |
+| Times she fell | `MEMORIAL_FALLS` | `progress.total_falls` |
+| Days together | `MEMORIAL_DAYS` | `progress.days_played`, counted once per calendar day in `finish_run` |
+| Farthest | `MEMORIAL_BEST` | `progress.bests[tori]` |
+
+The brief asked for falls **and** the number of runs. In this game those are the
+same integer — a run only ever ends one way — so the card shows it once and
+spends the fourth slot on the calendar instead, which is the number that keeps
+growing when nothing else does.
+
+### The codex is locked until here
+
+Before the ending, the codex row on the result card is not a door. It reads the
+distance left (`STORY_DISTANCE`) with `CODEX_LOCKED` — "엔딩 이후 열립니다" —
+under it, and tapping it does nothing. The memorial says `CODEX_OPENED` at its
+foot, which is the handover: the walk is finished, and now there are other cats
+to walk it with.
+
+A locked door with nothing behind it is a worse thing to show a player than the
+distance they have left, which is why the row carries the walk rather than a
+padlock.
 
 ---
 

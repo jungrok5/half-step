@@ -17,6 +17,8 @@ const SKIP := Color(1.0, 1.0, 1.0, 0.62)
 var which := "intro"
 var time := 0.0
 var frame := 0
+## Read by the memorial frame. Left null in tests that only drive the fades.
+var progress: Progress
 
 var _rect := Rect2()
 var _skip := Rect2()
@@ -49,11 +51,24 @@ func frames() -> Array[Dictionary]:
 	return StoryConfig.frames(which)
 
 
+## True when frame [param index] waits for the player instead of timing out.
+func holds(index: int) -> bool:
+	var list := frames()
+	return index >= 0 and index < list.size() and bool(list[index].get("hold", false))
+
+
 ## Returns true while the sequence is still running.
 func advance(delta_ms: float) -> bool:
 	if not visible:
 		return false
 	time += delta_ms
+	# A held frame fades in and then waits. The memorial is the last thing the
+	# player sees of this cat, and taking it away on a timer would be the one
+	# unkind thing in the game.
+	if holds(frame):
+		time = minf(time, StoryConfig.FADE_MS)
+		queue_redraw()
+		return true
 	var span := StoryConfig.FADE_MS + StoryConfig.FRAME_MS
 	while time >= span:
 		time -= span
@@ -111,10 +126,13 @@ func _draw() -> void:
 	# language costs a row in the table rather than a new render.
 	var fade := clampf(time / StoryConfig.FADE_MS, 0.0, 1.0)
 	var eased := CssAnim.curve(CssAnim.EASE, fade)
-	draw_rect(Rect2(Vector2(0.0, size.y * 0.62), Vector2(size.x, size.y * 0.38)),
-		Color("06101f", 0.42 * eased))
-	CssText.draw_centered(self, I18n.t(String(current.text)), 24.0, size.x - 48.0,
-		size.y * 0.72, 17.0, 0.0, Color(INK, eased))
+	if bool(current.get("memorial", false)):
+		_draw_memorial(size, eased)
+	else:
+		draw_rect(Rect2(Vector2(0.0, size.y * 0.62), Vector2(size.x, size.y * 0.38)),
+			Color("06101f", 0.42 * eased))
+		CssText.draw_centered(self, I18n.t(String(current.text)), 24.0, size.x - 48.0,
+			size.y * 0.72, 17.0, 0.0, Color(INK, eased))
 
 	var skip := Rect2(_skip.position - _rect.position, _skip.size)
 	draw_rect(skip, Color(1.0, 1.0, 1.0, 0.14))
@@ -128,3 +146,98 @@ func _draw() -> void:
 		draw_circle(Vector2(x, dot_y), 3.0,
 			Color(1.0, 1.0, 1.0, 0.85 if i == frame else 0.3), true, -1.0, true)
 	draw_set_transform(Vector2.ZERO)
+
+
+## The memorial: a real cat, a real date, and what this player did with her.
+##
+## Everything on it comes from the save file, so it is a different card for
+## every person who reaches it — which is the only way a number like "the times
+## she came back" means anything.
+func _draw_memorial(size: Vector2, eased: float) -> void:
+	var ink := Color("2b3a49")
+	var muted := Color("5f7789")
+	var width: float = minf(size.x * 0.84, 352.0)
+	var radius: float = minf(width * 0.30, 104.0)
+
+	# Laid out top down first, so the card is exactly as tall as what is on it.
+	# A fixed height leaves a slab of empty paper under the last number, which
+	# is the one thing on this screen that would look careless.
+	var portrait_top := 34.0
+	var name_top := portrait_top + radius * 2.0 + 24.0
+	var date_top := name_top + CssText.line_height(22.0) + 4.0
+	var rule_top := date_top + CssText.line_height(12.0) + 18.0
+	var lines_top := rule_top + 18.0
+	var line_step := CssText.line_height(13.0) + 6.0
+	var stats_top := lines_top + line_step * 2.0 + 14.0
+	var stat_step := CssText.line_height(9.0) + 4.0 + CssText.line_height(17.0) + 14.0
+	var note_top := stats_top + stat_step * 2.0 + 6.0
+	var height := note_top + CssText.line_height(10.0) + 30.0
+
+	var card := Rect2(Vector2((size.x - width) * 0.5, maxf(18.0, (size.y - height) * 0.44)),
+		Vector2(width, height))
+	# A lamp behind the card, so the last sky of the ending warms toward the
+	# room the story started in instead of staying out in the cold.
+	CssPaint.radial_gradient_at(self, card.get_center() - Vector2(0.0, card.size.y * 0.22),
+		card.size.y * 0.86, [[0.0, Color("ffd9a8", 0.42 * eased)],
+		[1.0, Color("ffd9a8", 0.0)]])
+	Shapes.rounded_rect(self, Rect2(card.position + Vector2(0.0, 8.0), card.size), 22.0,
+		Color(0.04, 0.08, 0.14, 0.16 * eased))
+	Shapes.rounded_rect(self, card, 22.0, Color("fbf7f0", 0.97 * eased))
+
+	var portrait := card.position + Vector2(width * 0.5, portrait_top + radius)
+	Shapes.fill(self, Shapes.circle_polygon(portrait, radius + 6.0), Color("e8ddce", eased))
+	draw_set_transform(_rect.position + portrait, 0.0,
+		Vector2.ONE * (radius / StoryArt.PORTRAIT_RADIUS))
+	if not StoryArt.draw_tori_photo(self):
+		StoryArt.draw_tori_portrait(self)
+	draw_set_transform(_rect.position)
+
+	CssText.draw_centered(self, I18n.t("MEMORIAL_NAME"), card.position.x, width,
+		card.position.y + name_top, 22.0, 1.0, Color(ink, eased))
+	CssText.draw_centered(self, StoryConfig.MEMORIAL_DATE, card.position.x, width,
+		card.position.y + date_top, 12.0, 2.4, Color(muted, eased))
+	draw_rect(Rect2(card.get_center().x - 26.0, card.position.y + rule_top, 52.0, 1.0),
+		Color("d8ccbd", eased))
+	for i in 2:
+		CssText.draw_centered(self, I18n.t("MEMORIAL_LINE_%d" % (i + 1)), card.position.x + 18.0,
+			width - 36.0, card.position.y + lines_top + line_step * float(i), 13.0, 0.0,
+			Color(ink, eased))
+
+	# Four numbers, two by two. They are hers, not the game's, so they carry no
+	# level, no rank and nothing to beat.
+	var stats := _memorial_stats()
+	var column := (width - 36.0) * 0.5
+	for i in stats.size():
+		var left := card.position.x + 18.0 + float(i % 2) * column
+		var top := card.position.y + stats_top + float(i / 2) * stat_step
+		CssText.draw_centered(self, String(stats[i][0]), left, column, top, 9.0, 1.2,
+			Color(muted, eased))
+		CssText.draw_centered(self, String(stats[i][1]), left, column,
+			top + CssText.line_height(9.0) + 4.0, 17.0, 0.0, Color(ink, eased))
+
+	# The codex opens here. Saying so on this card is the whole handover: the
+	# walk is finished, and now there are other cats to walk it with.
+	CssText.draw_centered(self, I18n.t("CODEX_OPENED"), card.position.x + 18.0, width - 36.0,
+		card.position.y + note_top, 10.0, 1.4, Color(muted, eased))
+
+
+## Label and value for each memorial number. Falls (the runs that ended) and the
+## number of runs are the same count in this game — a run only ever ends one way
+## — so the card shows it once and spends the fourth slot on the calendar
+## instead, which is the number that grows when nothing else does.
+func _memorial_stats() -> Array:
+	var steps := 0
+	var falls := 0
+	var days := 0
+	var best := 0
+	if progress != null:
+		steps = progress.total_steps
+		falls = progress.total_falls
+		days = maxi(1, progress.days_played)
+		best = int(progress.bests.get(CatConfig.STARTER, 0))
+	return [
+		[I18n.t("MEMORIAL_STEPS"), str(steps)],
+		[I18n.t("MEMORIAL_FALLS"), str(falls)],
+		[I18n.t("MEMORIAL_DAYS"), str(days)],
+		[I18n.t("MEMORIAL_BEST"), str(best)],
+	]

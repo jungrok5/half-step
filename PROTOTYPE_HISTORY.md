@@ -505,3 +505,43 @@ AUDIO_RULES' rule that the melody ignores lane direction.
 Permanent lesson:
 Ask what the game's mechanics forbid before writing the brief. Half of this
 document is constraints that only exist because the cadence accelerates.
+
+### `--editor --quit` rewrites project.godot and drops what it does not use (2026-08-28)
+
+Adding translation rows means re-importing the CSV, and re-importing means
+running the editor once (`godot --editor --quit --path .`). That run rewrote
+`project.godot` from its own defaults and silently deleted four blocks:
+`[internationalization]`, `[audio] general/default_playback_type.web`,
+`[input_devices] pointing/emulate_mouse_from_touch`, and the texture filter
+settings — every one of them a fix that cost a debugging session to find. It
+also expanded the input map into forty properties per event.
+
+This is the second time `project.godot` has been quietly reverted; the first was
+a `git checkout project.godot` during a size bisection, which took the
+`[internationalization]` block with it and put raw keys on screen.
+
+Permanent lesson:
+`project.godot` is hand-written and the editor does not know that. After any
+`--editor` run, `git diff project.godot` and restore it — the `.translation`
+files it regenerated are what you wanted; the rewrite is not.
+
+### The memorial, and the one place a cat has a face (2026-08-28)
+
+`Art` is explicit that the camera looks straight down, so a cat has ears and a
+back and no face. The memorial is the exception, and the exception is the point:
+everywhere else Tori is being followed, and here she is being looked at.
+
+The portrait took three passes and each failure is a general one. Drawing it
+freely and then scaling it left the chest hanging outside its circular frame —
+so the drawing declares `PORTRAIT_RADIUS` and everything is composed inside it,
+with the body cropped by `Geometry2D.intersect_polygons` rather than stopping
+short of the edge (a cat that fits neatly inside a disc reads as a sticker). The
+soft light behind her started as a `radial_gradient_at`, which is unclipped and
+painted a haze across the whole screen; it is now an ellipse intersected with
+the same circle. And `draw_arc` over a 15-unit radius lands as two straight
+strokes, so the mouth came out a capital T — it is a `draw_polyline` now.
+
+Permanent lesson:
+Render it. Every one of those three was invisible in the code and obvious in the
+picture, and the two-by-two of twelve locales caught nothing the English shot
+did not — the layout bugs were in the art, not the text.

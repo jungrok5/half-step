@@ -10,8 +10,10 @@
   Needs `BUTLER_API_KEY`; `--build-only` skips the push.
 
 - `tools/render_snapshots.gd`
-  Render one portrait screenshot per sky zone plus the result card and the share
-  image. Needs a display; `xvfb-run` with a software GL driver is enough.
+  Render one portrait screenshot per sky zone, the result card in both its
+  states (before and after the codex opens), the share image, the title, and
+  every cut-scene frame including the memorial. Needs a display; `xvfb-run` with
+  a software GL driver is enough.
 
 - `tools/imagegen/story_art.py`
   Draw the six intro/ending stills with the Codex CLI, six at a time. Needs
@@ -40,6 +42,11 @@
   build step, not a runtime one. **Run it and commit the fonts after changing
   any translated string or adding a language**, or that string draws as tofu
   boxes on a player's screen.
+
+  Adding a *row* also needs the CSV re-imported, which means one editor run:
+  `godot --editor --quit --path .`. That run rewrites `project.godot` and drops
+  hand-written settings — `git diff project.godot` afterwards and restore it.
+  See PROTOTYPE_HISTORY.md.
 
 Still missing:
 

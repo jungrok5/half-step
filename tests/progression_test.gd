@@ -20,6 +20,7 @@ func _init() -> void:
 	_test_every_character_has_a_glyph()
 	_test_epilogue()
 	_test_story_frames()
+	_test_memorial()
 	_test_every_locale_is_complete()
 	if failures == 0:
 		print("PASS: HALF STEP progression and codex")
@@ -283,8 +284,13 @@ func _test_epilogue() -> void:
 ## Every cut scene frame names a caption key that exists and a sky that does.
 func _test_story_frames() -> void:
 	expect(StoryConfig.INTRO.size() > 0 and StoryConfig.ENDING.size() > 0, "both sequences exist")
-	expect(StoryArt.FRAMES.size() == StoryConfig.INTRO.size() + StoryConfig.ENDING.size(),
-		"the placeholder art covers every frame")
+	# Every frame that names a still has one. The memorial names none: it is
+	# drawn live from the save file, so there is nothing to bake.
+	var stills := 0
+	for frame: Dictionary in StoryConfig.INTRO + StoryConfig.ENDING:
+		if not String(frame.get("image", "")).is_empty():
+			stills += 1
+	expect(StoryArt.FRAMES.size() == stills, "the placeholder art covers every still")
 	for frame: Dictionary in StoryConfig.INTRO + StoryConfig.ENDING:
 		var sky := int(frame.get("sky", 0))
 		expect(sky >= 0 and sky < ZoneConfig.ZONES.size(),
@@ -294,6 +300,48 @@ func _test_story_frames() -> void:
 		var image := String(frame.get("image", ""))
 		expect(image.is_empty() or ResourceLoader.exists(image),
 			"%s points at art that exists: %s" % [String(frame.text), image])
+
+
+## The memorial counts what the player and this cat actually did, and it is the
+## last frame of the ending — so it is also what unlocks the codex.
+func _test_memorial() -> void:
+	var memorial: Dictionary = StoryConfig.ENDING[StoryConfig.ENDING.size() - 1]
+	expect(bool(memorial.get("memorial", false)), "the ending finishes on the memorial")
+	expect(bool(memorial.get("hold", false)), "and waits there instead of timing out")
+	expect(StoryConfig.MEMORIAL_DATE == "2019. 09. 21.", "the date is the date")
+
+	var progress := Progress.new()
+	expect(progress.total_steps == 0 and progress.total_falls == 0, "the counters start empty")
+	progress.finish_run(37, 0.0, RunFeats.new())
+	progress.finish_run(12, 0.0, RunFeats.new())
+	expect(progress.total_steps == 49, "every landing by any cat counts toward the total")
+	expect(progress.total_falls == 2, "so does every run that ended")
+	expect(progress.days_played == 1, "two runs on one day are one day together")
+	progress.last_day = "1999-01-01"
+	progress.mark_today()
+	expect(progress.days_played == 2, "a new day counts once")
+	progress.mark_today()
+	expect(progress.days_played == 2, "and only once")
+
+	var config := ConfigFile.new()
+	progress.save_to(config)
+	var restored := Progress.new()
+	restored.load_from(config)
+	expect(restored.total_steps == 49 and restored.total_falls == 2
+		and restored.days_played == 2, "the memorial numbers survive a save")
+
+	# The screen reads them without a save file too, because a replayed ending
+	# is drawn from whatever the player has now.
+	var screen := StoryScreen.new()
+	screen.progress = restored
+	var stats: Array = screen.call("_memorial_stats")
+	expect(stats.size() == 4, "the card carries four numbers")
+	var values := PackedStringArray()
+	for row: Array in stats:
+		expect(not String(row[0]).is_empty(), "each number is labelled")
+		values.append(String(row[1]))
+	expect(values[0] == "49" and values[1] == "2", "and they are this player's numbers")
+	screen.free()
 
 
 func _test_every_locale_is_complete() -> void:
@@ -317,7 +365,9 @@ func _test_every_locale_is_complete() -> void:
 				"TAP_TO_CLOSE", "LOCKED_SLOTS", "SECTION_LEVEL", "SECTION_SKY",
 				"SECTION_FEAT", "SECTION_WITNESS", "SHARE_CLIPBOARD", "STORY_SKIP",
 				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "STORY_ARRIVED",
-				"TAP_TO_START"]:
+				"TAP_TO_START", "MEMORIAL_NAME", "MEMORIAL_LINE_1", "MEMORIAL_LINE_2",
+				"MEMORIAL_STEPS", "MEMORIAL_FALLS", "MEMORIAL_DAYS", "MEMORIAL_BEST",
+				"CODEX_LOCKED", "CODEX_OPENED"]:
 			expect(I18n.t(key) != key, "%s is translated in %s" % [key, locale])
 		# A translator writing % instead of %% would crash the game here.
 		expect(not (I18n.t("CODEX_COUNT") % [1, 24, 3]).is_empty(), "CODEX_COUNT formats in %s" % locale)
@@ -363,8 +413,11 @@ func _test_every_character_has_a_glyph() -> void:
 				"SECTION_FEAT", "SECTION_FEAT_NOTE", "SECTION_WITNESS", "SECTION_WITNESS_NOTE",
 				"SHARE_CLIPBOARD", "SHARE_UNSUPPORTED", "SHARE_CANCELLED", "SHARE_RUN",
 				"SHARE_CAT", "STORY_SKIP", "STORY_DISTANCE", "STORY_ARRIVED", "STORY_WALKED",
-				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY"]:
+				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "MEMORIAL_NAME",
+				"MEMORIAL_LINE_1", "MEMORIAL_LINE_2", "MEMORIAL_STEPS", "MEMORIAL_FALLS",
+				"MEMORIAL_DAYS", "MEMORIAL_BEST", "CODEX_LOCKED", "CODEX_OPENED"]:
 			strings.append(I18n.t(key))
+		strings.append(StoryConfig.MEMORIAL_DATE)
 		for text: String in strings:
 			for i in text.length():
 				var code := text.unicode_at(i)

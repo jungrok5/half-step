@@ -340,6 +340,23 @@ Hard rules:
   codex's last cat. Do not give it a threshold of its own.
 - The ending's replay row appears only after it has been seen. Showing it early
   gives away that there is an ending.
+- The ending finishes on the **memorial**: Tori's portrait, `2019. 09. 21.`, two
+  lines and four numbers from the save file. It holds until the player leaves it
+  — it is the only frame in the game that does not time out, and it stays that
+  way. `assets/story/tori_photo.png` replaces the drawn portrait if it exists.
+- The memorial is the **one place a cat has a face.** Section 8 and
+  ART_DIRECTION.md forbid it everywhere else because the camera looks straight
+  down; here the cat is being looked at rather than followed. Do not "fix" it.
+- The **codex is locked until the ending has been seen** (`progress.seen_ending`).
+  Before that the result card's codex row carries the distance left plus
+  `CODEX_LOCKED`, and tapping it does nothing. After it, everything works as
+  before: other cats can be won and equipped.
+- While the codex is shut, cats still **unlock** but are not **announced** —
+  `opened_cats` is cleared. A cat the player cannot open or equip is a locked
+  door with a name on it. They all appear together when the codex opens.
+- Falls and runs are the same number in this game — a run only ever ends one way.
+  The memorial shows it once. Do not add a second line that counts the same
+  thing.
 - Zone names, milestone tags and PLAY · FAIL · SHARE · REPEAT stay English. They
   are stylised proper nouns, not untranslated strings.
 

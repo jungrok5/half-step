@@ -26,6 +26,8 @@ CAT_TUXEDO,Tuxedo,턱시도,タキシード,燕尾,燕尾,Esmoquin,Smoking,Smoki
 CAT_VOID,Void,공허,くうきょ,空虚,空虛,Vacío,Vazio,Vide,Leere,Пустота,Kehampaan,Hư không
 CODEX,Codex,도감,図鑑,图鉴,圖鑑,Códice,Códice,Codex,Codex,Кодекс,Kodeks,Bộ sưu tập
 CODEX_COUNT,Codex %d / %d · LV %d,도감 %d / %d · LV %d,図鑑 %d / %d · LV %d,图鉴 %d / %d · LV %d,圖鑑 %d / %d · LV %d,Códice %d / %d · NIV %d,Códice %d / %d · NV %d,Codex %d / %d · NIV %d,Codex %d / %d · LV %d,Кодекс %d / %d · УР %d,Kodeks %d / %d · LV %d,Bộ sưu tập %d / %d · CẤP %d
+CODEX_LOCKED,Opens after the ending,엔딩 이후 열립니다,エンディングの後で開きます,通关后开启,通關後開啟,Se abre tras el final,Abre após o final,S'ouvre après la fin,Öffnet sich nach dem Ende,Откроется после финала,Terbuka setelah ending,Mở sau khi kết thúc
+CODEX_OPENED,The codex is open,도감이 열렸다,図鑑が開いた,图鉴开启了,圖鑑開啟了,El códice está abierto,O códice está aberto,Le codex est ouvert,Der Codex ist offen,Кодекс открыт,Kodeks terbuka,Bộ sưu tập đã mở
 COND_CROSSINGS,%d crossings,전환 %d회,%d回の切替,切换 %d 次,切換 %d 次,%d cambios,%d trocas,%d changements,%d Wechsel,%d смен,%d pindah,%d lần đổi
 COND_CROSSINGS_FULL,Change lanes %d times in one run,한 판에 좌우를 %d번 갈아탄다,1回で左右を%d回切り替える,单局切换左右 %d 次,單局切換左右 %d 次,Cambia de carril %d veces en una partida,Troque de lado %d vezes numa partida,Changer de voie %d fois en une partie,%d Mal die Spur wechseln in einem Lauf,Сменить сторону %d раз за забег,Pindah jalur %d kali dalam satu ronde,Đổi làn %d lần trong một lượt
 COND_EARLY,Sharp timing %d,칼타이밍 %d,ジャスト %d,精准 %d,精準 %d,Timing %d,Timing %d,Timing %d,Timing %d,Тайминг %d,Timing %d,Canh %d
@@ -43,6 +45,13 @@ COND_WITNESS_FULL,Witness %d other cats on shared cards,다른 고양이 %d마�
 HINT,Tap when the bridge reaches you,발판이 다가올 때 탭해서 건너기,足場が来たらタップ,踏板靠近时点击,踏板靠近時點擊,Toca cuando llegue el puente,Toque quando a ponte chegar,Touche quand le pont arrive,"Tippe, wenn die Brücke kommt","Нажми, когда мост подойдёт",Ketuk saat jembatan tiba,Chạm khi cầu tới nơi
 HINT_SUB,"Farther on, other skies open",멀리 갈수록 다른 하늘이 열린다,進むほど違う空が開く,走得越远，天空越不同,走得越遠，天空越不同,"Más lejos, se abren otros cielos","Mais longe, outros céus se abrem","Plus loin, d'autres ciels s'ouvrent",Weiter draußen öffnen sich andere Himmel,Дальше открываются другие небеса,"Makin jauh, langit lain terbuka","Càng xa, bầu trời càng khác"
 LOCKED_SLOTS,Still closed,아직 열지 못한 칸,まだ開いていない枠,尚未开启的格子,尚未開啟的格子,Aún cerrados,Ainda fechados,Encore fermés,Noch verschlossen,Ещё закрыты,Masih terkunci,Vẫn chưa mở
+MEMORIAL_BEST,Farthest,가장 멀리,いちばん遠く,最远,最遠,Lo más lejos,Mais longe,Le plus loin,Am weitesten,Дальше всего,Terjauh,Xa nhất
+MEMORIAL_DAYS,Days together,함께한 날,一緒にいた日,在一起的日子,在一起的日子,Días juntos,Dias juntos,Jours ensemble,Tage zusammen,Дней вместе,Hari bersama,Ngày bên nhau
+MEMORIAL_FALLS,Times she fell,떨어진 횟수,落ちた回数,坠落的次数,墜落的次數,Veces que cayó,Vezes que caiu,Fois où elle est tombée,Mal gefallen,Раз упал,Kali dia jatuh,Số lần rơi
+MEMORIAL_LINE_1,Tori went on ahead.,토리는 먼저 갔다.,トリは先に行った。,托里先走了。,托里先走了。,Tori se fue antes.,Tori foi antes.,Tori est parti avant.,Tori ging voraus.,Тори ушёл первым.,Tori pergi lebih dulu.,Tori đã đi trước.
+MEMORIAL_LINE_2,"In this sky, Tori comes to me.","이 하늘에서는, 토리가 나에게 온다.",この空では、トリが僕のところへ来る。,在这片天空里，托里会来找我。,在這片天空裡，托里會來找我。,"En este cielo, Tori viene hacia mí.","Neste céu, Tori vem até mim.","Dans ce ciel, Tori vient vers moi.",In diesem Himmel kommt Tori zu mir.,В этом небе Тори приходит ко мне.,"Di langit ini, Tori datang padaku.","Ở bầu trời này, Tori đến với tôi."
+MEMORIAL_NAME,Tori,토리,トリ,托里,托里,Tori,Tori,Tori,Tori,Тори,Tori,Tori
+MEMORIAL_STEPS,Times she came back,달려와준 횟수,駆け寄ってくれた回数,跑向我的次数,跑向我的次數,Veces que volvió,Vezes que voltou,Fois où elle est revenue,Mal zurückgekommen,Раз прибежал,Kali dia kembali,Số lần chạy đến
 NEW_CAT,New cat · %s,새 고양이 · %s,新しい猫 · %s,新猫 · %s,新貓 · %s,Gato nuevo · %s,Gato novo · %s,Nouveau chat · %s,Neue Katze · %s,Новый кот · %s,Kucing baru · %s,Mèo mới · %s
 NEW_CATS,%d new cats,새 고양이 %d마리,新しい猫 %d匹,新猫 %d只,新貓 %d隻,%d gatos nuevos,%d gatos novos,%d nouveaux chats,%d neue Katzen,Новых котов: %d,%d kucing baru,%d mèo mới
 NEXT_MORE,Next · %d more,다음 · %d마리 더,次へ · あと%d匹,下一个 · 还有%d只,下一個 · 還有%d隻,Siguiente · %d más,Próximo · mais %d,Suivant · %d de plus,Weiter · noch %d,Дальше · ещё %d,Berikutnya · %d lagi,Tiếp · còn %d

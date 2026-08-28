@@ -24,6 +24,10 @@ func _run() -> void:
 	await process_frame
 	# Freeze the run so a fixed score stays put while the frame is captured.
 	game.process_mode = Node.PROCESS_MODE_DISABLED
+	# A cold launch opens on the title, which would otherwise sit on top of
+	# every shot below. It gets its own capture at the end.
+	game.get("title_screen").call("close")
+	game.get("story_screen").call("stop")
 	var state: HalfStepState = game.get("state")
 
 	for score: int in SCORES:
@@ -44,13 +48,44 @@ func _run() -> void:
 	game.set("zone_index", -1)
 	game.call("apply_zone", true)
 	game.set("death_time", 900.0)
+	var progress: Progress = game.get("progress")
+	var seen := progress.seen_ending
+	progress.seen_ending = true
 	await _capture(game, "%s/result-card.png" % output)
+	# The same card before the ending, where the codex row is the walk instead.
+	progress.seen_ending = false
+	await _capture(game, "%s/result-card-locked.png" % output)
+	progress.seen_ending = seen
 
 	# The share image handed to the OS share sheet.
 	var zone := ZoneConfig.for_score(340)
 	var card: Image = await ShareCard.render(game, 340, zone, String(zone.name))
 	card.save_png("%s/share-card.png" % output)
 	print("share-card.png")
+
+	# The title, and every cut-scene frame. The memorial the ending finishes on
+	# is drawn from the save file, so it is given numbers worth reading.
+	state.run_state = HalfStepState.RunState.PLAYING
+	game.set("death_time", -1.0)
+	progress.total_steps = 4213
+	progress.total_falls = 168
+	progress.days_played = 9
+	progress.bests[CatConfig.STARTER] = 342
+	var title: Node = game.get("title_screen")
+	title.call("open", progress, game.call("game_rect"))
+	await _capture(game, "%s/title.png" % output)
+	title.call("close")
+
+	var story: Node = game.get("story_screen")
+	for sequence: String in ["intro", "ending"]:
+		# Straight to the screen rather than through `play_story`, which would
+		# write "seen it" into the player's own save file.
+		story.call("play", sequence, game.call("game_rect"))
+		for i in StoryConfig.frames(sequence).size():
+			story.set("frame", i)
+			story.set("time", StoryConfig.FADE_MS)
+			await _capture(game, "%s/story-%s-%d.png" % [output, sequence, i + 1])
+		story.call("stop")
 
 	root.remove_child(game)
 	game.free()

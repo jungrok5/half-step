@@ -217,6 +217,7 @@ func _ready() -> void:
 		play_story(sequence))
 	add_child(codex_screen)
 	story_screen = StoryScreen.new()
+	story_screen.progress = progress
 	story_screen.visible = false
 	story_screen.finished.connect(func() -> void: queue_redraw())
 	add_child(story_screen)
@@ -389,7 +390,10 @@ func _input(event: InputEvent) -> void:
 		if not opened_cats.is_empty() and Rect2(layout.new_cat).has_point(position):
 			card_index = 0
 		elif Rect2(layout.codex).has_point(position):
-			codex_screen.open(progress, game_rect())
+			# Locked until the ending: the codex is the reward for finishing
+			# Tori's walk, not the thing you do instead of walking it.
+			if progress.seen_ending:
+				codex_screen.open(progress, game_rect())
 		elif Rect2(layout.share).has_point(position):
 			share_score()
 		else:
@@ -623,6 +627,11 @@ func die() -> void:
 		_save.set_value("score", "best", best)
 	var reached_before := progress.reunion_reached()
 	opened_cats = PackedStringArray(progress.finish_run(state.score, state.run_experience, run_feats))
+	# Cats still open while the codex is shut, but they are not announced: a new
+	# cat the player cannot look at or equip is a locked door with a name on it.
+	# They are all there waiting the first time the codex opens after the ending.
+	if not progress.seen_ending:
+		opened_cats = PackedStringArray()
 	if not opened_cats.is_empty():
 		tone_player.play_cue(AudioBank.CUE_UNLOCK)
 	progress.save_to(_save)
@@ -1250,6 +1259,8 @@ func result_layout() -> Dictionary:
 		16.0 + 50.0,
 		8.0 + 13.0,
 		10.0 + CssText.line_height(10.0),
+		# The locked row carries a second line under it (see `draw_result`).
+		0.0 if progress.seen_ending else 13.0,
 	]
 	var content_height := 0.0
 	for value: float in blocks:
@@ -1338,8 +1349,20 @@ func draw_result(canvas: CanvasItem) -> void:
 	if not share_status.is_empty():
 		CssText.draw_centered(canvas, share_status, left, content_width, y, 10.0, 0.0, Color("607585"))
 	y += 13.0 + 4.0
-	CssText.draw_centered(canvas, I18n.t("CODEX_COUNT") % [progress.owned_count(),
-		CatConfig.CATS.size(), progress.level()], left, content_width, y, 10.0, 1.0, Color("6d8293"))
+	if progress.seen_ending:
+		CssText.draw_centered(canvas, I18n.t("CODEX_COUNT") % [progress.owned_count(),
+			CatConfig.CATS.size(), progress.level()], left, content_width, y, 10.0, 1.0,
+			Color("6d8293"))
+	else:
+		# Before the ending the row is the walk, not the roster. A locked door
+		# with nothing behind it is a worse thing to show a player than the
+		# distance they have left.
+		CssText.draw_centered(canvas, I18n.t("STORY_DISTANCE") % progress.steps_remaining(),
+			left, content_width, y, 10.0, 1.0, Color("6d8293"))
+		CssText.draw_centered(canvas, I18n.t("CODEX_LOCKED"), left, content_width, y + 13.0,
+			9.0, 1.0, Color("9db0bf"))
+		# The second line, which `result_layout` already made room for.
+		y += 13.0
 	y += 18.0 + 4.0
 	CssText.draw_centered(canvas, "PLAY · FAIL · SHARE · REPEAT", left, content_width, y, 10.0, 0.0, Color(0.0, 0.0, 0.0, 0.45))
 	canvas.draw_set_transform(Vector2.ZERO)

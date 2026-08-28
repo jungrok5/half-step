@@ -139,6 +139,18 @@ func _run() -> void:
 	var progress: Progress = game.get("progress")
 	var codex: Node = game.get("codex_screen")
 
+	# Before the ending a cat still opens, but it is not announced: the codex it
+	# would send the player to is shut.
+	progress.seen_ending = false
+	progress.experience = 0.0
+	progress.owned = {CatConfig.STARTER: true}
+	state.score = 90
+	state.run_experience = 100000.0
+	game.call("die")
+	expect(progress.owned_count() > 1, "a run that earns a cat still opens it")
+	expect(PackedStringArray(game.get("opened_cats")).is_empty(),
+		"but nothing is announced while the codex is shut")
+
 	# A cat that opened puts one line on the result card, and that line is the
 	# only way to the acquisition card. Everything else still retries, because
 	# AGENTS.md section 2 requires restart to stay immediate.
@@ -158,11 +170,20 @@ func _run() -> void:
 	expect(int(game.get("card_index")) == -1, "and the last one closes it")
 	expect(state.run_state == HalfStepState.RunState.DEAD, "closing the card does not retry")
 
-	# The codex opens from the result card and takes input until it closes.
+	# The codex is locked until the ending. The row is still there — it carries
+	# the distance left to walk — but tapping it does nothing.
 	game.set("opened_cats", PackedStringArray())
+	progress.seen_ending = false
 	layout = game.call("result_layout")
 	press_touch(game, Rect2(layout.codex).get_center())
-	expect(bool(codex.get("visible")), "the codex row opens the codex")
+	expect(not bool(codex.get("visible")), "the codex row does nothing before the ending")
+	expect(state.run_state == HalfStepState.RunState.DEAD, "and does not retry either")
+
+	# The codex opens from the result card and takes input until it closes.
+	progress.seen_ending = true
+	layout = game.call("result_layout")
+	press_touch(game, Rect2(layout.codex).get_center())
+	expect(bool(codex.get("visible")), "the codex row opens the codex once the ending is seen")
 	expect(state.run_state == HalfStepState.RunState.DEAD, "opening the codex does not retry")
 	press_touch(game, Vector2(4, 4))
 	expect(state.run_state == HalfStepState.RunState.DEAD, "taps behind the codex never reach the game")

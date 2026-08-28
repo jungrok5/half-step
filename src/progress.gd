@@ -40,6 +40,19 @@ var tori_steps := 0
 var seen_intro := false
 var seen_ending := false
 var seen_epilogue := false
+
+## What the memorial card counts. Kept apart from `score` and `experience`
+## because these are the numbers a person reads once, not numbers the game
+## balances against.
+##
+## Every landing, by any cat: the times she came back.
+var total_steps := 0
+## Every run that ended. In this game a run only ever ends one way, so this is
+## also the number of runs — the card shows it once, not twice.
+var total_falls := 0
+## Distinct calendar days the game was opened, and the last of them.
+var days_played := 0
+var last_day := ""
 ## Cleared on load: the "first run after launch" feat only counts once.
 var runs_this_session := 0
 
@@ -103,6 +116,17 @@ func steps_remaining() -> int:
 	return maxi(0, StoryConfig.REUNION_STEPS - tori_steps)
 
 
+## Counts today, once. Called from [method finish_run], so a day the player only
+## opened the game and closed it again is not a day they spent together.
+func mark_today() -> void:
+	var now := Time.get_date_dict_from_system()
+	var today := "%04d-%02d-%02d" % [int(now.year), int(now.month), int(now.day)]
+	if today == last_day:
+		return
+	last_day = today
+	days_played += 1
+
+
 func owns(id: String) -> bool:
 	return bool(owned.get(id, false))
 
@@ -128,6 +152,9 @@ func witness(id: String) -> Array[String]:
 ## order, so the caller can announce them.
 func finish_run(score: int, gained: float, feats: RunFeats) -> Array[String]:
 	experience += gained
+	total_steps += score
+	total_falls += 1
+	mark_today()
 	if equipped == CatConfig.STARTER:
 		tori_steps += score
 	runs_this_session += 1
@@ -196,6 +223,10 @@ func save_to(config: ConfigFile) -> void:
 	config.set_value(SECTION, "seen_intro", seen_intro)
 	config.set_value(SECTION, "seen_ending", seen_ending)
 	config.set_value(SECTION, "seen_epilogue", seen_epilogue)
+	config.set_value(SECTION, "total_steps", total_steps)
+	config.set_value(SECTION, "total_falls", total_falls)
+	config.set_value(SECTION, "days_played", days_played)
+	config.set_value(SECTION, "last_day", last_day)
 
 
 func load_from(config: ConfigFile) -> void:
@@ -205,6 +236,10 @@ func load_from(config: ConfigFile) -> void:
 	seen_intro = bool(config.get_value(SECTION, "seen_intro", false))
 	seen_ending = bool(config.get_value(SECTION, "seen_ending", false))
 	seen_epilogue = bool(config.get_value(SECTION, "seen_epilogue", false))
+	total_steps = maxi(0, int(config.get_value(SECTION, "total_steps", 0)))
+	total_falls = maxi(0, int(config.get_value(SECTION, "total_falls", 0)))
+	days_played = maxi(0, int(config.get_value(SECTION, "days_played", 0)))
+	last_day = String(config.get_value(SECTION, "last_day", ""))
 	# A launch is what makes the "first run" feat mean anything.
 	runs_this_session = 0
 	owned = {CatConfig.STARTER: true}

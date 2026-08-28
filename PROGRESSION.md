@@ -275,10 +275,37 @@ Must not fight AGENTS.md section 2's "restart must feel immediate":
 | `src/art.gd` | `draw_cat()` gains a `cat` argument, default HALF-STEP. |
 | `src/game_state.gd` | Accrue EXP in `resolve_landing()`. |
 | `src/codex_screen.gd` | The grid, four tabs, the bar to the next unlock. |
+| `src/story_screen.gd` | The cut scenes, and the memorial that ends them — which is also what unlocks the codex. |
 | `src/share_card.gd` | Acquisition card; run card gains the equipped cat and its best. |
 | `src/game.gd` | Equips the cat, feeds `run_feats`, folds the run into `progress` on death, draws the acquisition card, and reads `?seen=` at start (`JavaScriptBridge` on web; a mobile deep link is still to do). |
 | `tools/render_cats.gd` | Renders all 24 cats onto their skies as one sheet, for checking the roster at a glance. |
 | `tests/progression_test.gd` | The experience formula, the curve, all four unlock paths, and the save round-trip. |
+
+---
+
+## 8b. The codex opens after the ending
+
+Nothing in section 1-7 changes, but none of it is reachable until Tori's walk is
+finished and the ending has played (`progress.seen_ending`). Before that the
+result card's codex row shows the distance left with `CODEX_LOCKED` under it, and
+tapping it does nothing.
+
+The reason is order, not difficulty. Tori is the cat the story is about; a roster
+of twenty-three others offered on the first death makes her one of them. After
+the ending — which is reachable by simply coming back, see STORY.md section 1 —
+everything opens at once, and the levels, skies and feats that were quietly
+accruing the whole time are already partly earned.
+
+`Progress` counts EXP, levels and unlocks normally while the codex is shut, but
+**acquisitions are not announced** while it is: `game.gd` clears `opened_cats`
+before the result card is laid out. A new cat the player cannot look at or equip
+is a locked door with a name on it. They are all there, together, the first time
+the codex opens — which is a better moment than twelve separate ones the player
+could do nothing with.
+
+The feedback in that window is the distance line, which is the design STORY.md
+section 1 argues for: the thing the player is working toward before the ending is
+the ending.
 
 ---
 

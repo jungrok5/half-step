@@ -1,12 +1,17 @@
 class_name StoryArt
 extends RefCounted
 
-## The six intro and ending stills, drawn from the same primitives as the game.
+## The six intro and ending stills, drawn from the same primitives as the game,
+## plus Tori's portrait for the memorial.
 ##
-## These exist so the cut scenes are finished today. `tools/render_story.gd`
+## The stills exist so the cut scenes are finished today. `tools/render_story.gd`
 ## bakes them to `assets/story/*.png`, which is where [StoryConfig] already
 ## looks — so replacing one with a piece of real art is dropping a file on top
-## of it. Nothing in the game references this class at run time.
+## of it. Nothing in the game loads them from here at run time.
+##
+## The portrait is the exception: [StoryScreen] draws it live, because it is
+## laid out against numbers from the save file. It has the same swap-in slot —
+## [PHOTO] — for the day there is a photograph of the real cat.
 ##
 ## Every frame is composed in a 1080x1920 space and scaled, so one set of
 ## coordinates serves any output size. The palettes are the game's own
@@ -282,3 +287,124 @@ static func _ending_hands(canvas: CanvasItem) -> void:
 	_reaching_arms(canvas, -120.0, 800.0, 232.0, Color("42586d"), Color("ffeee7"))
 	_tori(canvas, Vector2(540.0, 1090.0), 4.2, 0.5, 0.15)
 	_caption_room(canvas, Color("8b5a3c"))
+
+
+# --- the memorial -----------------------------------------------------------
+
+## Where a photograph of the real cat goes. Drop a square image here and the
+## memorial uses it instead of the drawing below; nothing else has to change.
+const PHOTO := "res://assets/story/tori_photo.png"
+
+## The radius the portrait is drawn inside. Everything it paints stays within
+## this circle, so the caller only has to pick a size.
+const PORTRAIT_RADIUS := 118.0
+
+## Tori, face on, inside [PORTRAIT_RADIUS] around the origin.
+##
+## This is the one place the game's own rule is suspended. Everywhere else the
+## camera looks straight down and a cat has no face (see [Art]); here the cat is
+## being looked AT rather than followed, and a memorial without a face is a
+## memorial to nobody. So this is a portrait: front on, eyes open, the same fur.
+##
+## It is framed like a photograph — the body runs off the bottom of the circle
+## rather than stopping inside it, because a cat that fits neatly in a disc
+## reads as a sticker.
+static func draw_tori_portrait(canvas: CanvasItem) -> void:
+	var cat := CatConfig.by_id(CatConfig.STARTER)
+	var fur := Color(cat.get("fur", Art.FUR_COLOR))
+	var dark := Color(cat.get("fur_dark", Art.FUR_DARK_COLOR))
+	var pale := Color(cat.get("paw", Art.PAW_COLOR))
+	var inner := Color(cat.get("inner_ear", Art.INNER_EAR_COLOR))
+	var nose := Color("c9616c")
+	var disc := Shapes.circle_polygon(Vector2.ZERO, PORTRAIT_RADIUS, 72)
+
+	Shapes.fill(canvas, disc, Color("f2e2d0"))
+	# Light behind her, the way a photograph taken on a windowsill has. Clipped
+	# to the frame rather than faded out: a soft gradient here would paint over
+	# whatever the caller has already drawn around the circle.
+	for lit: PackedVector2Array in Geometry2D.intersect_polygons(
+			Shapes.ellipse_polygon(Vector2(0.0, -46.0), Vector2(126.0, 112.0)), disc):
+		Shapes.fill(canvas, lit, Color("fff1dd"))
+
+	# The chest, cropped by the frame instead of stopping short of it.
+	for chest: PackedVector2Array in Geometry2D.intersect_polygons(
+			Shapes.ellipse_polygon(Vector2(0.0, 156.0), Vector2(94.0, 94.0)), disc):
+		Shapes.fill(canvas, chest, Color(fur).lerp(dark, 0.75))
+
+	# Ears before the head, so the head's edge covers where they join. The inner
+	# ear is the outer triangle shrunk toward its own centroid, which keeps it
+	# centred in the ear at any shape — nudging the corners by hand gave a
+	# sliver leaning against one edge.
+	for side: float in [-1.0, 1.0]:
+		var corners := PackedVector2Array([Vector2(side * 20.0, -52.0),
+			Vector2(side * 58.0, -102.0), Vector2(side * 70.0, -22.0)])
+		Shapes.fill(canvas, corners, fur)
+		var middle := (corners[0] + corners[1] + corners[2]) / 3.0 + Vector2(0.0, 4.0)
+		var petal := PackedVector2Array()
+		for corner in corners:
+			petal.append(middle + (corner - middle) * 0.58)
+		Shapes.fill(canvas, petal, inner)
+
+	# Head and cheeks. The cheeks are the wide, low half of a cat's face, and
+	# the reason a round head on its own reads as a bear.
+	Shapes.fill_all(canvas, [
+		Shapes.ellipse_polygon(Vector2(0.0, 2.0), Vector2(76.0, 70.0)),
+		Shapes.ellipse_polygon(Vector2(-34.0, 42.0), Vector2(42.0, 34.0)),
+		Shapes.ellipse_polygon(Vector2(34.0, 42.0), Vector2(42.0, 34.0)),
+	], fur)
+
+	# The tabby M, the marking that makes her this cat rather than a cat.
+	for stripe: Array in [[0.0, 8.0], [-24.0, 6.0], [24.0, 6.0]]:
+		var x := float(stripe[0])
+		Shapes.capsule(canvas, Vector2(x, -60.0), Vector2(x * 1.3, -30.0), float(stripe[1]), dark)
+	for side: float in [-1.0, 1.0]:
+		Shapes.capsule(canvas, Vector2(side * 60.0, -12.0), Vector2(side * 70.0, 12.0), 7.0, dark)
+
+	# Whiskers, under the muzzle so they come out from beneath it.
+	for side: float in [-1.0, 1.0]:
+		for row: Array in [[-6.0, -16.0], [2.0, 2.0], [10.0, 20.0]]:
+			canvas.draw_line(Vector2(side * 40.0, 44.0 + float(row[0])),
+				Vector2(side * 106.0, 44.0 + float(row[1])), Color(pale, 0.9), 3.0, true)
+
+	# Muzzle, nose, mouth.
+	Shapes.fill_all(canvas, [
+		Shapes.ellipse_polygon(Vector2(-19.0, 48.0), Vector2(25.0, 19.0)),
+		Shapes.ellipse_polygon(Vector2(19.0, 48.0), Vector2(25.0, 19.0)),
+	], pale)
+	Shapes.fill(canvas, PackedVector2Array([
+		Vector2(-14.0, 31.0), Vector2(14.0, 31.0), Vector2(0.0, 48.0),
+	]), nose)
+	# Nose to mouth, then the two curves of a cat's mouth. Drawn as polylines
+	# rather than arcs: an arc at this size lands as a straight stroke and the
+	# mouth comes out a capital T.
+	var line := Color(Art.EYE_COLOR, 0.82)
+	canvas.draw_line(Vector2(0.0, 48.0), Vector2(0.0, 58.0), line, 3.5, true)
+	for side: float in [-1.0, 1.0]:
+		canvas.draw_polyline(PackedVector2Array([Vector2(0.0, 58.0),
+			Vector2(side * 9.0, 65.0), Vector2(side * 18.0, 66.0),
+			Vector2(side * 23.0, 62.0)]), line, 3.5, true)
+
+	# Eyes. Open, looking straight out — the whole reason this frame exists.
+	for side: float in [-1.0, 1.0]:
+		var eye := Vector2(side * 33.0, -4.0)
+		Shapes.fill(canvas, Shapes.ellipse_polygon(eye, Vector2(19.0, 22.0)), Color("2f6b4f"))
+		Shapes.fill(canvas, Shapes.ellipse_polygon(eye, Vector2(8.0, 18.0)), Art.EYE_COLOR)
+		canvas.draw_circle(eye + Vector2(side * 6.0, -8.0), 5.5,
+			Color(1.0, 1.0, 1.0, 0.92), true, -1.0, true)
+
+
+## Draws the photograph at [PHOTO] as a circle of [param radius] around the
+## origin, or returns false when there is no photograph yet.
+static func draw_tori_photo(canvas: CanvasItem, radius := PORTRAIT_RADIUS) -> bool:
+	if not ResourceLoader.exists(PHOTO):
+		return false
+	var texture := ResourceLoader.load(PHOTO) as Texture2D
+	if texture == null:
+		return false
+	# A circular crop, done with UVs because Godot's 2D canvas has no clipping.
+	var ring := Shapes.circle_polygon(Vector2.ZERO, radius, 64)
+	var uvs := PackedVector2Array()
+	for point in ring:
+		uvs.append(point / (radius * 2.0) + Vector2(0.5, 0.5))
+	canvas.draw_colored_polygon(ring, Color(1.0, 1.0, 1.0), uvs, texture)
+	return true
