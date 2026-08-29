@@ -6,6 +6,20 @@ extends SceneTree
 
 const STEP := 1.0 / TonePlayer.MIX_RATE
 
+## Every slot the game will look for. Kept here rather than derived, so adding a
+## sound to [AudioBank] and forgetting the brief is a test failure.
+const CUES: PackedStringArray = [
+	AudioBank.CUE_CROSS, AudioBank.CUE_FALL, AudioBank.CUE_UNLOCK,
+	AudioBank.CUE_ARRIVE, AudioBank.CUE_ZONE, AudioBank.CUE_MILESTONE,
+	AudioBank.CUE_EQUIP, AudioBank.CUE_UI,
+]
+const TRACKS: PackedStringArray = [
+	"day", "dusk", "star", "deep", "beyond",
+	AudioBank.MUSIC_TITLE, AudioBank.MUSIC_INTRO, AudioBank.MUSIC_ENDING,
+	AudioBank.MUSIC_MEMORIAL,
+]
+const BRIEF := "res://docs/audio/PROMPTS.md"
+
 var failures := 0
 
 
@@ -84,16 +98,17 @@ func _test_cross(player: TonePlayer) -> void:
 func _test_audio_bank() -> void:
 	# Nothing is recorded yet, so every slot has to come back empty rather than
 	# erroring — that is what keeps the synthesised fallbacks reachable.
-	for id: String in [AudioBank.CUE_CROSS, AudioBank.CUE_FALL,
-			AudioBank.CUE_UNLOCK, AudioBank.CUE_ARRIVE]:
+	for id: String in CUES:
 		var stream := AudioBank.sfx(id)
 		expect(stream == null or stream is AudioStream,
 			"the %s slot is either a stream or empty" % id)
-	for id: String in ["day", "dusk", "star", "deep", "beyond",
-			AudioBank.MUSIC_TITLE, AudioBank.MUSIC_INTRO, AudioBank.MUSIC_ENDING]:
+	for id: String in TRACKS:
 		var stream := AudioBank.music(id)
 		expect(stream == null or stream is AudioStream,
 			"the %s track is either a stream or empty" % id)
+	expect(AudioBank.music(AudioBank.MUSIC_MEMORIAL) == null
+		or AudioBank.music(AudioBank.MUSIC_MEMORIAL) is AudioStream,
+		"the memorial has a bed of its own, because that card never times out")
 
 	# Every sky has a band, the bands only ever move forward, and the first one
 	# starts at zero — a gap would leave a stretch of the game silent.
@@ -108,6 +123,24 @@ func _test_audio_bank() -> void:
 	expect(AudioBank.music_for_score(0) == "day", "the run opens on the day bed")
 	expect(AudioBank.music_for_score(StoryConfig.EPILOGUE_SCORE) == "beyond",
 		"and the epilogue plays under the last one")
+
+
+## Every slot has a prompt written for it.
+##
+## A sound the game looks for but nobody was asked to make is a slot that stays
+## empty forever, and the only place that would show up is a player's ears. The
+## fonts taught this lesson twice already (PROTOTYPE_HISTORY.md); this is the
+## same guard for audio.
+func _test_every_slot_has_a_prompt() -> void:
+	var file := FileAccess.open(BRIEF, FileAccess.READ)
+	expect(file != null, "the sound brief is where AudioBank says it is")
+	if file == null:
+		return
+	var brief := file.get_as_text()
+	for id: String in CUES:
+		expect(brief.contains("sfx/%s.ogg" % id), "sfx/%s.ogg has a prompt" % id)
+	for id: String in TRACKS:
+		expect(brief.contains("music/%s.ogg" % id), "music/%s.ogg has a prompt" % id)
 
 
 func _run() -> void:
@@ -139,6 +172,7 @@ func _run() -> void:
 
 	_test_cross(player)
 	_test_audio_bank()
+	_test_every_slot_has_a_prompt()
 	render(player, 0.05)
 
 	# Notes overlap rather than cut each other off once the cadence is short.

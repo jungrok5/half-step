@@ -10,8 +10,13 @@ Audio is part of the rhythm loop, not decoration.
 
 ## Music
 
-Added 2026-08-28. Eight beds — five bands of skies, plus title, intro and ending
-(`AudioBank.MUSIC_BANDS`), crossfaded over 2.2 s when the score crosses a band.
+Added 2026-08-28. Nine beds — five bands of skies (`AudioBank.MUSIC_BANDS`),
+plus title, intro, ending and the memorial, crossfaded over 2.2 s when the score
+crosses a band or the screen changes.
+
+The memorial has its own bed because it is the only frame in the game that never
+times out: the ending's one-shot would run out under that card and leave a
+player sitting in silence with a photograph.
 
 Three rules, and they are not stylistic:
 
@@ -34,6 +39,11 @@ says *you jumped*.
 
 It can fire several times a second at speed, so it is short, and the engine
 refuses to retrigger it inside 160 ms.
+
+`sfx/equip` is the third cat sound: the cat the player just chose, answering from
+inside the codex. Lower, calmer and longer than `cross`, because it plays in a
+quiet menu where a bright chirp would be startling — and because the two must
+never be mistaken for each other.
 
 ## Landing success melody
 
@@ -80,6 +90,25 @@ Avoid:
 - PERFECT bonus sounds
 
 High-score world changes should primarily be visual.
+
+### The zone and milestone cues, against that rule
+
+Added 2026-08-29, and they sit close enough to the line to be worth stating.
+
+`sfx/zone` fires with the sky banner and `sfx/milestone` with a milestone flash.
+Both are within the rule as written, and the brief keeps them there:
+
+- Neither is a **jingle**. Both are specified with no downbeat, no percussion
+  and no impact transient — air and ring-out, opening rather than hitting. A
+  fanfare at score 250 is still forbidden.
+- Neither **interrupts** anything. They play on their own voices; the landing
+  melody keeps firing underneath, unchanged.
+- The world change is still **primarily visual**. The banner, the sky fade and
+  the music crossfade do the work; a 1.2-second swell is the seam, not the
+  event.
+
+If either ever starts reading as a reward rather than as weather, delete the
+file: both slots fall back to silence and nothing else has to change.
 
 ## Landing impact sound
 

@@ -118,6 +118,23 @@ Later improvements that should remain:
   anything with a beat fights it. See AUDIO_RULES.md and docs/audio/PROMPTS.md.
 - A missing audio file must never break the game. Slots fall back to synthesis
   or to silence.
+- The memorial has a bed of its own. It is the only frame that never times out,
+  so a one-shot would run out under it.
+
+### Slots
+- Eight cues (`cross`, `fall`, `equip`, `unlock`, `arrive`, `zone`, `milestone`,
+  `ui`) and nine tracks. Every one of them has a prompt in
+  `docs/audio/PROMPTS.md`, and `audio_test.gd` fails if a slot is added without
+  one — a sound the game looks for that nobody was asked to make stays empty
+  forever, and the only place that shows up is a player's ears.
+- `ui` fires in **three** places: title start, codex open, codex close. Do not
+  add a click to every tap. Everything inside a run already has a sound, and a
+  fourth layer buries the cat.
+- `zone` and `milestone` are weather, not rewards — no downbeat, no percussion,
+  no impact. Section 5's ban on milestone jingles still stands; see
+  AUDIO_RULES.md for why these are not one.
+- The epilogue at score 1000 has no cue, on purpose. STORY.md: nothing about it
+  is announced.
 
 ### Death
 - Falling sound should descend in pitch and volume.

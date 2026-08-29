@@ -214,6 +214,28 @@ func _run() -> void:
 	press_touch(game, Rect2(codex.get("_close")).get_center())
 	expect(not bool(codex.get("visible")), "the close button closes the codex")
 
+	# --- the cut scenes and the music underneath them ------------------------
+	var music: Node = game.get("music_player")
+	game.call("play_story", "ending")
+	expect(String(music.get("track")) == AudioBank.MUSIC_ENDING, "the ending plays its own track")
+	story.set("frame", StoryConfig.ENDING.size() - 1)
+	story.set("time", 0.0)
+	expect(bool(story.call("showing_memorial")), "the ending finishes on the memorial")
+	# The memorial holds, so the ending's one-shot would run out under it.
+	game.call("_process", 0.016)
+	expect(String(music.get("track")) == AudioBank.MUSIC_MEMORIAL,
+		"the memorial brings its own bed, which loops")
+	var held := float(story.get("time"))
+	for _i in 400:
+		game.call("_process", 0.016)
+	expect(bool(story.get("visible")), "and the memorial never times out")
+	expect(float(story.get("time")) >= held, "its fade still finishes")
+
+	press_touch(game, Vector2(195, 700))
+	expect(not bool(story.get("visible")), "a tap leaves the memorial")
+	expect(String(music.get("track")) == AudioBank.music_for_score(state.score),
+		"and music goes back to the band for the score underneath")
+
 	root.remove_child(game)
 	game.free()
 	if failures == 0:

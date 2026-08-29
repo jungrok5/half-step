@@ -51,6 +51,14 @@ func frames() -> Array[Dictionary]:
 	return StoryConfig.frames(which)
 
 
+## True when the frame on screen is the memorial, which needs its own music:
+## the ending's track is a one-shot and this card holds indefinitely.
+func showing_memorial() -> bool:
+	var list := frames()
+	return visible and frame >= 0 and frame < list.size() \
+		and bool(list[frame].get("memorial", false))
+
+
 ## True when frame [param index] waits for the player instead of timing out.
 func holds(index: int) -> bool:
 	var list := frames()

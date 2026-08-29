@@ -215,16 +215,24 @@ func _ready() -> void:
 	codex_screen.replay_requested.connect(func(sequence: String) -> void:
 		codex_screen.close()
 		play_story(sequence))
+	codex_screen.cat_equipped.connect(func(_id: String) -> void:
+		tone_player.play_cue(AudioBank.CUE_EQUIP))
 	add_child(codex_screen)
 	story_screen = StoryScreen.new()
 	story_screen.progress = progress
 	story_screen.visible = false
-	story_screen.finished.connect(func() -> void: queue_redraw())
+	story_screen.finished.connect(func() -> void:
+		# Whatever the sequence was, the game is underneath it again: pick the
+		# bed for where the run actually is rather than leaving the one-shot's
+		# silence hanging until the next landing.
+		music_player.play(AudioBank.music_for_score(state.score))
+		queue_redraw())
 	add_child(story_screen)
 	title_screen = TitleScreen.new()
 	title_screen.visible = false
 	# Tap the title and the run begins — with the intro in between, once ever.
 	title_screen.started.connect(func() -> void:
+		tone_player.play_cue(AudioBank.CUE_UI)
 		if not progress.seen_intro:
 			play_story("intro"))
 	add_child(title_screen)
@@ -365,6 +373,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if codex_screen != null and codex_screen.visible:
 		codex_screen.handle_press(position)
+		# The only thing that press can have done to close it is the × button.
+		if not codex_screen.visible:
+			tone_player.play_cue(AudioBank.CUE_UI)
 		queue_redraw()
 		return
 	if card_index >= 0:
@@ -393,6 +404,7 @@ func _input(event: InputEvent) -> void:
 			# Locked until the ending: the codex is the reward for finishing
 			# Tori's walk, not the thing you do instead of walking it.
 			if progress.seen_ending:
+				tone_player.play_cue(AudioBank.CUE_UI)
 				codex_screen.open(progress, game_rect())
 		elif Rect2(layout.share).has_point(position):
 			share_score()
@@ -444,6 +456,8 @@ func _process(delta: float) -> void:
 		return
 	if story_screen != null and story_screen.visible:
 		story_screen.advance(dt)
+		if story_screen.showing_memorial() and music_player.track != AudioBank.MUSIC_MEMORIAL:
+			music_player.play(AudioBank.MUSIC_MEMORIAL)
 		queue_redraw()
 		return
 	_advance_timers(dt)
@@ -681,6 +695,8 @@ func apply_zone(force := false) -> void:
 		banner_secret = false
 		banner_duration = ZONE_BANNER_MS
 		banner_time = 0.0
+		if tone_player != null:
+			tone_player.play_cue(AudioBank.CUE_ZONE)
 
 
 ## `secretFlash()`
@@ -693,6 +709,8 @@ func secret_flash() -> void:
 	banner_secret = true
 	banner_duration = SECRET_BANNER_MS
 	banner_time = 0.0
+	if tone_player != null:
+		tone_player.play_cue(AudioBank.CUE_MILESTONE)
 
 
 func _vibrate(milliseconds: int) -> void:

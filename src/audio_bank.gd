@@ -23,12 +23,26 @@ const CUE_FALL := "fall"
 const CUE_UNLOCK := "unlock"
 ## Arriving — the ending, once ever.
 const CUE_ARRIVE := "arrive"
+## The sky changing under the cat. Rides the zone banner, so it fires ten times
+## in a very long run and never during the first one.
+const CUE_ZONE := "zone"
+## A milestone flash. Rarer and bigger than a zone, and the last of them is at
+## the score almost nobody reaches.
+const CUE_MILESTONE := "milestone"
+## Putting a different cat on the bridge, from inside the codex.
+const CUE_EQUIP := "equip"
+## A button that changes what is on screen. Deliberately used in three places
+## only — see docs/audio/PROMPTS.md on why the run itself stays quiet.
+const CUE_UI := "ui"
 
 ## Music tracks, one per band of skies rather than one per sky: eleven zones
 ## would be eleven downloads, and the skies change faster than music should.
 const MUSIC_TITLE := "title"
 const MUSIC_INTRO := "intro"
 const MUSIC_ENDING := "ending"
+## Under the memorial, which holds for as long as the player wants it. The
+## ending's one-shot would run out under that card and leave it in silence.
+const MUSIC_MEMORIAL := "memorial"
 const MUSIC_BANDS: Array[Dictionary] = [
 	{"score": 0, "track": "day"},
 	{"score": 60, "track": "dusk"},

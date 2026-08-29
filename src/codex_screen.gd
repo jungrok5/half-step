@@ -30,6 +30,9 @@ const SECTIONS := [
 ]
 
 signal replay_requested(sequence: String)
+## A different cat is now the one on the bridge. The screen has no audio of its
+## own, so the game answers this.
+signal cat_equipped(id: String)
 
 var progress: Progress
 var scroll := 0.0
@@ -136,8 +139,9 @@ func handle_release(position: Vector2) -> void:
 		if not box.has_point(position):
 			continue
 		var id := String(card.cat.id)
-		if progress != null and progress.owns(id):
+		if progress != null and progress.owns(id) and progress.equipped != id:
 			progress.equipped = id
+			cat_equipped.emit(id)
 			queue_redraw()
 		return
 
