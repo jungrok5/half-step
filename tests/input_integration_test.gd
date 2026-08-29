@@ -42,6 +42,74 @@ func release_touch(game: Node, position: Vector2) -> void:
 	game.call("_input", touch)
 
 
+## The tutorial: it stops the world at the instant a jump would work and asks
+## for one. Until it does, a tap does nothing at all — a player who has never
+## played must not be able to kill themselves while being taught.
+func _test_tutorial(game: Node) -> void:
+	var state: HalfStepState = game.get("state")
+	var progress: Progress = game.get("progress")
+	game.get("title_screen").call("close")
+	game.get("story_screen").call("stop")
+	progress.seen_tutorial = false
+	game.call("reset")
+	expect(int(game.get("tutorial_step")) == 0, "a fresh profile opens in the tutorial")
+
+	# The first bridge comes straight on and needs no tap. Taps meanwhile are
+	# swallowed rather than sending the cat into open sky.
+	var guard := 0
+	while state.score < 1 and guard < 600:
+		press_touch(game, Vector2(195, 400))
+		game.call("_process", 0.016)
+		guard += 1
+	expect(state.score == 1, "the first bridge arrives under the cat on its own")
+	expect(state.is_running(), "and none of those taps killed anybody")
+
+	# Then it steers one to the far lane and freezes at the instant it is
+	# reachable.
+	guard = 0
+	while not bool(game.get("tutorial_hold")) and guard < 600:
+		game.call("_process", 0.016)
+		guard += 1
+	expect(bool(game.get("tutorial_hold")), "the world stops when the jump would land")
+	var far := 1 - state.lane
+	expect(state.can_cross(game.call("base_y"), game.get("row_scroll"), far),
+		"and it stops at a moment when the jump really would land")
+	var frozen := float(state.step_timer)
+	for _i in 30:
+		game.call("_process", 0.016)
+	expect(is_equal_approx(float(state.step_timer), frozen), "nothing moves while it waits")
+	expect(state.score == 1, "least of all the score")
+
+	# The taught tap. It jumps, and the tutorial moves on to ask once more.
+	press_touch(game, Vector2(195, 400))
+	expect(not bool(game.get("tutorial_hold")), "the taught tap releases the world")
+	expect(state.lane == far, "and it is the jump, not a mime of one")
+	expect(int(game.get("tutorial_step")) == 2, "the second ask is queued")
+
+	guard = 0
+	while int(game.get("tutorial_step")) != 3 and guard < 900:
+		if bool(game.get("tutorial_hold")):
+			press_touch(game, Vector2(195, 400))
+		game.call("_process", 0.016)
+		guard += 1
+	expect(int(game.get("tutorial_step")) == 3, "two taught jumps and it hands over")
+	expect(state.is_running(), "with the run still alive")
+	# Learned is learned. Dying on the next bridge must not make this player sit
+	# through the whole thing again.
+	expect(progress.seen_tutorial, "and it is marked learned there, not later")
+	game.call("die")
+	game.call("reset")
+	expect(int(game.get("tutorial_step")) == 4, "so the next run is the player's own")
+
+
+## The title menu row with [param id], or an empty rect when it is not offered.
+func _menu_rect(title: Node, id: String) -> Rect2:
+	for row in title.get("_rows"):
+		if String(row.id) == id:
+			return Rect2(row.rect)
+	return Rect2()
+
+
 func drag_touch(game: Node, by: float) -> void:
 	var drag := InputEventScreenDrag.new()
 	drag.index = 0
@@ -68,6 +136,8 @@ func _run() -> void:
 	# this suite before already has the intro marked seen. State the precondition
 	# rather than inheriting it, or this passes in CI and fails locally.
 	game.get("progress").set("seen_intro", false)
+	game.get("progress").set("seen_tutorial", true)
+	game.call("reset")
 	expect(bool(title.get("visible")), "a cold launch opens on the title")
 	press_touch(game, Vector2(100, 100))
 	expect(not bool(title.get("visible")), "a tap leaves the title")
@@ -88,7 +158,8 @@ func _run() -> void:
 
 	press_touch(game, Vector2(100, 100))
 	expect(state.lane == HalfStepState.Lane.LEFT, "mobile screen touch toggles lane")
-	expect(int(game.get("tutorial_taps")) == 2, "both input paths reach the presentation layer")
+	# Not just the rules: the lane slide is presentation, and it started.
+	expect(float(game.get("lane_time")) >= 0.0, "both input paths reach the presentation layer")
 
 	press_mouse(game, Vector2(100, 100), true)
 	expect(state.lane == HalfStepState.Lane.LEFT, "the emulated mouse duplicate of a touch is ignored")
@@ -119,7 +190,7 @@ func _run() -> void:
 	press_touch(game, Vector2(4, 4))
 	expect(state.run_state == HalfStepState.RunState.PLAYING, "once the card is up, a tap anywhere retries")
 	expect(state.score == 0, "retry clears the score")
-	expect(int(game.get("tutorial_taps")) == 0, "retry brings the hint back")
+	expect(float(game.get("lane_time")) < 0.0, "and the lane slide with it")
 
 	state.run_state = HalfStepState.RunState.DEAD
 	game.set("death_time", 600.0)
@@ -170,23 +241,34 @@ func _run() -> void:
 	expect(int(game.get("card_index")) == -1, "and the last one closes it")
 	expect(state.run_state == HalfStepState.RunState.DEAD, "closing the card does not retry")
 
-	# The codex is locked until the ending. The row is still there — it carries
-	# the distance left to walk — but tapping it does nothing.
+	# HOME leaves the run for the title. Retry never passes through it, but this
+	# is the one way back that does.
 	game.set("opened_cats", PackedStringArray())
-	progress.seen_ending = false
 	layout = game.call("result_layout")
-	press_touch(game, Rect2(layout.codex).get_center())
-	expect(not bool(codex.get("visible")), "the codex row does nothing before the ending")
-	expect(state.run_state == HalfStepState.RunState.DEAD, "and does not retry either")
+	press_touch(game, Rect2(layout.home).get_center())
+	expect(bool(title.get("visible")), "HOME goes back to the title")
+	expect(state.score == 0, "and the finished run is gone")
 
-	# The codex opens from the result card and takes input until it closes.
+	# The codex is reached from the title, and only after the ending: before it
+	# the row is drawn locked, so the player can see a button will appear there.
+	progress.seen_ending = false
+	title.call("layout", game.call("game_rect"))
+	var codex_row: Rect2 = _menu_rect(title, "codex")
+	press_touch(game, codex_row.get_center())
+	expect(not bool(codex.get("visible")), "the codex row does nothing before the ending")
+	expect(bool(title.get("visible")), "and a tap on a locked row does not start a run either")
+	expect(_menu_rect(title, "memorial") == Rect2(),
+		"the memorial is not offered before it has been reached")
+
 	progress.seen_ending = true
-	layout = game.call("result_layout")
-	press_touch(game, Rect2(layout.codex).get_center())
+	title.call("layout", game.call("game_rect"))
+	expect(_menu_rect(title, "memorial") != Rect2(), "and is offered once it has")
+	press_touch(game, _menu_rect(title, "codex").get_center())
 	expect(bool(codex.get("visible")), "the codex row opens the codex once the ending is seen")
-	expect(state.run_state == HalfStepState.RunState.DEAD, "opening the codex does not retry")
+	expect(bool(title.get("visible")), "over the title, which is still standing behind it")
 	press_touch(game, Vector2(4, 4))
-	expect(state.run_state == HalfStepState.RunState.DEAD, "taps behind the codex never reach the game")
+	expect(state.run_state == HalfStepState.RunState.PLAYING and state.score == 0,
+		"taps behind the codex never reach the game")
 
 	# Dragging scrolls; a tap on an owned cat equips it and a locked one does not.
 	codex.call("layout", game.call("game_rect"))
@@ -231,10 +313,14 @@ func _run() -> void:
 	expect(bool(story.get("visible")), "and the memorial never times out")
 	expect(float(story.get("time")) >= held, "its fade still finishes")
 
-	press_touch(game, Vector2(195, 700))
+	press_touch(game, Vector2(195, 200))
 	expect(not bool(story.get("visible")), "a tap leaves the memorial")
-	expect(String(music.get("track")) == AudioBank.music_for_score(state.score),
-		"and music goes back to the band for the score underneath")
+	# It was opened from the title, so leaving it comes back to the title —
+	# not to a run the player never started.
+	expect(bool(title.get("visible")) and String(music.get("track")) == AudioBank.MUSIC_TITLE,
+		"and music goes back to whatever is underneath it")
+
+	_test_tutorial(game)
 
 	root.remove_child(game)
 	game.free()

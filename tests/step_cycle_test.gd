@@ -95,6 +95,10 @@ func _run() -> void:
 		game.get("title_screen").call("close")
 	if game.get("story_screen") != null:
 		game.get("story_screen").call("stop")
+	# A fresh profile also runs the tutorial, which steers the rows and swallows
+	# every tap it did not ask for. This suite is about the beat underneath it.
+	game.get("progress").set("seen_tutorial", true)
+	game.call("reset")
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	var state: HalfStepState = game.get("state")
 

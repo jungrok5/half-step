@@ -42,8 +42,7 @@ COND_STEADY,%d runs at 60,%d연전 60,%d連続で60,连续%d局60分,連續%d局
 COND_STEADY_FULL,"%d runs in a row, all 60 or more",연속 %d판 모두 60점 이상,%d回連続で60点以上,连续 %d 局都达到60分,連續 %d 局都達到60分,%d partidas seguidas con 60 o más,%d partidas seguidas com 60 ou mais,%d parties d'affilée à 60 ou plus,%d Läufe in Folge mit 60 oder mehr,%d забега подряд по 60 и больше,%d ronde berturut minimal 60,%d lượt liên tiếp đều 60 trở lên
 COND_WITNESS,Witness %d,목격 %d,目撃 %d,目击 %d,目擊 %d,Testigo %d,Testemunho %d,Témoin %d,Zeuge %d,Свидетель %d,Saksi %d,Chứng kiến %d
 COND_WITNESS_FULL,Witness %d other cats on shared cards,다른 고양이 %d마리를 남의 카드에서 목격,他の猫%d匹を誰かのカードで目撃,在别人的卡片上目击%d只猫,在別人的卡片上目擊%d隻貓,Ve %d gatos en cartas de otros,Veja %d gatos em cards de outros,Voir %d chats sur les cartes d'autres,%d Katzen auf fremden Karten sehen,Увидеть %d котов на чужих карточках,Lihat %d kucing di kartu orang lain,Thấy %d mèo trên thẻ người khác
-HINT,Tap when the bridge reaches you,발판이 다가올 때 탭해서 건너기,足場が来たらタップ,踏板靠近时点击,踏板靠近時點擊,Toca cuando llegue el puente,Toque quando a ponte chegar,Touche quand le pont arrive,"Tippe, wenn die Brücke kommt","Нажми, когда мост подойдёт",Ketuk saat jembatan tiba,Chạm khi cầu tới nơi
-HINT_SUB,"Farther on, other skies open",멀리 갈수록 다른 하늘이 열린다,進むほど違う空が開く,走得越远，天空越不同,走得越遠，天空越不同,"Más lejos, se abren otros cielos","Mais longe, outros céus se abrem","Plus loin, d'autres ciels s'ouvrent",Weiter draußen öffnen sich andere Himmel,Дальше открываются другие небеса,"Makin jauh, langit lain terbuka","Càng xa, bầu trời càng khác"
+HOME,Home,홈,ホーム,主页,主頁,Inicio,Início,Accueil,Start,Домой,Beranda,Trang chủ
 LOCKED_SLOTS,Still closed,아직 열지 못한 칸,まだ開いていない枠,尚未开启的格子,尚未開啟的格子,Aún cerrados,Ainda fechados,Encore fermés,Noch verschlossen,Ещё закрыты,Masih terkunci,Vẫn chưa mở
 MEMORIAL_BEST,Farthest,가장 멀리,いちばん遠く,最远,最遠,Lo más lejos,Mais longe,Le plus loin,Am weitesten,Дальше всего,Terjauh,Xa nhất
 MEMORIAL_DAYS,Days together,함께한 날,一緒にいた日,在一起的日子,在一起的日子,Días juntos,Dias juntos,Jours ensemble,Tage zusammen,Дней вместе,Hari bersama,Ngày bên nhau
@@ -51,6 +50,7 @@ MEMORIAL_FALLS,Times she fell,떨어진 횟수,落ちた回数,坠落的次数,�
 MEMORIAL_LINE_1,Tori went on ahead.,토리는 먼저 갔다.,トリは先に行った。,托里先走了。,托里先走了。,Tori se fue antes.,Tori foi antes.,Tori est parti avant.,Tori ging voraus.,Тори ушёл первым.,Tori pergi lebih dulu.,Tori đã đi trước.
 MEMORIAL_LINE_2,"In this sky, Tori comes to me.","이 하늘에서는, 토리가 나에게 온다.",この空では、トリが僕のところへ来る。,在这片天空里，托里会来找我。,在這片天空裡，托里會來找我。,"En este cielo, Tori viene hacia mí.","Neste céu, Tori vem até mim.","Dans ce ciel, Tori vient vers moi.",In diesem Himmel kommt Tori zu mir.,В этом небе Тори приходит ко мне.,"Di langit ini, Tori datang padaku.","Ở bầu trời này, Tori đến với tôi."
 MEMORIAL_NAME,Tori,토리,トリ,托里,托里,Tori,Tori,Tori,Tori,Тори,Tori,Tori
+MEMORIAL_REPLAY,Tori's record,토리의 기록,トリの記録,托里的记录,托里的記錄,El recuerdo de Tori,A lembrança de Tori,Le souvenir de Tori,Toris Andenken,Память о Тори,Kenangan Tori,Kỷ niệm về Tori
 MEMORIAL_STEPS,Times she came back,달려와준 횟수,駆け寄ってくれた回数,跑向我的次数,跑向我的次數,Veces que volvió,Vezes que voltou,Fois où elle est revenue,Mal zurückgekommen,Раз прибежал,Kali dia kembali,Số lần chạy đến
 NEW_CAT,New cat · %s,새 고양이 · %s,新しい猫 · %s,新猫 · %s,新貓 · %s,Gato nuevo · %s,Gato novo · %s,Nouveau chat · %s,Neue Katze · %s,Новый кот · %s,Kucing baru · %s,Mèo mới · %s
 NEW_CATS,%d new cats,새 고양이 %d마리,新しい猫 %d匹,新猫 %d只,新貓 %d隻,%d gatos nuevos,%d gatos novos,%d nouveaux chats,%d neue Katzen,Новых котов: %d,%d kucing baru,%d mèo mới
@@ -112,6 +112,11 @@ TAP_TO_CLOSE,Tap to close,탭해서 닫기,タップで閉じる,点击关闭,�
 TAP_TO_SEE,Tap to see,탭해서 보기,タップで表示,点击查看,點擊查看,Toca para ver,Toque para ver,Touche pour voir,Zum Ansehen tippen,"Нажми, чтобы открыть",Ketuk untuk lihat,Chạm để xem
 TAP_TO_START,Tap to start,탭해서 시작,タップで開始,点击开始,點擊開始,Toca para empezar,Toque para começar,Touche pour commencer,Zum Starten tippen,"Нажми, чтобы начать",Ketuk untuk mulai,Chạm để bắt đầu
 TITLE,TORI,토리,トリ,托里,托里,TORI,TORI,TORI,TORI,ТОРИ,TORI,TORI
+TUTORIAL_AGAIN,Once more,한 번 더,もう一度,再来一次,再來一次,Otra vez,Mais uma vez,Encore une fois,Noch einmal,Ещё раз,Sekali lagi,Một lần nữa
+TUTORIAL_GO,Now it's your turn,이제 네 차례,ここからは君の番,接下来看你的,接下來看你的,Ahora te toca a ti,Agora é a sua vez,À toi de jouer,Jetzt bist du dran,Теперь твоя очередь,Sekarang giliranmu,Giờ đến lượt bạn
+TUTORIAL_TAP,Tap now,지금 탭,いまタップ,现在点击,現在點擊,Toca ahora,Toque agora,Touche maintenant,Jetzt tippen,Нажми сейчас,Ketuk sekarang,Chạm ngay
+TUTORIAL_TAP_SUB,This is the moment the bridge arrives,발판이 도착하는 순간이야,足場が着くのはこの瞬間,这就是踏板到达的瞬间,這就是踏板到達的瞬間,Este es el momento en que llega el puente,É o momento em que a ponte chega,C'est l'instant où le pont arrive,"Das ist der Moment, in dem die Brücke ankommt","Это момент, когда мост подходит",Inilah saat jembatan tiba,Đây là lúc cầu tới nơi
+TUTORIAL_WAIT,Wait. It comes to you.,기다려. 발판이 온다.,待って。足場が来る。,等一下，踏板会过来。,等一下，踏板會過來。,Espera. El puente viene.,Espere. A ponte vem.,Attends. Le pont vient.,Warte. Die Brücke kommt.,Подожди. Мост сам подойдёт.,Tunggu. Jembatannya datang.,Chờ đã. Cầu đang tới.
 ZONE_LINE_0,The first sky,첫 하늘,最初の空,第一片天空,第一片天空,El primer cielo,O primeiro céu,Le premier ciel,Der erste Himmel,Первое небо,Langit pertama,Bầu trời đầu tiên
 ZONE_LINE_1,Golden wind,황금빛 바람,黄金の風,金色的风,金色的風,Viento dorado,Vento dourado,Vent doré,Goldener Wind,Золотой ветер,Angin keemasan,Gió vàng
 ZONE_LINE_10,Beyond,그 너머,その向こう,在那之外,在那之外,Más allá,Além,Au-delà,Dahinter,За гранью,Di seberang,Bên kia

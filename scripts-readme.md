@@ -43,6 +43,11 @@
   any translated string or adding a language**, or that string draws as tofu
   boxes on a player's screen.
 
+  It downloads each upstream family whole (cached under `HALF_STEP_CACHE`) and
+  subsets locally, then fails if a character has no glyph or a subset came out
+  over 400 KB. Google's own `text=` endpoint is not trusted to subset: it
+  silently returns entire 6 MB families — see PROTOTYPE_HISTORY.md.
+
   Adding a *row* also needs the CSV re-imported, which means one editor run:
   `godot --editor --quit --path .`. That run rewrites `project.godot` and drops
   hand-written settings — `git diff project.godot` afterwards and restore it.

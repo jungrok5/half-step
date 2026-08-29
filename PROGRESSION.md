@@ -286,9 +286,9 @@ Must not fight AGENTS.md section 2's "restart must feel immediate":
 ## 8b. The codex opens after the ending
 
 Nothing in section 1-7 changes, but none of it is reachable until Tori's walk is
-finished and the ending has played (`progress.seen_ending`). Before that the
-result card's codex row shows the distance left with `CODEX_LOCKED` under it, and
-tapping it does nothing.
+finished and the ending has played (`progress.seen_ending`). The codex is opened
+from the title screen; before the ending its row there is greyed and reads
+`CODEX_LOCKED`, and tapping it does nothing.
 
 The reason is order, not difficulty. Tori is the cat the story is about; a roster
 of twenty-three others offered on the first death makes her one of them. After

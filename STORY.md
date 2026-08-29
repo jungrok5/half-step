@@ -217,15 +217,24 @@ growing when nothing else does.
 
 ### The codex is locked until here
 
-Before the ending, the codex row on the result card is not a door. It reads the
-distance left (`STORY_DISTANCE`) with `CODEX_LOCKED` — "엔딩 이후 열립니다" —
-under it, and tapping it does nothing. The memorial says `CODEX_OPENED` at its
-foot, which is the handover: the walk is finished, and now there are other cats
-to walk it with.
+The codex lives on the title screen, with both replays and this card. Before the
+ending its row is drawn greyed, reading `CODEX_LOCKED` — "엔딩 이후 열립니다" —
+and tapping it does nothing. It is drawn rather than hidden on purpose: that
+greyed row is how a player finds out a button appears there later.
 
-A locked door with nothing behind it is a worse thing to show a player than the
-distance they have left, which is why the row carries the walk rather than a
-padlock.
+The memorial says `CODEX_OPENED` at its foot, which is the handover: the walk is
+finished, and now there are other cats to walk it with.
+
+The result card carries the distance still to walk (`STORY_DISTANCE`), directly
+under the line that says her name — "just a little further" and "2,880 steps to
+Tori's person" are one thought, so they are one block. Once she has arrived
+there is no distance left to give and the line becomes the collection it opened.
+
+### Getting back to it
+
+`MEMORIAL_REPLAY` on the title plays the memorial on its own, without the three
+ending frames in front of it (`StoryConfig.MEMORIAL`). Somebody coming back to
+look at Tori should not have to sit through the ending first.
 
 ---
 

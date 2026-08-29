@@ -43,12 +43,18 @@ const ENDING: Array[Dictionary] = [
 	{"text": "STORY_END_1", "image": "res://assets/story/ending_1.png", "sky": 9},
 	{"text": "STORY_END_2", "image": "res://assets/story/ending_2.png", "sky": 9},
 	{"text": "STORY_END_3", "image": "res://assets/story/ending_3.png", "sky": 10},
-	# The memorial. It has no still, because it is drawn from the save file: the
-	# portrait, the date, and what this player and this cat actually did. It
-	# holds until the player leaves it, which is the only frame that does — the
-	# rest of the game gives you no way to stay anywhere.
-	{"text": "MEMORIAL_LINE_1", "memorial": true, "hold": true, "sky": 10},
+	MEMORIAL_FRAME,
 ]
+
+## The memorial. It has no still, because it is drawn from the save file: the
+## portrait, the date, and what this player and this cat actually did. It holds
+## until the player leaves it, which is the only frame that does — the rest of
+## the game gives you no way to stay anywhere.
+const MEMORIAL_FRAME := {"text": "MEMORIAL_LINE_1", "memorial": true, "hold": true, "sky": 10}
+
+## The same card on its own, for the records row on the title screen: somebody
+## coming back to look at Tori should not have to sit through the ending first.
+const MEMORIAL: Array[Dictionary] = [MEMORIAL_FRAME]
 
 ## The day. Written here rather than built from a timestamp so it can never be
 ## localised into some other date by a helpful formatter.
@@ -56,7 +62,12 @@ const MEMORIAL_DATE := "2019. 09. 21."
 
 
 static func frames(which: String) -> Array[Dictionary]:
-	return ENDING if which == "ending" else INTRO
+	match which:
+		"ending":
+			return ENDING
+		"memorial":
+			return MEMORIAL
+	return INTRO
 
 
 static func duration(which: String) -> float:

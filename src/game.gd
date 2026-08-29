@@ -37,7 +37,10 @@ const NEW_CAT_ROW := 46.0
 const ZONE_BANNER_MS := 1250.0
 const SECRET_BANNER_MS := 1800.0
 const FLOW_MS := 380.0
+## The tutorial's own pulse — the ring closing, the word breathing.
 const HINT_PULSE_MS := 1000.0
+## How long "now it is your turn" stays up after the taught taps.
+const TUTORIAL_GO_MS := 1500.0
 const SKY_TRANSITION_MS := 900.0
 const ATMOSPHERE_TRANSITION_MS := 900.0
 const STARS_TRANSITION_MS := 1000.0
@@ -70,8 +73,6 @@ const WIND_SIZE := Vector2(4.0, 28.0)
 const TILE_RADIUS := 9.0
 
 ## Translation keys — resolved at draw time, because the locale can change.
-const HINT_TEXT := "HINT"
-const HINT_SUBTEXT := "HINT_SUB"
 const SAVE_PATH := "user://half_step.cfg"
 
 var state := HalfStepState.new()
@@ -92,7 +93,17 @@ var card_index := -1
 var best := 0
 ## `wasBest` in `die()`, captured before the stored best is replaced.
 var was_best := false
-var tutorial_taps := 0
+## The tutorial. It stops the world at the exact instant a jump would work and
+## asks for one, twice, and then gets out of the way. Only on a first profile.
+##
+## The bottom-of-screen hint text it replaced said "tap when the bridge reaches
+## you" over a moving sky, in white, while the player was busy — which is to say
+## it told nobody anything. A timing is learned by doing it once.
+enum Tutorial { WAIT, CROSS, CROSS_AGAIN, GO, DONE }
+var tutorial_step := Tutorial.DONE
+## True while the world is frozen waiting for the tap it just asked for.
+var tutorial_hold := false
+var tutorial_time := 0.0
 var last_result_zone := "BLUE SKY"
 var zone_index := -1
 
@@ -222,10 +233,11 @@ func _ready() -> void:
 	story_screen.progress = progress
 	story_screen.visible = false
 	story_screen.finished.connect(func() -> void:
-		# Whatever the sequence was, the game is underneath it again: pick the
-		# bed for where the run actually is rather than leaving the one-shot's
-		# silence hanging until the next landing.
-		music_player.play(AudioBank.music_for_score(state.score))
+		# Whatever the sequence was, something is underneath it again: the title
+		# if it was opened from there, otherwise the run. Pick that bed rather
+		# than leaving the one-shot's silence hanging until the next landing.
+		music_player.play(AudioBank.MUSIC_TITLE if title_screen.visible
+			else AudioBank.music_for_score(state.score))
 		queue_redraw())
 	add_child(story_screen)
 	title_screen = TitleScreen.new()
@@ -235,11 +247,21 @@ func _ready() -> void:
 		tone_player.play_cue(AudioBank.CUE_UI)
 		if not progress.seen_intro:
 			play_story("intro"))
+	# The codex, the replays and the memorial all open over the title and leave
+	# it standing, so closing one comes back here rather than dropping the
+	# player into a run they did not ask to start.
+	title_screen.menu_selected.connect(func(id: String) -> void:
+		tone_player.play_cue(AudioBank.CUE_UI)
+		if id == "codex":
+			codex_screen.open(progress, game_rect())
+		else:
+			play_story(id))
 	add_child(title_screen)
 	_take_witness_link()
 	reset()
-	# Cold launch only. Retry never comes back here: AGENTS.md section 2 wants
-	# restart immediate, and a title screen between deaths is the opposite.
+	# A cold launch opens here, and so does HOME on the result card. Retry never
+	# does: AGENTS.md section 2 wants restart immediate, and a title screen
+	# between deaths is the opposite of that.
 	title_screen.open(progress, game_rect())
 	music_player.play(AudioBank.MUSIC_TITLE)
 	get_viewport().size_changed.connect(_on_viewport_resized)
@@ -264,7 +286,9 @@ func reset() -> void:
 	was_best = false
 	layout_base_y = base_y()
 	state.reset(layout_base_y, game_size().y, _rng.randi())
-	tutorial_taps = 0
+	tutorial_step = Tutorial.DONE if progress.seen_tutorial else Tutorial.WAIT
+	tutorial_hold = false
+	tutorial_time = 0.0
 	run_feats.reset()
 	opened_cats = PackedStringArray()
 	card_index = -1
@@ -331,17 +355,20 @@ func randf_between(from: float, to: float) -> float:
 
 # --- input ------------------------------------------------------------------
 
+## Topmost screen first. The codex and the cut scenes open OVER the title now,
+## so checking the title first would swallow every tap meant for them.
 func _input(event: InputEvent) -> void:
-	if title_screen != null and title_screen.visible:
-		if _is_press(event):
-			title_screen.handle_press(event.position)
-			queue_redraw()
-		return
 	if story_screen != null and story_screen.visible:
 		if _is_press(event):
 			story_screen.handle_press(event.position)
 			queue_redraw()
 		return
+	if codex_screen == null or not codex_screen.visible:
+		if title_screen != null and title_screen.visible:
+			if _is_press(event):
+				title_screen.handle_press(event.position)
+				queue_redraw()
+			return
 	if codex_screen != null and codex_screen.visible:
 		if event is InputEventScreenDrag:
 			codex_screen.handle_drag(event.relative.y)
@@ -400,12 +427,8 @@ func _input(event: InputEvent) -> void:
 		var layout := result_layout()
 		if not opened_cats.is_empty() and Rect2(layout.new_cat).has_point(position):
 			card_index = 0
-		elif Rect2(layout.codex).has_point(position):
-			# Locked until the ending: the codex is the reward for finishing
-			# Tori's walk, not the thing you do instead of walking it.
-			if progress.seen_ending:
-				tone_player.play_cue(AudioBank.CUE_UI)
-				codex_screen.open(progress, game_rect())
+		elif Rect2(layout.home).has_point(position):
+			go_home()
 		elif Rect2(layout.share).has_point(position):
 			share_score()
 		else:
@@ -428,6 +451,8 @@ func _is_press(event: InputEvent) -> bool:
 
 ## `tap()` — never locked, never queued.
 func tap() -> void:
+	if _tutorial_tap():
+		return
 	lane_from_x = player_left()
 	# A tap is a jump, resolved where the cat is now — not a lane setting read
 	# at the next beat. Jumping for a bridge that has not arrived, or for a lane
@@ -438,7 +463,6 @@ func tap() -> void:
 	doomed_leap = doomed_leap or depth < 0.0
 	lane_length = beat_fraction(LANE_MS)
 	lane_time = 0.0
-	tutorial_taps += 1
 	tone_player.play_cross()
 	_vibrate(5)
 	queue_redraw()
@@ -448,20 +472,28 @@ func tap() -> void:
 
 func _process(delta: float) -> void:
 	var dt := minf(MAX_FRAME_MS, delta * 1000.0)
-	if title_screen != null and title_screen.visible:
-		# The sky keeps drifting behind the wordmark; only the run is held.
-		update_background(dt)
-		title_screen.advance(dt)
-		queue_redraw()
-		return
 	if story_screen != null and story_screen.visible:
 		story_screen.advance(dt)
 		if story_screen.showing_memorial() and music_player.track != AudioBank.MUSIC_MEMORIAL:
 			music_player.play(AudioBank.MUSIC_MEMORIAL)
 		queue_redraw()
 		return
+	if title_screen != null and title_screen.visible:
+		# The sky keeps drifting behind the wordmark; only the run is held.
+		update_background(dt)
+		title_screen.advance(dt)
+		queue_redraw()
+		return
+	if tutorial_hold:
+		# Everything stops: the stack, the sky, the cadence. The one thing the
+		# player can do is the thing being taught.
+		tutorial_time += dt
+		queue_redraw()
+		return
 	_advance_timers(dt)
 	if state.is_running():
+		if tutorial_step != Tutorial.DONE:
+			_tutorial_frame(dt)
 		update_background(dt)
 		state.step_timer += dt
 		while state.step_timer >= state.step_interval and state.is_running():
@@ -657,6 +689,67 @@ func die() -> void:
 		play_story("ending")
 
 
+## Steers the next bridge and decides when to stop the world.
+##
+## The generator is random by design, so teaching a timing means arranging the
+## next beat: first one bridge straight ahead, so the player sees that standing
+## still is a move; then two on the far side, each frozen at the instant the
+## jump would land.
+func _tutorial_frame(dt: float) -> void:
+	match tutorial_step:
+		Tutorial.WAIT:
+			state.aim_next_row(base_y(), state.lane)
+			if state.score >= 1:
+				tutorial_step = Tutorial.CROSS
+				tutorial_time = 0.0
+		Tutorial.CROSS, Tutorial.CROSS_AGAIN:
+			var far := 1 - state.lane
+			state.aim_next_row(base_y(), far)
+			if state.can_cross(base_y(), row_scroll, far):
+				tutorial_hold = true
+				tutorial_time = 0.0
+				tone_player.play_cue(AudioBank.CUE_UI)
+		Tutorial.GO:
+			tutorial_time += dt
+			if tutorial_time >= TUTORIAL_GO_MS:
+				tutorial_step = Tutorial.DONE
+
+
+## The taught tap. Returns true when it was the tutorial's, so the caller knows
+## the jump has been dealt with.
+func _tutorial_tap() -> bool:
+	if tutorial_step == Tutorial.DONE or tutorial_step == Tutorial.GO:
+		return false
+	if not tutorial_hold:
+		# While the tutorial is asking for one specific tap, every other tap is
+		# nothing. A first-time player who taps early should not die for it.
+		return true
+	tutorial_hold = false
+	tutorial_time = 0.0
+	if tutorial_step == Tutorial.CROSS:
+		tutorial_step = Tutorial.CROSS_AGAIN
+		return false
+	# Both taught jumps are made, so it is learned — whatever happens to this
+	# run. Dying on the next bridge should not make a player sit through it
+	# again; the send-off line is the only thing still owed.
+	tutorial_step = Tutorial.GO
+	progress.seen_tutorial = true
+	progress.save_to(_save)
+	_save.save(SAVE_PATH)
+	return false
+
+
+## The HOME button on the result card. The run is thrown away — it is already
+## over — and the title comes back with whatever the run just unlocked showing
+## in its menu.
+func go_home() -> void:
+	tone_player.play_cue(AudioBank.CUE_UI)
+	reset()
+	title_screen.open(progress, game_rect())
+	music_player.play(AudioBank.MUSIC_TITLE)
+	queue_redraw()
+
+
 ## `applyZone(force)`
 func apply_zone(force := false) -> void:
 	var index := ZoneConfig.index_for_score(state.score)
@@ -747,11 +840,17 @@ func share_score() -> void:
 ## after a run does not cost the player that run.
 func play_story(sequence: String) -> void:
 	story_screen.play(sequence, game_rect())
-	music_player.play(AudioBank.MUSIC_ENDING if sequence == "ending" else AudioBank.MUSIC_INTRO)
-	if sequence == "intro":
-		progress.seen_intro = true
-	else:
-		progress.seen_ending = true
+	match sequence:
+		"ending":
+			music_player.play(AudioBank.MUSIC_ENDING)
+			progress.seen_ending = true
+		"memorial":
+			# Straight to the card. Someone coming back to look at Tori should
+			# not have to sit through three frames of ending first.
+			music_player.play(AudioBank.MUSIC_MEMORIAL)
+		_:
+			music_player.play(AudioBank.MUSIC_INTRO)
+			progress.seen_intro = true
 	progress.save_to(_save)
 	_save.save(SAVE_PATH)
 	queue_redraw()
@@ -1204,8 +1303,8 @@ func _draw_hud(size: Vector2) -> void:
 		Color(1.0, 1.0, 1.0, 0.84))
 	_draw_banner(size)
 	_draw_flow(size)
-	if tutorial_taps < 2 and state.is_running():
-		_draw_hint(size)
+	if tutorial_step != Tutorial.DONE and state.is_running():
+		_draw_tutorial(size)
 
 
 ## #zone, shared by the zone reveal and the secret milestone flash.
@@ -1238,75 +1337,147 @@ func _draw_flow(size: Vector2) -> void:
 		Color(1.0, 1.0, 1.0, alpha))
 
 
-## #hint, with the `pulse` keyframe animation.
-func _draw_hint(size: Vector2) -> void:
-	var height := CssText.line_height(16.0) + 6.0 + CssText.line_height(10.0)
-	var top := size.y * 0.91 - height
+## The tutorial, drawn over the playfield.
+##
+## Three states and no menus: a caption while the first bridge comes straight
+## on, the frozen ask, and a line saying the player has it. Nothing here is a
+## dialog — a first-time player should never have to dismiss anything.
+func _draw_tutorial(size: Vector2) -> void:
 	var half := clampf(hint_phase / HINT_PULSE_MS, 0.0, 1.0)
-	var progress := half * 2.0 if half <= 0.5 else (1.0 - half) * 2.0
-	var eased := CssAnim.curve(CssAnim.EASE, progress)
-	var scale := lerpf(1.0, 1.04, eased)
-	var alpha := lerpf(1.0, 0.62, eased)
-	var center := Vector2(size.x * 0.5, top + height * 0.5)
-	_transform(center, 0.0, Vector2(scale, scale))
-	var left := -size.x * 0.5
-	CssText.draw_centered_shadowed(self, I18n.t(HINT_TEXT), left, size.x, -height * 0.5, 16.0, 0.0,
-		Color(1.0, 1.0, 1.0, alpha), Color(0.0, 0.0, 0.0, 0.13 * alpha), 3.0)
-	CssText.draw_centered_shadowed(self, I18n.t(HINT_SUBTEXT), left, size.x, -height * 0.5 + CssText.line_height(16.0) + 6.0,
-		10.0, 0.0, Color(1.0, 1.0, 1.0, alpha * 0.82), Color(0.0, 0.0, 0.0, 0.13 * alpha * 0.82), 3.0)
-	draw_set_transform(_origin)
+	var pulse := CssAnim.curve(CssAnim.EASE, half * 2.0 if half <= 0.5 else (1.0 - half) * 2.0)
+	if tutorial_hold:
+		_draw_tutorial_ask(size, pulse)
+		return
+	var key := ""
+	var alpha := 1.0
+	match tutorial_step:
+		Tutorial.WAIT:
+			key = "TUTORIAL_WAIT"
+		Tutorial.GO:
+			key = "TUTORIAL_GO"
+			alpha = 1.0 - clampf(tutorial_time / TUTORIAL_GO_MS, 0.0, 1.0)
+		_:
+			return
+	_draw_tutorial_line(size, I18n.t(key), size.y * 0.80, 15.0, alpha)
+
+
+## A caption on a plate. White text straight onto the sky is what this whole
+## screen replaced — half the time the sky behind it is a white cloud.
+func _draw_tutorial_line(size: Vector2, text: String, top: float, font: float,
+		alpha: float) -> void:
+	var width := CssText.width(text, font, 0.0)
+	var box := Rect2(size.x * 0.5 - width * 0.5 - 18.0, top - 10.0,
+		width + 36.0, CssText.line_height(font) + 20.0)
+	Shapes.rounded_rect(self, box, box.size.y * 0.5, Color("0b1526", 0.62 * alpha))
+	CssText.draw_centered(self, text, 0.0, size.x, top, font, 0.0,
+		Color(1.0, 1.0, 1.0, alpha))
+
+
+## The frozen instant: the world is dark, the bridge that will catch the cat is
+## ringed, and the only lit thing on the screen says to tap.
+func _draw_tutorial_ask(size: Vector2, pulse: float) -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), Color("06101f", 0.44))
+	var index := state.nearest_row_index(base_y())
+	if index >= 0:
+		var lane := int(state.rows[index].safe_lane)
+		var tile := Rect2(Vector2(tile_x(lane), float(state.rows[index].y) + row_scroll), TILE_SIZE)
+		# The one lit thing on a darkened screen is where the cat is going.
+		Shapes.rounded_rect(self, tile.grow(4.0), 11.0, Color("ffdca0", 0.34))
+		Shapes.rounded_rect(self, tile, 9.0, Color("ef6a5b"))
+		var centre := tile.get_center()
+		# Two rings closing on the deck: where the cat is going, and that it is
+		# going now.
+		for ring in 2:
+			var spread := fmod(pulse * 0.5 + float(ring) * 0.5, 1.0)
+			draw_arc(centre, 34.0 + spread * 46.0, 0.0, TAU, 48,
+				Color(1.0, 1.0, 1.0, 0.55 * (1.0 - spread)), 3.0, true)
+		draw_arc(centre, 30.0, 0.0, TAU, 48, Color(1.0, 1.0, 1.0, 0.9), 3.0, true)
+
+	var key := "TUTORIAL_TAP" if tutorial_step == Tutorial.CROSS else "TUTORIAL_AGAIN"
+	var top := size.y * 0.42
+	CssText.draw_centered_shadowed(self, I18n.t(key), 0.0, size.x, top, 30.0, 1.0,
+		Color(1.0, 1.0, 1.0, lerpf(0.72, 1.0, pulse)), Color(0.0, 0.0, 0.0, 0.45), 4.0)
+	CssText.draw_centered_shadowed(self, I18n.t("TUTORIAL_TAP_SUB"), 0.0, size.x,
+		top + CssText.line_height(30.0) + 10.0, 12.0, 0.6, Color(1.0, 1.0, 1.0, 0.82),
+		Color(0.0, 0.0, 0.0, 0.4), 3.0)
 
 
 ## Layout of `#overlay` > `#card` > `.card-inner`, in viewport coordinates.
 ## Kept separate from drawing so hit testing never depends on a frame having
 ## been rendered.
+##
+## The card carries five things and nothing else: what the run reached, how far
+## Tori still has to walk, and the three ways out — home, again, and share.
+## The codex used to hang off the bottom of it and now lives on the title
+## screen, where a menu belongs; the decorative PLAY · FAIL · SHARE · REPEAT
+## line is gone, because it was never information.
 func result_layout() -> Dictionary:
 	var rect := game_rect()
 	var size := rect.size
 	var card_width := minf(size.x * 0.86, 360.0)
 	var content_width := card_width - 88.0
-	var blocks := [
-		CssText.line_height(12.0),
-		70.0 * 1.05,
-		7.0 + CssText.line_height(11.0),
-		4.0 + 18.0,
-		# One line for a new cat, and nothing at all when none opened. It must
-		# stay a line: AGENTS.md section 2 requires retry to feel immediate, so
-		# nothing here may take the screen.
-		NEW_CAT_ROW if not opened_cats.is_empty() else 0.0,
-		16.0 + 50.0,
-		8.0 + 13.0,
-		10.0 + CssText.line_height(10.0),
-		# The locked row carries a second line under it (see `draw_result`).
-		0.0 if progress.seen_ending else 13.0,
-	]
-	var content_height := 0.0
-	for value: float in blocks:
-		content_height += value
+	# Top down, as it is drawn. Named rather than indexed: this list has been
+	# reordered twice and index arithmetic hid the second mistake.
+	var y := 0.0
+	var headline := y
+	y += CssText.line_height(12.0) + 3.0
+	# The walk sits right under the line that says her name. They are one
+	# thought — "just a little further" is the distance, said out loud.
+	var walk := y
+	y += CssText.line_height(10.0) + 12.0
+	var score := y
+	y += 70.0 * 1.05 + 7.0
+	var zone := y
+	y += CssText.line_height(11.0) + 4.0
+	var best := y
+	y += 18.0
+	# One line for a new cat, and nothing at all when none opened. It must stay
+	# a line: AGENTS.md section 2 requires retry to feel immediate, so nothing
+	# here may take the screen.
+	var new_cat := y + 6.0
+	y += NEW_CAT_ROW if not opened_cats.is_empty() else 0.0
+	y += 16.0
+	var buttons := y
+	y += 50.0 + 8.0
+	var status := y
+	y += 13.0
+
 	# .card-inner padding 18/16/14 + 4px border, #card padding 18 + 6px border.
-	var card_height := content_height + 18.0 + 14.0 + 8.0 + 36.0 + 12.0
+	var card_height := y + 18.0 + 14.0 + 8.0 + 36.0 + 12.0
 	var card := Rect2(
 		rect.position + Vector2((size.x - card_width) * 0.5, (size.y - card_height) * 0.5),
 		Vector2(card_width, card_height)
 	)
 	var inner := Rect2(card.position + Vector2(24.0, 24.0), card.size - Vector2(48.0, 48.0))
 	var content_left := inner.position.x + 4.0 + 16.0
-	var stack: float = inner.position.y + 4.0 + 18.0 + float(blocks[0]) + float(blocks[1]) + float(blocks[2]) + float(blocks[3])
-	var new_cat := Rect2(content_left, stack + 6.0, content_width, maxf(0.0, NEW_CAT_ROW - 12.0))
-	var button_top: float = stack + float(blocks[4]) + 16.0
-	var button_width := (content_width - 9.0) * 0.5
-	var codex_row := Rect2(content_left, button_top + 50.0 + 8.0 + 13.0 + 4.0, content_width, 18.0)
+	var content_top := inner.position.y + 4.0 + 18.0
+
+	# Three ways off this card. RETRY is the widest and the only dark one: it is
+	# what nearly every tap here means, and a tap anywhere else still does it.
+	var gap := 8.0
+	var span := content_width - gap * 2.0
+	var home_width := span * 0.26
+	var share_width := span * 0.34
+	var retry_width := span - home_width - share_width
+	var button_left := content_left
 	return {
-		"new_cat": new_cat,
-		"codex": codex_row,
 		"card": card,
 		"inner": inner,
 		"content_left": content_left,
 		"content_width": content_width,
-		"content_top": inner.position.y + 4.0 + 18.0,
-		"blocks": blocks,
-		"retry": Rect2(content_left, button_top, button_width, 50.0),
-		"share": Rect2(content_left + button_width + 9.0, button_top, button_width, 50.0),
+		"content_top": content_top,
+		"headline": content_top + headline,
+		"walk": content_top + walk,
+		"score": content_top + score,
+		"zone": content_top + zone,
+		"best": content_top + best,
+		"status": content_top + status,
+		"new_cat": Rect2(content_left, content_top + new_cat, content_width,
+			maxf(0.0, NEW_CAT_ROW - 12.0)),
+		"home": Rect2(button_left, content_top + buttons, home_width, 50.0),
+		"retry": Rect2(button_left + home_width + gap, content_top + buttons, retry_width, 50.0),
+		"share": Rect2(button_left + home_width + retry_width + gap * 2.0,
+			content_top + buttons, share_width, 50.0),
 	}
 
 
@@ -1319,71 +1490,74 @@ func draw_result(canvas: CanvasItem) -> void:
 	canvas.draw_set_transform(_origin)
 	canvas.draw_rect(Rect2(Vector2.ZERO, size), Color("223f5c", 0.38))
 	var layout := result_layout()
-	var blocks: Array = layout.blocks
 	var content_width: float = layout.content_width
 	var card := Rect2(Rect2(layout.card).position - _origin, Rect2(layout.card).size)
 	var inner := Rect2(Rect2(layout.inner).position - _origin, Rect2(layout.inner).size)
 	var left: float = float(layout.content_left) - _origin.x
 	canvas.draw_rect(Rect2(card.position + Vector2(0.0, 8.0), card.size), Color("14384f", 0.18))
 	canvas.draw_rect(card, Color(1.0, 1.0, 1.0))
-	canvas.draw_rect(Rect2(card.position + Vector2(6.0, 6.0), card.size - Vector2(12.0, 12.0)), Color(1.0, 1.0, 1.0, 0.96))
+	canvas.draw_rect(Rect2(card.position + Vector2(6.0, 6.0), card.size - Vector2(12.0, 12.0)),
+		Color(1.0, 1.0, 1.0, 0.96))
 	canvas.draw_rect(inner, Color("d6e7f1"))
-	canvas.draw_rect(Rect2(inner.position + Vector2(4.0, 4.0), inner.size - Vector2(8.0, 8.0)), Color("f6fbff", 0.98))
-	var y: float = float(layout.content_top) - _origin.y
+	canvas.draw_rect(Rect2(inner.position + Vector2(4.0, 4.0), inner.size - Vector2(8.0, 8.0)),
+		Color("f6fbff", 0.98))
+
 	# The game's own title, said to her. It replaced a flat "RUN ENDED": the game
 	# has a story now, and this is the line the player earns several hundred times.
-	CssText.draw_centered(canvas, I18n.t("RUN_ENDED"), left, content_width, y, 12.0, 0.6,
-		Color("8a5a52"))
-	y += float(blocks[0])
+	CssText.draw_centered(canvas, I18n.t("RUN_ENDED"), left, content_width,
+		float(layout.headline) - _origin.y, 12.0, 0.6, Color("8a5a52"))
+	# ...and how much further that is. Once she has arrived there is no distance
+	# left to give, so the line becomes the collection it opened.
+	var walk := I18n.t("CODEX_COUNT") % [progress.owned_count(), CatConfig.CATS.size(),
+		progress.level()] if progress.seen_ending \
+		else I18n.t("STORY_DISTANCE") % progress.steps_remaining()
+	CssText.draw_centered(canvas, walk, left, content_width, float(layout.walk) - _origin.y,
+		10.0, 1.0, Color("6d8293"))
 	CssText.draw_centered(canvas, str(state.score), left, content_width,
-		y + (70.0 * 1.05 - CssText.line_height(70.0)) * 0.5, 70.0, -4.0, Color("263644"))
-	y += float(blocks[1]) + 7.0
-	CssText.draw_centered(canvas, "REACHED · %s" % last_result_zone, left, content_width, y, 11.0, 1.5, Color("6d8293"))
-	y += CssText.line_height(11.0) + 4.0
+		float(layout.score) - _origin.y + (70.0 * 1.05 - CssText.line_height(70.0)) * 0.5,
+		70.0, -4.0, Color("263644"))
+	CssText.draw_centered(canvas, "REACHED · %s" % last_result_zone, left, content_width,
+		float(layout.zone) - _origin.y, 11.0, 1.5, Color("6d8293"))
 	var best_line := "NEW BEST!" if was_best else "BEST %d" % best
-	CssText.draw_centered(canvas, best_line, left, content_width, y, 12.0, 0.0, ACCENT)
+	CssText.draw_centered(canvas, best_line, left, content_width, float(layout.best) - _origin.y,
+		12.0, 0.0, ACCENT)
+
 	if not opened_cats.is_empty():
 		var row := Rect2(Rect2(layout.new_cat).position - _origin, Rect2(layout.new_cat).size)
 		canvas.draw_rect(row, Color("fdeee9"))
 		var cat := CatConfig.by_id(opened_cats[0])
-		canvas.draw_set_transform(_origin + row.position + Vector2(20.0, row.size.y * 0.5), 0.0, Vector2(0.5, 0.5))
+		canvas.draw_set_transform(_origin + row.position + Vector2(20.0, row.size.y * 0.5), 0.0,
+			Vector2(0.5, 0.5))
 		Art.draw_cat_portrait(canvas, cat, Color("fdeee9"))
 		canvas.draw_set_transform(_origin)
 		var headline := I18n.t("NEW_CAT") % CatConfig.display_name(cat)
 		if opened_cats.size() > 1:
 			headline = I18n.t("NEW_CATS") % opened_cats.size()
-		CssText.draw_at(canvas, headline, row.position + Vector2(42.0, 6.0), 13.0, 0.0, Color("8a3b30"))
-		CssText.draw_at(canvas, I18n.t("TAP_TO_SEE"), row.position + Vector2(42.0, 22.0), 9.0, 1.2, Color("b06a5e"))
-	var retry := Rect2(Rect2(layout.retry).position - _origin, Rect2(layout.retry).size)
-	var share := Rect2(Rect2(layout.share).position - _origin, Rect2(layout.share).size)
-	canvas.draw_rect(Rect2(retry.position + Vector2(0.0, 5.0), retry.size), Color("111a21"))
-	canvas.draw_rect(retry, INK)
-	canvas.draw_rect(Rect2(share.position + Vector2(0.0, 5.0), share.size), Color("c7dce9"))
-	canvas.draw_rect(share, Color("e7f2f9"))
-	var label_offset := (50.0 - CssText.line_height(14.0)) * 0.5
-	CssText.draw_centered(canvas, I18n.t("RETRY"), retry.position.x, retry.size.x, retry.position.y + label_offset, 14.0, 0.0, Color(1.0, 1.0, 1.0))
-	CssText.draw_centered(canvas, I18n.t("SHARE"), share.position.x, share.size.x, share.position.y + label_offset, 14.0, 0.0, INK)
-	y = retry.position.y + 50.0 + 8.0
+		CssText.draw_at(canvas, headline, row.position + Vector2(42.0, 6.0), 13.0, 0.0,
+			Color("8a3b30"))
+		CssText.draw_at(canvas, I18n.t("TAP_TO_SEE"), row.position + Vector2(42.0, 22.0), 9.0, 1.2,
+			Color("b06a5e"))
+
+	_draw_result_button(canvas, Rect2(layout.home), I18n.t("HOME"), false)
+	_draw_result_button(canvas, Rect2(layout.retry), I18n.t("RETRY"), true)
+	_draw_result_button(canvas, Rect2(layout.share), I18n.t("SHARE"), false)
 	if not share_status.is_empty():
-		CssText.draw_centered(canvas, share_status, left, content_width, y, 10.0, 0.0, Color("607585"))
-	y += 13.0 + 4.0
-	if progress.seen_ending:
-		CssText.draw_centered(canvas, I18n.t("CODEX_COUNT") % [progress.owned_count(),
-			CatConfig.CATS.size(), progress.level()], left, content_width, y, 10.0, 1.0,
-			Color("6d8293"))
-	else:
-		# Before the ending the row is the walk, not the roster. A locked door
-		# with nothing behind it is a worse thing to show a player than the
-		# distance they have left.
-		CssText.draw_centered(canvas, I18n.t("STORY_DISTANCE") % progress.steps_remaining(),
-			left, content_width, y, 10.0, 1.0, Color("6d8293"))
-		CssText.draw_centered(canvas, I18n.t("CODEX_LOCKED"), left, content_width, y + 13.0,
-			9.0, 1.0, Color("9db0bf"))
-		# The second line, which `result_layout` already made room for.
-		y += 13.0
-	y += 18.0 + 4.0
-	CssText.draw_centered(canvas, "PLAY · FAIL · SHARE · REPEAT", left, content_width, y, 10.0, 0.0, Color(0.0, 0.0, 0.0, 0.45))
+		CssText.draw_centered(canvas, share_status, left, content_width,
+			float(layout.status) - _origin.y, 10.0, 0.0, Color("607585"))
 	canvas.draw_set_transform(Vector2.ZERO)
+
+
+## One button on the result card. `primary` is the dark one, and there is only
+## ever one of those.
+func _draw_result_button(canvas: CanvasItem, box: Rect2, label: String, primary: bool) -> void:
+	var local := Rect2(box.position - _origin, box.size)
+	canvas.draw_rect(Rect2(local.position + Vector2(0.0, 5.0), local.size),
+		Color("111a21") if primary else Color("c7dce9"))
+	canvas.draw_rect(local, INK if primary else Color("e7f2f9"))
+	var size := 14.0 if local.size.x > 90.0 else 12.0
+	CssText.draw_centered(canvas, label, local.position.x, local.size.x,
+		local.position.y + (50.0 - CssText.line_height(size)) * 0.5, size, 0.0,
+		Color(1.0, 1.0, 1.0) if primary else INK)
 
 
 func _draw_letterbox(rect: Rect2) -> void:

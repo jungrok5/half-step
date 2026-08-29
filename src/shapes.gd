@@ -38,7 +38,11 @@ static func ellipse_polygon(center: Vector2, radii: Vector2, segments: int = CIR
 ## Rounded rectangle. [param radii] holds the corner radii clockwise from the
 ## top-left, so a shape can be round on top and square where it meets another.
 static func rounded_rect_polygon(rect: Rect2, radii: Vector4) -> PackedVector2Array:
-	var limit := minf(rect.size.x, rect.size.y) * 0.5
+	# Just under half. At exactly half, two corner arcs meet at a single point,
+	# the ring touches itself, and Godot's triangulator silently drops the fill
+	# and leaves only the outline. Asking for a pill by passing height / 2 is
+	# the obvious thing to do, so it is clamped here rather than at every call.
+	var limit := minf(rect.size.x, rect.size.y) * 0.499
 	var corners := [
 		[Vector2(rect.position.x, rect.position.y), minf(radii.x, limit), PI, PI * 1.5],
 		[Vector2(rect.end.x, rect.position.y), minf(radii.y, limit), PI * 1.5, TAU],

@@ -361,7 +361,9 @@ func _test_every_locale_is_complete() -> void:
 			var line := I18n.t(String(zone.share_line))
 			expect(line != String(zone.share_line), "%s has a share line in %s" % [String(zone.name), locale])
 		for key: String in ["TITLE", "SUBTITLE", "RUN_ENDED",
-				"HINT", "HINT_SUB", "RETRY", "SHARE", "CODEX", "TAP_TO_SEE",
+				"HOME", "RETRY", "SHARE", "CODEX", "TAP_TO_SEE", "MEMORIAL_REPLAY",
+				"TUTORIAL_WAIT", "TUTORIAL_TAP", "TUTORIAL_AGAIN", "TUTORIAL_TAP_SUB",
+				"TUTORIAL_GO",
 				"TAP_TO_CLOSE", "LOCKED_SLOTS", "SECTION_LEVEL", "SECTION_SKY",
 				"SECTION_FEAT", "SECTION_WITNESS", "SHARE_CLIPBOARD", "STORY_SKIP",
 				"STORY_INTRO_REPLAY", "STORY_ENDING_REPLAY", "STORY_ARRIVED",
@@ -406,8 +408,10 @@ func _test_every_character_has_a_glyph() -> void:
 			strings.append(String(zone.name))
 		for frame: Dictionary in StoryConfig.INTRO + StoryConfig.ENDING:
 			strings.append(I18n.t(String(frame.text)))
-		for key: String in ["TITLE", "SUBTITLE", "RUN_ENDED", "TAP_TO_START", "HINT",
-				"HINT_SUB", "RETRY", "SHARE", "CODEX", "CODEX_COUNT", "NEW_CAT", "NEW_CATS",
+		for key: String in ["TITLE", "SUBTITLE", "RUN_ENDED", "TAP_TO_START", "HOME",
+				"MEMORIAL_REPLAY", "TUTORIAL_WAIT", "TUTORIAL_TAP", "TUTORIAL_AGAIN",
+				"TUTORIAL_TAP_SUB", "TUTORIAL_GO",
+				"RETRY", "SHARE", "CODEX", "CODEX_COUNT", "NEW_CAT", "NEW_CATS",
 				"TAP_TO_SEE", "TAP_TO_CLOSE", "NEXT_MORE", "LOCKED_SLOTS", "BEST_WITH",
 				"SECTION_LEVEL", "SECTION_LEVEL_NOTE", "SECTION_SKY", "SECTION_SKY_NOTE",
 				"SECTION_FEAT", "SECTION_FEAT_NOTE", "SECTION_WITNESS", "SECTION_WITNESS_NOTE",

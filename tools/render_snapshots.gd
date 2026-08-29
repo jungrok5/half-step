@@ -72,9 +72,31 @@ func _run() -> void:
 	progress.days_played = 9
 	progress.bests[CatConfig.STARTER] = 342
 	var title: Node = game.get("title_screen")
+	var seen_intro := progress.seen_intro
+	progress.seen_ending = false
+	progress.seen_intro = false
+	title.call("open", progress, game.call("game_rect"))
+	await _capture(game, "%s/title-new.png" % output)
+	progress.seen_ending = true
+	progress.seen_intro = true
 	title.call("open", progress, game.call("game_rect"))
 	await _capture(game, "%s/title.png" % output)
 	title.call("close")
+	progress.seen_intro = seen_intro
+
+	# The tutorial, frozen on the tap it is asking for.
+	progress.seen_tutorial = false
+	game.call("reset")
+	game.set("tutorial_step", 1)
+	game.set("tutorial_hold", true)
+	state.aim_next_row(game.call("base_y"), 1 - state.lane)
+	game.set("row_scroll", HalfStepState.ROW_SPACING * 0.8)
+	await _capture(game, "%s/tutorial-ask.png" % output)
+	game.set("tutorial_hold", false)
+	game.set("tutorial_step", 0)
+	await _capture(game, "%s/tutorial-wait.png" % output)
+	progress.seen_tutorial = true
+	game.call("reset")
 
 	var story: Node = game.get("story_screen")
 	for sequence: String in ["intro", "ending"]:

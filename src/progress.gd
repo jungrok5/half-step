@@ -37,6 +37,9 @@ var steady_streak := 0
 ## Landings made as Tori, across every run. This is the distance the story is
 ## measured in — see STORY.md. A failed run still moved Tori forward.
 var tori_steps := 0
+## The three-beat tutorial on the first run: it stops the world at the instant a
+## jump would work and asks for one, and it only ever happens once.
+var seen_tutorial := false
 var seen_intro := false
 var seen_ending := false
 var seen_epilogue := false
@@ -220,6 +223,7 @@ func save_to(config: ConfigFile) -> void:
 	config.set_value(SECTION, "equipped", equipped)
 	config.set_value(SECTION, "steady_streak", steady_streak)
 	config.set_value(SECTION, "tori_steps", tori_steps)
+	config.set_value(SECTION, "seen_tutorial", seen_tutorial)
 	config.set_value(SECTION, "seen_intro", seen_intro)
 	config.set_value(SECTION, "seen_ending", seen_ending)
 	config.set_value(SECTION, "seen_epilogue", seen_epilogue)
@@ -233,6 +237,7 @@ func load_from(config: ConfigFile) -> void:
 	experience = maxf(0.0, float(config.get_value(SECTION, "experience", 0.0)))
 	steady_streak = maxi(0, int(config.get_value(SECTION, "steady_streak", 0)))
 	tori_steps = maxi(0, int(config.get_value(SECTION, "tori_steps", 0)))
+	seen_tutorial = bool(config.get_value(SECTION, "seen_tutorial", false))
 	seen_intro = bool(config.get_value(SECTION, "seen_intro", false))
 	seen_ending = bool(config.get_value(SECTION, "seen_ending", false))
 	seen_epilogue = bool(config.get_value(SECTION, "seen_epilogue", false))

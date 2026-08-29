@@ -54,6 +54,26 @@ The core game must remain small. Do not add systems merely to create content.
 ### Restart
 - Restart must feel immediate.
 - No long transitions before retry.
+- The result card offers exactly three ways out: HOME, RETRY, SHARE, and a tap
+  anywhere else on it retries. HOME is the only one that goes back to the title;
+  RETRY must never pass through it.
+- Nothing else lives on that card. It carries the line, the distance still to
+  walk, the score, the zone, the best, and one row when a cat opened. The codex
+  moved to the title screen and the decorative PLAY · FAIL · SHARE · REPEAT line
+  is gone — a player sees this card several hundred times and wants to leave it.
+
+### The tutorial
+- Approved 2026-08-29, replacing the bottom-of-screen hint text.
+- The first run on a fresh profile stops the world at the exact instant a jump
+  would land and asks for one, twice. **This is not a message; it is the
+  mechanic, done.** Do not replace it with text, a dialog, or an animation the
+  player watches.
+- While it is asking, every tap it did not ask for does nothing. A player who
+  has never played must not be able to kill themselves while being taught. This
+  is the one place "input must never be discarded" is suspended, and it is
+  suspended for three beats on one run, ever.
+- It is marked learned the moment the second taught jump lands, not when the
+  send-off line finishes: dying on the next bridge must not replay it.
 
 ## 3. Explicitly rejected designs
 
@@ -350,8 +370,14 @@ Hard rules:
   never on score and never on level. A failed run still counts toward it. Do not
   move it onto a skill axis: see STORY.md section 1.
 - The ending does NOT end the game. Play continues unchanged afterwards.
-- The title screen appears on a **cold launch only**. Retry must never pass
-  through it.
+- The title screen appears on a **cold launch only**, and on HOME. Retry must
+  never pass through it.
+- The title screen is home. The codex, both replays and the memorial are reached
+  from there and nowhere else; they open OVER it and leave it standing, so
+  closing one comes back to the title rather than into a run nobody started.
+- Its menu grows with the save file, and the locked codex row is **drawn, not
+  hidden** — the greyed "opens after the ending" is how a player learns a button
+  will appear there.
 - The epilogue at score 1000 has no card and no text. It is a thing seen, not a
   thing announced, and it shares its threshold with the BEYOND sky and the
   codex's last cat. Do not give it a threshold of its own.
@@ -365,9 +391,8 @@ Hard rules:
   ART_DIRECTION.md forbid it everywhere else because the camera looks straight
   down; here the cat is being looked at rather than followed. Do not "fix" it.
 - The **codex is locked until the ending has been seen** (`progress.seen_ending`).
-  Before that the result card's codex row carries the distance left plus
-  `CODEX_LOCKED`, and tapping it does nothing. After it, everything works as
-  before: other cats can be won and equipped.
+  Before that its row on the title is greyed and says `CODEX_LOCKED`. After it,
+  everything works: other cats can be won and equipped.
 - While the codex is shut, cats still **unlock** but are not **announced** —
   `opened_cats` is cleared. A cat the player cannot open or equip is a locked
   door with a name on it. They all appear together when the codex opens.

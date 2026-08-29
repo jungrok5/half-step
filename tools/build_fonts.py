@@ -26,6 +26,7 @@ adding a language, then commit the rebuilt fonts:
     python3 tools/build_fonts.py
 """
 import csv
+import os
 import re
 import subprocess
 import sys
@@ -35,6 +36,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "fonts"
+# Upstream fonts land here, whole. Shares the directory the Godot download uses.
+CACHE = Path(os.environ.get("HALF_STEP_CACHE", Path.home() / ".cache" / "half-step")) / "fonts"
+# A per-script subset of a few hundred characters is tens of kilobytes. Anything
+# near a megabyte is the entire family, which has happened — see `source_font`.
+MAX_SUBSET_BYTES = 400_000
 
 MONO_SOURCE = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
 # Google Fonts returns a woff2 holding exactly the characters in `text`.
@@ -112,10 +118,23 @@ def build_latin(target: Path) -> None:
     )
 
 
-def build_script(target: Path, family: str, locales: list) -> None:
+def source_font(family: str, characters: str, cache: Path) -> Path:
+    """The upstream font, as a .ttf. Cached, because it can be several MB.
+
+    Google's `text=` endpoint is asked for a subset, and when it obliges the
+    download is tens of kilobytes. It cannot be relied on: past roughly 1900
+    characters of URL — and, as of 2026-08-29, for any request it has not
+    already cached — it silently returns the ENTIRE family instead, with no
+    error and no change in shape. A 6 MB Korean font in the .pck is not
+    something anyone notices until the download. So whatever comes back is
+    treated as a source, never as the answer; `build_script` subsets it here.
+    """
+    cache.mkdir(parents=True, exist_ok=True)
+    cached = cache / (family.split(":")[0].replace("+", "") + ".ttf")
+    if cached.exists():
+        return cached
     from fontTools.ttLib import TTFont
 
-    characters = characters_for(locales)
     request = urllib.request.Request(
         GOOGLE_CSS % family + urllib.parse.quote(characters),
         headers={"User-Agent": BROWSER_AGENT},
@@ -125,12 +144,52 @@ def build_script(target: Path, family: str, locales: list) -> None:
     urls = re.findall(r"url\((https://fonts\.gstatic\.com/[^)]+)\)", css)
     if not urls:
         sys.exit(f"Google Fonts returned no font for {family}")
-    with urllib.request.urlopen(urls[0], timeout=120) as response:
-        target.with_suffix(".woff2").write_bytes(response.read())
-    font = TTFont(target.with_suffix(".woff2"))
+    with urllib.request.urlopen(urls[0], timeout=180) as response:
+        cached.with_suffix(".woff2").write_bytes(response.read())
+    font = TTFont(cached.with_suffix(".woff2"))
     font.flavor = None
-    font.save(target)
-    target.with_suffix(".woff2").unlink()
+    font.save(cached)
+    cached.with_suffix(".woff2").unlink()
+    return cached
+
+
+def build_script(target: Path, family: str, locales: list) -> None:
+    from fontTools.ttLib import TTFont
+
+    characters = characters_for(locales)
+    source = source_font(family, characters, CACHE)
+    # The character list goes through a file: a Korean subset is already 2 KB
+    # of UTF-8 and a command line is not the place for it.
+    listing = target.with_suffix(".txt")
+    listing.write_text(characters, encoding="utf-8")
+    subprocess.run(
+        [
+            sys.executable, "-m", "fontTools.subset", str(source),
+            f"--text-file={listing}",
+            f"--output-file={target}",
+            "--layout-features=",
+            "--drop-tables+=DSIG",
+            "--no-hinting",
+            "--name-IDs=1,2,4,6",
+            "--recalc-bounds",
+        ],
+        check=True,
+    )
+    listing.unlink()
+
+    # Both halves of "did this work" checked here rather than trusted: a font
+    # that is missing a character draws tofu, and a font that kept the whole
+    # family costs the player megabytes. Neither shows up anywhere else.
+    font = TTFont(target)
+    cmap = font.getBestCmap()
+    missing = sorted({c for c in characters if not c.isspace() and ord(c) not in cmap})
+    if missing:
+        sys.exit(f"{target.name}: upstream has no glyph for {''.join(missing)}")
+    if target.stat().st_size > MAX_SUBSET_BYTES:
+        sys.exit(
+            f"{target.name} came out at {target.stat().st_size} bytes for "
+            f"{len(characters)} characters — that is the whole family, not a subset"
+        )
 
 
 def main() -> None:

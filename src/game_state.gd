@@ -178,6 +178,19 @@ func can_cross(base_y: float, scroll: float, target_lane: int) -> bool:
 	return cross_depth(base_y, scroll, target_lane) >= 0.0
 
 
+## Puts the bridge the cat is about to reach on [param lane]. Returns false when
+## there is no unresolved row left to aim.
+##
+## Only the tutorial uses this: to teach a timing you have to know what the next
+## beat is going to ask for, and the generator is random by design.
+func aim_next_row(base_y: float, lane_index: int) -> bool:
+	var index := nearest_row_index(base_y)
+	if index < 0:
+		return false
+	rows[index].safe_lane = lane_index
+	return true
+
+
 ## `resolveLanding()` — returns the landed row on success, or an empty
 ## dictionary when the run ends. The row is left in place; the stack only moves
 ## in [method advance_rows].

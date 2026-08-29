@@ -1,8 +1,16 @@
 class_name TitleScreen
 extends Node2D
 
-## The first screen on a cold launch. A tap starts the run — and on a first ever
-## launch, the intro plays between the two.
+## Home. A tap anywhere starts the run — and on a first ever launch, the intro
+## plays between the two.
+##
+## It is also where everything that is not the run lives: the codex, the two
+## replays and the memorial. None of that belongs on the result card, which a
+## player sees several hundred times and wants to leave immediately.
+##
+## The menu grows with the save file. On a first launch there is one row and it
+## is locked, which is deliberate — the greyed "opens after the ending" row is
+## how the player learns a button will appear there.
 ##
 ## It is drawn over the live playfield rather than replacing it, so the clouds
 ## behind the wordmark are the game's own parallax, still drifting. A static
@@ -13,10 +21,15 @@ extends Node2D
 ## translation table, which is what keeps twelve languages honest.
 
 signal started
+## A menu row was chosen: "codex", "intro", "ending" or "memorial".
+signal menu_selected(id: String)
 
 const WORDMARK := "res://assets/story/wordmark.png"
 const INK := Color("f6fbff")
 const PULSE_MS := 1600.0
+const ROW_HEIGHT := 42.0
+const ROW_GAP := 8.0
+const ROW_INSET := 42.0
 
 var progress: Progress
 var time := 0.0
@@ -24,6 +37,7 @@ var time := 0.0
 var _rect := Rect2()
 var _texture: Texture2D = null
 var _looked := false
+var _rows: Array[Dictionary] = []
 
 
 func open(from: Progress, rect: Rect2) -> void:
@@ -40,8 +54,28 @@ func close() -> void:
 	started.emit()
 
 
+## Places the menu. Kept apart from drawing so hit testing never depends on a
+## frame having been rendered.
 func layout(rect: Rect2) -> void:
 	_rect = rect
+	_rows.clear()
+	var seen_intro := progress != null and progress.seen_intro
+	var seen_ending := progress != null and progress.seen_ending
+	# The codex row is always here, locked or not: an empty space where a button
+	# will appear tells the player nothing.
+	var count := "%d / %d" % [progress.owned_count(), CatConfig.CATS.size()] if seen_ending else ""
+	_rows.append({"id": "codex", "key": "CODEX", "note": count, "open": seen_ending})
+	if seen_intro:
+		_rows.append({"id": "intro", "key": "STORY_INTRO_REPLAY", "note": "", "open": true})
+	if seen_ending:
+		_rows.append({"id": "ending", "key": "STORY_ENDING_REPLAY", "note": "", "open": true})
+		_rows.append({"id": "memorial", "key": "MEMORIAL_REPLAY", "note": "", "open": true})
+	var width: float = minf(rect.size.x - ROW_INSET * 2.0, 300.0)
+	var left := rect.position.x + (rect.size.x - width) * 0.5
+	var top := rect.position.y + rect.size.y * 0.70
+	for i in _rows.size():
+		_rows[i]["rect"] = Rect2(Vector2(left, top + float(i) * (ROW_HEIGHT + ROW_GAP)),
+			Vector2(width, ROW_HEIGHT))
 
 
 func advance(delta_ms: float) -> void:
@@ -49,7 +83,15 @@ func advance(delta_ms: float) -> void:
 	queue_redraw()
 
 
-func handle_press(_position: Vector2) -> void:
+## A tap on a menu row opens that row and leaves the title standing behind it.
+## Anywhere else starts the run, which is what a title screen is for.
+func handle_press(position: Vector2) -> void:
+	for row in _rows:
+		if not Rect2(row.rect).has_point(position):
+			continue
+		if bool(row.open):
+			menu_selected.emit(String(row.id))
+		return
 	close()
 
 
@@ -70,7 +112,7 @@ func _draw() -> void:
 		[0.0, Color("0b1526", 0.52)], [0.55, Color("0b1526", 0.16)], [1.0, Color("0b1526", 0.62)],
 	])
 
-	var centre := size * Vector2(0.5, 0.34)
+	var centre := size * Vector2(0.5, 0.26)
 	var mark := _wordmark()
 	if mark != null:
 		var source := Vector2(mark.get_size())
@@ -84,7 +126,7 @@ func _draw() -> void:
 		centre.y + 44.0, 15.0, 2.4, Color(INK, 0.82))
 
 	# Tori waiting on a bridge, breathing. The tail sway is the game's own.
-	var deck := Rect2(Vector2(size.x * 0.5 - 43.0, size.y * 0.60), Vector2(86.0, 28.0))
+	var deck := Rect2(Vector2(size.x * 0.5 - 43.0, size.y * 0.48), Vector2(86.0, 28.0))
 	Shapes.rounded_rect(self, Rect2(deck.position + Vector2(0.0, 7.0), deck.size), 9.0,
 		Color("151d24", 0.5))
 	Shapes.rounded_rect(self, deck, 9.0, Color("2b3846"))
@@ -95,6 +137,37 @@ func _draw() -> void:
 
 	var half := clampf(time / PULSE_MS, 0.0, 1.0)
 	var pulse := half * 2.0 if half <= 0.5 else (1.0 - half) * 2.0
-	CssText.draw_centered(self, I18n.t("TAP_TO_START"), 0.0, size.x, size.y * 0.80, 13.0, 3.0,
-		Color(INK, lerpf(0.45, 0.95, CssAnim.curve(CssAnim.EASE, pulse))))
+	var start := I18n.t("TAP_TO_START")
+	var lit := lerpf(0.45, 0.95, CssAnim.curve(CssAnim.EASE, pulse))
+	var start_top := size.y * 0.60
+	# On a plate, like everything else on this screen: the sky behind it is the
+	# live playfield and half the time that means a white cloud.
+	var start_width := CssText.width(start, 13.0, 3.0)
+	Shapes.rounded_rect(self, Rect2(size.x * 0.5 - start_width * 0.5 - 20.0, start_top - 11.0,
+		start_width + 40.0, CssText.line_height(13.0) + 22.0),
+		(CssText.line_height(13.0) + 22.0) * 0.5, Color("0b1526", 0.34 + 0.18 * lit))
+	CssText.draw_centered(self, start, 0.0, size.x, start_top, 13.0, 3.0, Color(INK, lit))
+
+	for row in _rows:
+		_draw_row(Rect2(Rect2(row.rect).position - _rect.position, Rect2(row.rect).size), row)
 	draw_set_transform(Vector2.ZERO)
+
+
+## One menu row. A locked row is drawn, not hidden: what it says is that a
+## button appears here later, which is the only way the player finds out.
+func _draw_row(box: Rect2, row: Dictionary) -> void:
+	var open := bool(row.open)
+	# A dark plate, not a translucent white one: the sky behind this screen is
+	# the live playfield and it is sometimes a white cloud.
+	Shapes.rounded_rect(self, box, 8.0, Color("0b1526", 0.62 if open else 0.38))
+	if open:
+		draw_rect(box, Color(1.0, 1.0, 1.0, 0.18), false, 1.0)
+	var label := I18n.t(String(row.key))
+	CssText.draw_at(self, label, box.position + Vector2(16.0, 14.0), 13.0, 0.8,
+		Color(INK, 0.95 if open else 0.5))
+	var note := String(row.note) if open else I18n.t("CODEX_LOCKED")
+	if note.is_empty():
+		return
+	var width := CssText.width(note, 10.0, 1.0)
+	CssText.draw_at(self, note, box.position + Vector2(box.size.x - width - 16.0, 17.0), 10.0, 1.0,
+		Color(INK, 0.7 if open else 0.5))

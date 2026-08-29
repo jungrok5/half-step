@@ -545,3 +545,43 @@ Permanent lesson:
 Render it. Every one of those three was invisible in the code and obvious in the
 picture, and the two-by-two of twelve locales caught nothing the English shot
 did not — the layout bugs were in the art, not the text.
+
+### Google Fonts stopped subsetting, and the build did not notice (2026-08-29)
+
+`tools/build_fonts.py` asked `fonts.googleapis.com/css2?...&text=<every character
+the UI draws>` and shipped whatever came back. Adding eight Korean characters
+took the Korean font from **37 KB to 6.1 MB** and every CJK font with it — 29 MB
+of fonts in a game whose entire `.pck` was 563 KB.
+
+Google had not failed. It returned HTTP 200, the same CSS shape, the same
+`/l/font?kit=` URL — and the whole 24,733-glyph family instead of the 232 glyphs
+asked for. It does that past roughly 1900 characters of URL, and on that day it
+did it for any request it had not already cached. The old character list, being
+cached, kept returning a correct 18 KB subset throughout, which is what made it
+look like a change in our data rather than upstream.
+
+The fix is not a bigger URL budget. Whatever Google returns is now treated as a
+**source**, and `fontTools.subset` cuts it down locally; the full family is
+cached under `HALF_STEP_CACHE` so the download happens once. The build then
+checks both halves of "did this work": every requested character has a glyph, and
+the file is under 400 KB. Total shipped fonts went from 304 KB to **228 KB**,
+because local subsetting is tighter than the endpoint's.
+
+Permanent lesson:
+A remote build step that can silently return the wrong thing needs an assertion,
+not trust. "It returned 200" is not "it did what I asked".
+
+### A pill drawn at radius = height / 2 came out as an outline (2026-08-29)
+
+`Shapes.rounded_rect(box, box.size.y * 0.5, dark)` — the obvious way to ask for
+a pill — drew the outline and no fill. At exactly half the height the two corner
+arcs on a short side meet at a single point, the ring touches itself, and
+`draw_colored_polygon` silently drops the whole polygon while the `draw_polyline`
+that antialiases its edge still draws. The result was white caption text on a
+white cloud, which is precisely the unreadable thing the caption was replacing.
+
+`rounded_rect_polygon` now clamps at 0.499 rather than 0.5.
+
+Permanent lesson:
+Look at it. Nothing about this was visible in the code, in a test, or in a
+described intention — only in a screenshot.
