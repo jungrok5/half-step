@@ -9,6 +9,22 @@
   Validate, test, export the HTML5 build and push it to itch.io with butler.
   Needs `BUTLER_API_KEY`; `--build-only` skips the push.
 
+- `tools/playtest.sh`
+  **Play the game and grade it.** Drives the real scene through the real input
+  path — cold launch, intro, tutorial, thirty honest landings, three late skies,
+  death, card, title menu, codex, memorial, ending — in every language asked
+  for, and photographs each moment. Then measures whether the text on those
+  photographs can actually be read, and whether any translation overflowed the
+  box it was centred in. Writes `findings.md` beside the shots and exits
+  non-zero on a finding.
+
+  `tools/playtest.gd` is the playing half and `tools/playtest_check.py` the
+  grading half; run either alone if you only want one. Neither can tell you
+  whether the game is any *good* — look at the shots for that. What they catch
+  is the class of defect that no gameplay test can see, because it is only
+  visible as pixels: white text on a white cloud, a German string wider than its
+  card, a screen drawn underneath the one it opened.
+
 - `tools/render_snapshots.gd`
   Render one portrait screenshot per sky zone, the result card in both its
   states (before and after the codex opens), the share image, the title, and

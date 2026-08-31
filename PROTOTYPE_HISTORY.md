@@ -585,3 +585,39 @@ white cloud, which is precisely the unreadable thing the caption was replacing.
 Permanent lesson:
 Look at it. Nothing about this was visible in the code, in a test, or in a
 described intention — only in a screenshot.
+
+### A harness that plays the game and grades the photographs (2026-08-29)
+
+Five test suites, all green, and the game still shipped white text on a white
+cloud twice, a codex drawn underneath the title screen that opened it, and a
+Portuguese RETRY button 35% wider than the button. None of those are visible
+anywhere except in pixels, so `tools/playtest.sh` looks at pixels.
+
+`playtest.gd` plays: cold launch, intro, tutorial, thirty landings tapped only
+when a bridge is genuinely in reach, three late skies, a death, the card, the
+title menu, the codex top to bottom, the memorial, the ending — through
+`_input` and `_process`, in every language asked for. `playtest_check.py`
+grades. The trick that makes grading possible is rendering each frame twice,
+the second time with `CssText.debug_tint` forcing every string magenta:
+subtracting the two gives an exact mask of which pixels are text, and each run
+of text can then be measured against the pixels immediately around it.
+
+It found four things on its first three runs, all real, none caught by any test:
+
+- **The tutorial killed the player it was teaching.** After a taught jump it
+  kept re-aiming the bridge the cat was already in the air toward, moving it out
+  from under her.
+- **The title screen drew on top of the codex it had just opened**, because it
+  was added to the tree last. The screens carry explicit `z_index` now.
+- **The score and the zone banner were unreadable over a white cloud.** A
+  one-sided text-shadow is enough over a card and not over a sky that changes
+  from navy to white inside one run. `draw_centered_rimmed` puts a dark rim all
+  the way round; the checker knows about rims, and grades a glyph on the better
+  of "stands against the background" and "stands against its own rim".
+- **Buttons overflowed in four languages.** "Tentar de novo" is 126 px in a
+  93 px button. Labels shrink to fit now, down to a floor, rather than spilling.
+
+Permanent lesson:
+A test suite proves the rules. It cannot tell you the game is legible. Render
+it, and measure the render — the measurement is the part that scales to twelve
+languages, where looking does not.

@@ -12,7 +12,7 @@ extends Node2D
 signal finished
 
 const INK := Color("f6fbff")
-const SKIP := Color(1.0, 1.0, 1.0, 0.62)
+const SKIP := Color(1.0, 1.0, 1.0, 0.92)
 
 var which := "intro"
 var time := 0.0
@@ -40,10 +40,16 @@ func stop() -> void:
 	finished.emit()
 
 
+## What the corner button says. "Skip" is right for a frame that is on its way
+## somewhere; the memorial is not on its way anywhere, so there it closes.
+func corner_key() -> String:
+	return "TAP_TO_CLOSE" if showing_memorial() else "STORY_SKIP"
+
+
 func layout(rect: Rect2) -> void:
 	_rect = rect
-	var label := I18n.t("STORY_SKIP")
-	var width: float = maxf(74.0, CssText.width(label, 11.0, 1.0) + 26.0)
+	var width: float = maxf(74.0, maxf(CssText.width(I18n.t("STORY_SKIP"), 11.0, 1.0),
+		CssText.width(I18n.t("TAP_TO_CLOSE"), 11.0, 1.0)) + 26.0)
 	_skip = Rect2(rect.end.x - width - 18.0, rect.position.y + 26.0, width, 32.0)
 
 
@@ -142,10 +148,13 @@ func _draw() -> void:
 		CssText.draw_centered(self, I18n.t(String(current.text)), 24.0, size.x - 48.0,
 			size.y * 0.72, 17.0, 0.0, Color(INK, eased))
 
+	# A dark plate, not a translucent white one. Two of the ending frames are
+	# nearly white, and a white button on them is a button nobody can see.
 	var skip := Rect2(_skip.position - _rect.position, _skip.size)
-	draw_rect(skip, Color(1.0, 1.0, 1.0, 0.14))
-	CssText.draw_centered(self, I18n.t("STORY_SKIP"), skip.position.x, skip.size.x,
-		skip.position.y + 9.0, 11.0, 1.0, SKIP)
+	var label := I18n.t(corner_key())
+	Shapes.rounded_rect(self, skip, 7.0, Color("0b1526", 0.55))
+	CssText.draw_centered(self, label, skip.position.x, skip.size.x, skip.position.y + 9.0,
+		CssText.fit_size(label, skip.size.x - 12.0, 11.0, 1.0, 8.0), 1.0, SKIP)
 
 	# Which frame of how many, so skipping never feels like leaving something.
 	var dot_y := size.y - 34.0
@@ -218,8 +227,9 @@ func _draw_memorial(size: Vector2, eased: float) -> void:
 	for i in stats.size():
 		var left := card.position.x + 18.0 + float(i % 2) * column
 		var top := card.position.y + stats_top + float(i / 2) * stat_step
-		CssText.draw_centered(self, String(stats[i][0]), left, column, top, 9.0, 1.2,
-			Color(muted, eased))
+		var label := String(stats[i][0])
+		CssText.draw_centered(self, label, left, column, top,
+			CssText.fit_size(label, column - 6.0, 9.0, 1.2, 7.0), 1.2, Color(muted, eased))
 		CssText.draw_centered(self, String(stats[i][1]), left, column,
 			top + CssText.line_height(9.0) + 4.0, 17.0, 0.0, Color(ink, eased))
 

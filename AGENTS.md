@@ -132,6 +132,15 @@ Later improvements that should remain:
 - Keep the audio family coherent.
 - Do not insert random reward chords or unrelated sound effects between landing notes.
 
+### Legibility
+- Text over the playfield is **rimmed, not shadowed** (`CssText.draw_centered_rimmed`).
+  The sky goes from navy to a white cloud inside one run and a one-sided shadow
+  loses to the cloud. Over a card or a plate a shadow is fine.
+- Any label in a fixed-width box goes through `CssText.fit_size`. The game ships
+  in twelve languages; a button sized for "Retry" is 35% too narrow for "Tentar
+  de novo", and that is a layout bug in every future language too.
+- `tools/playtest.sh` measures both. It is not optional after a UI change.
+
 ### Music
 - Every track is C major at A=440, has no percussion and no tempo, and stays out
   of 250–1100 Hz. The cadence accelerates continuously inside one run, so
@@ -408,7 +417,9 @@ After gameplay changes:
 1. Run Godot project import/validation headlessly.
 2. Run deterministic gameplay tests.
 3. Run difficulty curve tests.
-4. Render visual-test screenshots if environment permits.
+4. Run `tools/playtest.sh` — it plays the game, photographs every screen and
+   measures whether the text on them can be read. Look at the shots as well as
+   the findings; it cannot tell you whether the game is any good.
 5. Verify no input lock was introduced.
 6. Verify cadence never decreases during a run.
 7. Verify same-lane consecutive success still works.

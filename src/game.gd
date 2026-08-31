@@ -41,6 +41,13 @@ const FLOW_MS := 380.0
 const HINT_PULSE_MS := 1000.0
 ## How long "now it is your turn" stays up after the taught taps.
 const TUTORIAL_GO_MS := 1500.0
+
+## Which screen covers which. The codex and the cut scenes open over the title,
+## so they have to be drawn over it too.
+const Z_RESULT := 10
+const Z_TITLE := 20
+const Z_CODEX := 30
+const Z_STORY := 40
 const SKY_TRANSITION_MS := 900.0
 const ATMOSPHERE_TRANSITION_MS := 900.0
 const STARS_TRANSITION_MS := 1000.0
@@ -101,6 +108,11 @@ var was_best := false
 ## it told nobody anything. A timing is learned by doing it once.
 enum Tutorial { WAIT, CROSS, CROSS_AGAIN, GO, DONE }
 var tutorial_step := Tutorial.DONE
+## The score this step is allowed to start steering from. A taught tap leaves the
+## cat in the air toward a bridge that is already aimed; steering again before
+## that landing resolves moves it out from under her, which is precisely the
+## death the tutorial exists to prevent.
+var tutorial_from := 0
 ## True while the world is frozen waiting for the tap it just asked for.
 var tutorial_hold := false
 var tutorial_time := 0.0
@@ -218,11 +230,16 @@ func _ready() -> void:
 	if _save.load(SAVE_PATH) == OK:
 		best = int(_save.get_value("score", "best", 0))
 		progress.load_from(_save)
+	# Stacking order, stated. These are siblings, and until this was written the
+	# title screen drew ON TOP of the codex it had just opened, because it was
+	# added last.
 	result_overlay = ResultOverlay.new()
 	result_overlay.visible = false
+	result_overlay.z_index = Z_RESULT
 	add_child(result_overlay)
 	codex_screen = CodexScreen.new()
 	codex_screen.visible = false
+	codex_screen.z_index = Z_CODEX
 	codex_screen.replay_requested.connect(func(sequence: String) -> void:
 		codex_screen.close()
 		play_story(sequence))
@@ -232,6 +249,7 @@ func _ready() -> void:
 	story_screen = StoryScreen.new()
 	story_screen.progress = progress
 	story_screen.visible = false
+	story_screen.z_index = Z_STORY
 	story_screen.finished.connect(func() -> void:
 		# Whatever the sequence was, something is underneath it again: the title
 		# if it was opened from there, otherwise the run. Pick that bed rather
@@ -242,6 +260,7 @@ func _ready() -> void:
 	add_child(story_screen)
 	title_screen = TitleScreen.new()
 	title_screen.visible = false
+	title_screen.z_index = Z_TITLE
 	# Tap the title and the run begins — with the intro in between, once ever.
 	title_screen.started.connect(func() -> void:
 		tone_player.play_cue(AudioBank.CUE_UI)
@@ -289,6 +308,7 @@ func reset() -> void:
 	tutorial_step = Tutorial.DONE if progress.seen_tutorial else Tutorial.WAIT
 	tutorial_hold = false
 	tutorial_time = 0.0
+	tutorial_from = 0
 	run_feats.reset()
 	opened_cats = PackedStringArray()
 	card_index = -1
@@ -703,6 +723,8 @@ func _tutorial_frame(dt: float) -> void:
 				tutorial_step = Tutorial.CROSS
 				tutorial_time = 0.0
 		Tutorial.CROSS, Tutorial.CROSS_AGAIN:
+			if state.score < tutorial_from:
+				return
 			var far := 1 - state.lane
 			state.aim_next_row(base_y(), far)
 			if state.can_cross(base_y(), row_scroll, far):
@@ -711,6 +733,12 @@ func _tutorial_frame(dt: float) -> void:
 				tone_player.play_cue(AudioBank.CUE_UI)
 		Tutorial.GO:
 			tutorial_time += dt
+			# The send-off keeps the bridges straight ahead while it is on
+			# screen. Handing over on a beat that demands a jump the player has
+			# not been watching for is a cheap death thirty seconds into
+			# somebody's first game.
+			if state.score >= tutorial_from:
+				state.aim_next_row(base_y(), state.lane)
 			if tutorial_time >= TUTORIAL_GO_MS:
 				tutorial_step = Tutorial.DONE
 
@@ -728,11 +756,13 @@ func _tutorial_tap() -> bool:
 	tutorial_time = 0.0
 	if tutorial_step == Tutorial.CROSS:
 		tutorial_step = Tutorial.CROSS_AGAIN
+		tutorial_from = state.score + 1
 		return false
 	# Both taught jumps are made, so it is learned — whatever happens to this
 	# run. Dying on the next bridge should not make a player sit through it
 	# again; the send-off line is the only thing still owed.
 	tutorial_step = Tutorial.GO
+	tutorial_from = state.score + 1
 	progress.seen_tutorial = true
 	progress.save_to(_save)
 	_save.save(SAVE_PATH)
@@ -1294,13 +1324,19 @@ func _draw_player() -> void:
 
 
 func _draw_hud(size: Vector2) -> void:
+	# Nothing here is worth drawing once the card is up: it sits behind a blurred
+	# sheet and a panel, and only ever shows as noise around their edges.
+	if death_time >= RESULT_DELAY_MS:
+		return
 	var inset := safe_area_top()
 	# #score{top:max(26px, env(safe-area-inset-top))}
-	CssText.draw_centered_shadowed(self, str(state.score), 0.0, size.x, maxf(26.0, inset), 46.0, -3.0,
-		Color(1.0, 1.0, 1.0), Color(0.0, 0.0, 0.0, 0.16), 4.0)
+	# Rimmed rather than shadowed: the sky behind these two runs from navy to a
+	# white cloud inside one run, and a one-sided shadow loses to the cloud.
+	CssText.draw_centered_rimmed(self, str(state.score), 0.0, size.x, maxf(26.0, inset), 46.0, -3.0,
+		Color(1.0, 1.0, 1.0), Color("06101f", 0.62), 2.5)
 	# #best{top:max(80px, calc(env(safe-area-inset-top) + 54px))}
-	CssText.draw_centered(self, "BEST %d" % best, 0.0, size.x, maxf(80.0, inset + 54.0), 11.0, 1.3,
-		Color(1.0, 1.0, 1.0, 0.84))
+	CssText.draw_centered_rimmed(self, "BEST %d" % best, 0.0, size.x, maxf(80.0, inset + 54.0),
+		11.0, 1.3, Color(1.0, 1.0, 1.0, 0.92), Color("06101f", 0.58), 1.6)
 	_draw_banner(size)
 	_draw_flow(size)
 	if tutorial_step != Tutorial.DONE and state.is_running():
@@ -1321,8 +1357,9 @@ func _draw_banner(size: Vector2) -> void:
 	var top := size.y * 0.20
 	var center := Vector2(size.x * 0.5, top + CssText.line_height(banner_size) * 0.5)
 	_transform(center, 0.0, Vector2(scale, scale))
-	CssText.draw_centered_shadowed(self, banner_text, -size.x * 0.5, size.x, -CssText.line_height(banner_size) * 0.5,
-		banner_size, 3.0, Color(1.0, 1.0, 1.0, alpha), Color(0.0, 0.0, 0.0, 0.18 * alpha), 3.0)
+	CssText.draw_centered_rimmed(self, banner_text, -size.x * 0.5, size.x,
+		-CssText.line_height(banner_size) * 0.5, banner_size, 3.0,
+		Color(1.0, 1.0, 1.0, alpha), Color("06101f", 0.62 * alpha), 2.2)
 	draw_set_transform(_origin)
 
 
@@ -1333,8 +1370,8 @@ func _draw_flow(size: Vector2) -> void:
 	var alpha := CssAnim.track(clampf(flow_time / FLOW_MS, 0.0, 1.0), [0.0, 0.3, 1.0], [0.0, 0.82, 0.0], CssAnim.LINEAR)
 	if alpha <= 0.0:
 		return
-	CssText.draw_centered(self, "FLOW %d" % state.success_streak, 0.0, size.x, size.y * 0.33, 11.0, 1.5,
-		Color(1.0, 1.0, 1.0, alpha))
+	CssText.draw_centered_rimmed(self, "FLOW %d" % state.success_streak, 0.0, size.x,
+		size.y * 0.33, 11.0, 1.5, Color(1.0, 1.0, 1.0, alpha), Color("06101f", 0.66 * alpha), 1.8)
 
 
 ## The tutorial, drawn over the playfield.
@@ -1358,7 +1395,9 @@ func _draw_tutorial(size: Vector2) -> void:
 			alpha = 1.0 - clampf(tutorial_time / TUTORIAL_GO_MS, 0.0, 1.0)
 		_:
 			return
-	_draw_tutorial_line(size, I18n.t(key), size.y * 0.80, 15.0, alpha)
+	var line := I18n.t(key)
+	_draw_tutorial_line(size, line, size.y * 0.80,
+		CssText.fit_size(line, size.x - 76.0, 15.0, 0.0, 10.0), alpha)
 
 
 ## A caption on a plate. White text straight onto the sky is what this whole
@@ -1395,11 +1434,17 @@ func _draw_tutorial_ask(size: Vector2, pulse: float) -> void:
 
 	var key := "TUTORIAL_TAP" if tutorial_step == Tutorial.CROSS else "TUTORIAL_AGAIN"
 	var top := size.y * 0.42
-	CssText.draw_centered_shadowed(self, I18n.t(key), 0.0, size.x, top, 30.0, 1.0,
-		Color(1.0, 1.0, 1.0, lerpf(0.72, 1.0, pulse)), Color(0.0, 0.0, 0.0, 0.45), 4.0)
-	CssText.draw_centered_shadowed(self, I18n.t("TUTORIAL_TAP_SUB"), 0.0, size.x,
-		top + CssText.line_height(30.0) + 10.0, 12.0, 0.6, Color(1.0, 1.0, 1.0, 0.82),
-		Color(0.0, 0.0, 0.0, 0.4), 3.0)
+	var ask := I18n.t(key)
+	var sub := I18n.t("TUTORIAL_TAP_SUB")
+	# Both fitted to the screen. In German the second line is 215 px wider than
+	# the phone, and centred text does not wrap — it just leaves at both edges.
+	var ask_size := CssText.fit_size(ask, size.x - 40.0, 30.0, 1.0, 16.0)
+	CssText.draw_centered_rimmed(self, ask, 0.0, size.x, top, ask_size, 1.0,
+		Color(1.0, 1.0, 1.0, lerpf(0.72, 1.0, pulse)), Color("06101f", 0.72), 3.0)
+	CssText.draw_centered_rimmed(self, sub, 0.0, size.x,
+		top + CssText.line_height(ask_size) + 10.0,
+		CssText.fit_size(sub, size.x - 40.0, 12.0, 0.6, 8.0), 0.6,
+		Color(1.0, 1.0, 1.0, 0.95), Color("06101f", 0.7), 2.0)
 
 
 ## Layout of `#overlay` > `#card` > `.card-inner`, in viewport coordinates.
@@ -1538,9 +1583,21 @@ func draw_result(canvas: CanvasItem) -> void:
 		CssText.draw_at(canvas, I18n.t("TAP_TO_SEE"), row.position + Vector2(42.0, 22.0), 9.0, 1.2,
 			Color("b06a5e"))
 
-	_draw_result_button(canvas, Rect2(layout.home), I18n.t("HOME"), false)
-	_draw_result_button(canvas, Rect2(layout.retry), I18n.t("RETRY"), true)
-	_draw_result_button(canvas, Rect2(layout.share), I18n.t("SHARE"), false)
+	# One size across all three, chosen by whichever label has the least room.
+	# Three buttons in three different sizes reads as a mistake even when every
+	# one of them fits.
+	var buttons := [
+		[Rect2(layout.home), I18n.t("HOME"), false],
+		[Rect2(layout.retry), I18n.t("RETRY"), true],
+		[Rect2(layout.share), I18n.t("SHARE"), false],
+	]
+	var label_size := 14.0
+	for button: Array in buttons:
+		label_size = minf(label_size, CssText.fit_size(String(button[1]),
+			Rect2(button[0]).size.x - 10.0, 14.0, 0.0, 9.0))
+	for button: Array in buttons:
+		_draw_result_button(canvas, Rect2(button[0]), String(button[1]), bool(button[2]),
+			label_size)
 	if not share_status.is_empty():
 		CssText.draw_centered(canvas, share_status, left, content_width,
 			float(layout.status) - _origin.y, 10.0, 0.0, Color("607585"))
@@ -1549,12 +1606,12 @@ func draw_result(canvas: CanvasItem) -> void:
 
 ## One button on the result card. `primary` is the dark one, and there is only
 ## ever one of those.
-func _draw_result_button(canvas: CanvasItem, box: Rect2, label: String, primary: bool) -> void:
+func _draw_result_button(canvas: CanvasItem, box: Rect2, label: String, primary: bool,
+		size: float) -> void:
 	var local := Rect2(box.position - _origin, box.size)
 	canvas.draw_rect(Rect2(local.position + Vector2(0.0, 5.0), local.size),
 		Color("111a21") if primary else Color("c7dce9"))
 	canvas.draw_rect(local, INK if primary else Color("e7f2f9"))
-	var size := 14.0 if local.size.x > 90.0 else 12.0
 	CssText.draw_centered(canvas, label, local.position.x, local.size.x,
 		local.position.y + (50.0 - CssText.line_height(size)) * 0.5, size, 0.0,
 		Color(1.0, 1.0, 1.0) if primary else INK)

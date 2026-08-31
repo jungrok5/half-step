@@ -46,16 +46,16 @@ HOME,Home,홈,ホーム,主页,主頁,Inicio,Início,Accueil,Start,Домой,Be
 LOCKED_SLOTS,Still closed,아직 열지 못한 칸,まだ開いていない枠,尚未开启的格子,尚未開啟的格子,Aún cerrados,Ainda fechados,Encore fermés,Noch verschlossen,Ещё закрыты,Masih terkunci,Vẫn chưa mở
 MEMORIAL_BEST,Farthest,가장 멀리,いちばん遠く,最远,最遠,Lo más lejos,Mais longe,Le plus loin,Am weitesten,Дальше всего,Terjauh,Xa nhất
 MEMORIAL_DAYS,Days together,함께한 날,一緒にいた日,在一起的日子,在一起的日子,Días juntos,Dias juntos,Jours ensemble,Tage zusammen,Дней вместе,Hari bersama,Ngày bên nhau
-MEMORIAL_FALLS,Times she fell,떨어진 횟수,落ちた回数,坠落的次数,墜落的次數,Veces que cayó,Vezes que caiu,Fois où elle est tombée,Mal gefallen,Раз упал,Kali dia jatuh,Số lần rơi
+MEMORIAL_FALLS,Times she fell,떨어진 횟수,落ちた回数,坠落的次数,墜落的次數,Veces que cayó,Vezes que caiu,Chutes,Mal gefallen,Раз упал,Kali dia jatuh,Số lần rơi
 MEMORIAL_LINE_1,Tori went on ahead.,토리는 먼저 갔다.,トリは先に行った。,托里先走了。,托里先走了。,Tori se fue antes.,Tori foi antes.,Tori est parti avant.,Tori ging voraus.,Тори ушёл первым.,Tori pergi lebih dulu.,Tori đã đi trước.
 MEMORIAL_LINE_2,"In this sky, Tori comes to me.","이 하늘에서는, 토리가 나에게 온다.",この空では、トリが僕のところへ来る。,在这片天空里，托里会来找我。,在這片天空裡，托里會來找我。,"En este cielo, Tori viene hacia mí.","Neste céu, Tori vem até mim.","Dans ce ciel, Tori vient vers moi.",In diesem Himmel kommt Tori zu mir.,В этом небе Тори приходит ко мне.,"Di langit ini, Tori datang padaku.","Ở bầu trời này, Tori đến với tôi."
 MEMORIAL_NAME,Tori,토리,トリ,托里,托里,Tori,Tori,Tori,Tori,Тори,Tori,Tori
 MEMORIAL_REPLAY,Tori's record,토리의 기록,トリの記録,托里的记录,托里的記錄,El recuerdo de Tori,A lembrança de Tori,Le souvenir de Tori,Toris Andenken,Память о Тори,Kenangan Tori,Kỷ niệm về Tori
-MEMORIAL_STEPS,Times she came back,달려와준 횟수,駆け寄ってくれた回数,跑向我的次数,跑向我的次數,Veces que volvió,Vezes que voltou,Fois où elle est revenue,Mal zurückgekommen,Раз прибежал,Kali dia kembali,Số lần chạy đến
+MEMORIAL_STEPS,Times she came back,달려와준 횟수,駆け寄ってくれた回数,跑向我的次数,跑向我的次數,Veces que volvió,Vezes que voltou,Retours,Mal zurückgekommen,Раз прибежал,Kali dia kembali,Số lần chạy đến
 NEW_CAT,New cat · %s,새 고양이 · %s,新しい猫 · %s,新猫 · %s,新貓 · %s,Gato nuevo · %s,Gato novo · %s,Nouveau chat · %s,Neue Katze · %s,Новый кот · %s,Kucing baru · %s,Mèo mới · %s
 NEW_CATS,%d new cats,새 고양이 %d마리,新しい猫 %d匹,新猫 %d只,新貓 %d隻,%d gatos nuevos,%d gatos novos,%d nouveaux chats,%d neue Katzen,Новых котов: %d,%d kucing baru,%d mèo mới
 NEXT_MORE,Next · %d more,다음 · %d마리 더,次へ · あと%d匹,下一个 · 还有%d只,下一個 · 還有%d隻,Siguiente · %d más,Próximo · mais %d,Suivant · %d de plus,Weiter · noch %d,Дальше · ещё %d,Berikutnya · %d lagi,Tiếp · còn %d
-RETRY,Retry,다시하기,もう一度,再来一次,再來一次,Reintentar,Tentar de novo,Rejouer,Nochmal,Ещё раз,Coba lagi,Chơi lại
+RETRY,Retry,다시하기,もう一度,再来一次,再來一次,Reintentar,Repetir,Rejouer,Nochmal,Ещё раз,Coba lagi,Chơi lại
 RUN_ENDED,"Just a little further, Tori.","조금만 더, 토리.",もう少しだけ、トリ。,再走一点，托里。,再走一點，托里。,"Un poco más, Tori.","Só mais um pouco, Tori.","Encore un peu, Tori.","Nur noch ein Stück, Tori.","Ещё немного, Тори.","Sedikit lagi, Tori.","Chỉ một chút nữa, Tori."
 SECTION_FEAT,Touch,손끝,指先,指尖,指尖,Pulso,Toque,Doigté,Fingerspitzen,Мастерство,Sentuhan,Ngón tay
 SECTION_FEAT_NOTE,A feat inside one run,한 판 안의 위업,1回の中の偉業,单局中的壮举,單局中的壯舉,Una hazaña en una partida,Um feito numa partida,Un exploit en une partie,Eine Leistung in einem Lauf,Подвиг за один забег,Prestasi dalam satu ronde,Kỳ tích trong một lượt

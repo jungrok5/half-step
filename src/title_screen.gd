@@ -108,8 +108,11 @@ func _draw() -> void:
 	draw_set_transform(_rect.position)
 	# A wash so the wordmark holds against whatever sky is behind it, without
 	# hiding the motion that makes the screen feel alive.
+	# Deep enough at the top that the wordmark and its subtitle hold against a
+	# white cloud drifting behind them, and deep again at the bottom for the
+	# menu. The middle is left open so the sky is still visibly moving.
 	CssPaint.linear_gradient(self, Rect2(Vector2.ZERO, size), 180.0, [
-		[0.0, Color("0b1526", 0.52)], [0.55, Color("0b1526", 0.16)], [1.0, Color("0b1526", 0.62)],
+		[0.0, Color("0b1526", 0.66)], [0.42, Color("0b1526", 0.30)], [1.0, Color("0b1526", 0.72)],
 	])
 
 	var centre := size * Vector2(0.5, 0.26)
@@ -122,8 +125,8 @@ func _draw() -> void:
 	else:
 		CssText.draw_centered(self, I18n.t("TITLE"), 0.0, size.x,
 			centre.y - CssText.line_height(56.0) * 0.5, 56.0, 6.0, INK)
-	CssText.draw_centered(self, I18n.t("SUBTITLE"), 0.0, size.x,
-		centre.y + 44.0, 15.0, 2.4, Color(INK, 0.82))
+	CssText.draw_centered_rimmed(self, I18n.t("SUBTITLE"), 0.0, size.x,
+		centre.y + 44.0, 15.0, 2.4, Color(INK, 0.92), Color("06101f", 0.55), 1.8)
 
 	# Tori waiting on a bridge, breathing. The tail sway is the game's own.
 	var deck := Rect2(Vector2(size.x * 0.5 - 43.0, size.y * 0.48), Vector2(86.0, 28.0))
@@ -138,7 +141,7 @@ func _draw() -> void:
 	var half := clampf(time / PULSE_MS, 0.0, 1.0)
 	var pulse := half * 2.0 if half <= 0.5 else (1.0 - half) * 2.0
 	var start := I18n.t("TAP_TO_START")
-	var lit := lerpf(0.45, 0.95, CssAnim.curve(CssAnim.EASE, pulse))
+	var lit := lerpf(0.62, 1.0, CssAnim.curve(CssAnim.EASE, pulse))
 	var start_top := size.y * 0.60
 	# On a plate, like everything else on this screen: the sky behind it is the
 	# live playfield and half the time that means a white cloud.
@@ -162,12 +165,15 @@ func _draw_row(box: Rect2, row: Dictionary) -> void:
 	Shapes.rounded_rect(self, box, 8.0, Color("0b1526", 0.62 if open else 0.38))
 	if open:
 		draw_rect(box, Color(1.0, 1.0, 1.0, 0.18), false, 1.0)
-	var label := I18n.t(String(row.key))
-	CssText.draw_at(self, label, box.position + Vector2(16.0, 14.0), 13.0, 0.8,
-		Color(INK, 0.95 if open else 0.5))
 	var note := String(row.note) if open else I18n.t("CODEX_LOCKED")
+	var note_width := CssText.width(note, 10.0, 1.0) if not note.is_empty() else 0.0
+	# The label gets whatever the note does not need. In German the note is half
+	# the row, and a label drawn at a fixed size would run straight under it.
+	var label := I18n.t(String(row.key))
+	var label_size := CssText.fit_size(label, box.size.x - note_width - 42.0, 13.0, 0.8, 9.0)
+	CssText.draw_at(self, label, box.position + Vector2(16.0, 14.0), label_size, 0.8,
+		Color(INK, 0.95 if open else 0.66))
 	if note.is_empty():
 		return
-	var width := CssText.width(note, 10.0, 1.0)
-	CssText.draw_at(self, note, box.position + Vector2(box.size.x - width - 16.0, 17.0), 10.0, 1.0,
-		Color(INK, 0.7 if open else 0.5))
+	CssText.draw_at(self, note, box.position + Vector2(box.size.x - note_width - 16.0, 17.0),
+		10.0, 1.0, Color(INK, 0.78 if open else 0.62))
