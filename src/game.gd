@@ -755,7 +755,18 @@ func _tutorial_frame(dt: float) -> void:
 ## The taught tap. Returns true when it was the tutorial's, so the caller knows
 ## the jump has been dealt with.
 func _tutorial_tap() -> bool:
-	if tutorial_step == Tutorial.DONE or tutorial_step == Tutorial.GO:
+	if tutorial_step == Tutorial.DONE:
+		return false
+	if tutorial_step == Tutorial.GO:
+		# The send-off keeps the bridges straight ahead so an unwatched beat
+		# cannot kill — which, on its own, made the first tap the player took on
+		# their own a jump at nothing. The game says "now it is your turn" and
+		# then punishes the turn. So the bridge follows a well-timed tap.
+		#
+		# A mistimed one still fails, and should: that is the whole lesson, and
+		# it was just taught twice.
+		if state.next_row_in_reach(base_y(), row_scroll):
+			state.aim_next_row(base_y(), 1 - state.lane)
 		return false
 	if not tutorial_hold:
 		# While the tutorial is asking for one specific tap, every other tap is

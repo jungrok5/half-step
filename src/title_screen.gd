@@ -30,6 +30,10 @@ const PULSE_MS := 1600.0
 const ROW_HEIGHT := 42.0
 const ROW_GAP := 8.0
 const ROW_INSET := 42.0
+## How much room is left under the last row. Roughly a phone's home indicator:
+## a tappable row flush with the bottom of the screen is a row that competes
+## with the system gesture for the same thumb.
+const BOTTOM_MARGIN := 38.0
 
 var progress: Progress
 var time := 0.0
@@ -38,6 +42,12 @@ var _rect := Rect2()
 var _texture: Texture2D = null
 var _looked := false
 var _rows: Array[Dictionary] = []
+## Laid out in [method layout], read by [method _draw]: the screen is sized from
+## the menu upward, so drawing must not re-derive any of it.
+var _menu_top := 0.0
+var _start_top := 0.0
+var _deck_top := 0.0
+var _title_y := 0.0
 
 
 func open(from: Progress, rect: Rect2) -> void:
@@ -70,12 +80,23 @@ func layout(rect: Rect2) -> void:
 	if seen_ending:
 		_rows.append({"id": "ending", "key": "STORY_ENDING_REPLAY", "note": "", "open": true})
 		_rows.append({"id": "memorial", "key": "MEMORIAL_REPLAY", "note": "", "open": true})
+	# Stacked up from the bottom, not down from a fraction of the height. The
+	# viewport is 390 units wide and its height follows the real aspect ratio
+	# (`keep_width`), so a 4:3 tablet in portrait is 390x520 — and a menu
+	# anchored at 70% of that put its last row off the bottom of the screen.
 	var width: float = minf(rect.size.x - ROW_INSET * 2.0, 300.0)
 	var left := rect.position.x + (rect.size.x - width) * 0.5
-	var top := rect.position.y + rect.size.y * 0.70
+	var block := float(_rows.size()) * ROW_HEIGHT + float(maxi(_rows.size() - 1, 0)) * ROW_GAP
+	_menu_top = rect.size.y - BOTTOM_MARGIN - block
 	for i in _rows.size():
-		_rows[i]["rect"] = Rect2(Vector2(left, top + float(i) * (ROW_HEIGHT + ROW_GAP)),
+		_rows[i]["rect"] = Rect2(
+			Vector2(left, rect.position.y + _menu_top + float(i) * (ROW_HEIGHT + ROW_GAP)),
 			Vector2(width, ROW_HEIGHT))
+	# Everything above the menu hangs off it, so a short screen tightens rather
+	# than overlapping.
+	_start_top = _menu_top - 38.0
+	_deck_top = _start_top - 52.0
+	_title_y = minf(rect.size.y * 0.26, _deck_top - 78.0)
 
 
 func advance(delta_ms: float) -> void:
@@ -115,7 +136,7 @@ func _draw() -> void:
 		[0.0, Color("0b1526", 0.66)], [0.42, Color("0b1526", 0.30)], [1.0, Color("0b1526", 0.72)],
 	])
 
-	var centre := size * Vector2(0.5, 0.26)
+	var centre := Vector2(size.x * 0.5, _title_y)
 	var mark := _wordmark()
 	if mark != null:
 		var source := Vector2(mark.get_size())
@@ -129,7 +150,7 @@ func _draw() -> void:
 		centre.y + 44.0, 15.0, 2.4, Color(INK, 0.92), Color("06101f", 0.55), 1.8)
 
 	# Tori waiting on a bridge, breathing. The tail sway is the game's own.
-	var deck := Rect2(Vector2(size.x * 0.5 - 43.0, size.y * 0.48), Vector2(86.0, 28.0))
+	var deck := Rect2(Vector2(size.x * 0.5 - 43.0, _deck_top), Vector2(86.0, 28.0))
 	Shapes.rounded_rect(self, Rect2(deck.position + Vector2(0.0, 7.0), deck.size), 9.0,
 		Color("151d24", 0.5))
 	Shapes.rounded_rect(self, deck, 9.0, Color("2b3846"))
@@ -142,7 +163,7 @@ func _draw() -> void:
 	var pulse := half * 2.0 if half <= 0.5 else (1.0 - half) * 2.0
 	var start := I18n.t("TAP_TO_START")
 	var lit := lerpf(0.62, 1.0, CssAnim.curve(CssAnim.EASE, pulse))
-	var start_top := size.y * 0.60
+	var start_top := _start_top
 	# On a plate, like everything else on this screen: the sky behind it is the
 	# live playfield and half the time that means a white cloud.
 	var start_width := CssText.width(start, 13.0, 3.0)

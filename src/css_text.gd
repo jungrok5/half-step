@@ -114,7 +114,11 @@ static func fit_size(text: String, box_width: float, size: float, letter_spacing
 static func draw_at(canvas: CanvasItem, text: String, origin: Vector2, size: float, letter_spacing: float, color: Color) -> void:
 	var f := font()
 	if debug_tint.a > 0.0:
-		color = debug_tint
+		# Multiplied into the alpha, not laid over it. A string drawn at alpha 0
+		# is invisible and must stay invisible in the tinted render too, or the
+		# checker finds text in the mask that nobody can see and calls the frame
+		# unreadable.
+		color = Color(debug_tint.r, debug_tint.g, debug_tint.b, debug_tint.a * color.a)
 	var pen := Vector2(origin.x, origin.y + baseline(size))
 	if not I18n.letters_separable():
 		# Arabic joins its letters and Indic scripts form clusters, so splitting
@@ -130,21 +134,32 @@ static func draw_at(canvas: CanvasItem, text: String, origin: Vector2, size: flo
 ## `text-align:center` inside a box spanning [param left] .. [param left]+[param box_width].
 static func draw_centered(canvas: CanvasItem, text: String, left: float, box_width: float, top: float, size: float, letter_spacing: float, color: Color) -> void:
 	var text_width := width(text, size, letter_spacing)
-	if recording and text_width > box_width + 0.5:
-		var locale := TranslationServer.get_locale()
-		# Unit separator, not NUL: a NUL inside a GDScript string makes the
-		# parser replace characters and warn on every load.
-		var key := "%s\u001f%s\u001f%d" % [locale, text, int(box_width)]
-		if not _overflowed.has(key):
-			_overflowed[key] = true
-			overflows.append({
-				"text": text,
-				"locale": locale,
-				"width": text_width,
-				"box": box_width,
-				"size": size,
-			})
+	note_overflow(text, text_width, box_width, size)
 	draw_at(canvas, text, Vector2(left + (box_width - text_width) * 0.5, top), size, letter_spacing, color)
+
+
+## Records a string that did not fit the box it was centred in.
+##
+## Called by every centring path, the rimmed one included: the HUD moved onto
+## that path and would otherwise have dropped out of the check that exists for
+## exactly those strings.
+static func note_overflow(text: String, text_width: float, box_width: float, size: float) -> void:
+	if not recording or text_width <= box_width + 0.5:
+		return
+	var locale := TranslationServer.get_locale()
+	# Unit separator, not NUL: a NUL inside a GDScript string makes the parser
+	# replace characters and warn on every load.
+	var key := "%s\u001f%s\u001f%d" % [locale, text, int(box_width)]
+	if _overflowed.has(key):
+		return
+	_overflowed[key] = true
+	overflows.append({
+		"text": text,
+		"locale": locale,
+		"width": text_width,
+		"box": box_width,
+		"size": size,
+	})
 
 
 ## Centred text with a dark rim all the way round it.
@@ -160,6 +175,7 @@ static func draw_centered_rimmed(canvas: CanvasItem, text: String, left: float, 
 		top: float, size: float, letter_spacing: float, color: Color, rim: Color,
 		thickness := 2.0) -> void:
 	var text_width := width(text, size, letter_spacing)
+	note_overflow(text, text_width, box_width, size)
 	var origin := Vector2(left + (box_width - text_width) * 0.5, top)
 	for step in 8:
 		var angle := TAU * float(step) / 8.0

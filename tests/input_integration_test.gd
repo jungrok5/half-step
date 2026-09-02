@@ -94,12 +94,62 @@ func _test_tutorial(game: Node) -> void:
 		guard += 1
 	expect(int(game.get("tutorial_step")) == 3, "two taught jumps and it hands over")
 	expect(state.is_running(), "with the run still alive")
+
+	# The send-off keeps the bridges straight ahead so an unwatched beat cannot
+	# kill. That must not turn the first tap the player takes on their own into
+	# a jump at nothing: the game says "now it is your turn" and would then
+	# punish the turn. A well-timed tap during it lands.
+	guard = 0
+	while not state.can_cross(game.call("base_y"), game.get("row_scroll"), 1 - state.lane) \
+			and not state.next_row_in_reach(game.call("base_y"), game.get("row_scroll")) \
+			and guard < 400:
+		game.call("_process", 0.008)
+		guard += 1
+	var lane_before := state.lane
+	press_touch(game, Vector2(195, 400))
+	expect(state.lane != lane_before, "a tap during the send-off is a real jump")
+	expect(not bool(game.get("doomed_leap")), "and it is not a jump at nothing")
+	guard = 0
+	var scored := state.score
+	while state.is_running() and state.score == scored and guard < 400:
+		game.call("_process", 0.008)
+		guard += 1
+	expect(state.is_running(), "the bridge is there when the cat comes down")
 	# Learned is learned. Dying on the next bridge must not make this player sit
 	# through the whole thing again.
 	expect(progress.seen_tutorial, "and it is marked learned there, not later")
 	game.call("die")
 	game.call("reset")
 	expect(int(game.get("tutorial_step")) == 4, "so the next run is the player's own")
+
+
+## Every screen has to fit a screen. The viewport is 390 units wide and its
+## height follows the real aspect ratio, so a 4:3 tablet in portrait is 390x520
+## — and both the title menu and the memorial card used to run off the bottom
+## of it.
+func _test_short_screen(game: Node) -> void:
+	var progress: Progress = game.get("progress")
+	progress.seen_ending = true
+	progress.seen_intro = true
+	var title: Node = game.get("title_screen")
+	var story: Node = game.get("story_screen")
+	for height: float in [844.0, 640.0, 520.0, 487.0]:
+		var rect := Rect2(Vector2.ZERO, Vector2(390.0, height))
+		title.call("layout", rect)
+		for row in title.get("_rows"):
+			var box := Rect2(row.rect)
+			expect(box.end.y <= height,
+				"the %s row fits a %dpx screen, ends at %d" % [row.id, int(height), int(box.end.y)])
+			expect(box.position.y >= 0.0, "and starts on it")
+		story.call("play", "memorial", rect)
+		story.set("frame", 0)
+		story.set("time", StoryConfig.FADE_MS)
+		var card: Rect2 = story.call("_memorial_layout", rect.size).card
+		expect(card.position.y >= 0.0 and card.end.y <= height,
+			"the memorial fits a %dpx screen, %d..%d" % [int(height), int(card.position.y),
+				int(card.end.y)])
+		story.call("stop")
+	title.call("layout", game.call("game_rect"))
 
 
 ## The title menu row with [param id], or an empty rect when it is not offered.
@@ -321,6 +371,7 @@ func _run() -> void:
 		"and music goes back to whatever is underneath it")
 
 	_test_tutorial(game)
+	_test_short_screen(game)
 
 	root.remove_child(game)
 	game.free()

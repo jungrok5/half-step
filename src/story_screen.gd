@@ -173,25 +173,19 @@ func _draw() -> void:
 func _draw_memorial(size: Vector2, eased: float) -> void:
 	var ink := Color("2b3a49")
 	var muted := Color("5f7789")
-	var width: float = minf(size.x * 0.84, 352.0)
-	var radius: float = minf(width * 0.30, 104.0)
-
-	# Laid out top down first, so the card is exactly as tall as what is on it.
-	# A fixed height leaves a slab of empty paper under the last number, which
-	# is the one thing on this screen that would look careless.
-	var portrait_top := 34.0
-	var name_top := portrait_top + radius * 2.0 + 24.0
-	var date_top := name_top + CssText.line_height(22.0) + 4.0
-	var rule_top := date_top + CssText.line_height(12.0) + 18.0
-	var lines_top := rule_top + 18.0
-	var line_step := CssText.line_height(13.0) + 6.0
-	var stats_top := lines_top + line_step * 2.0 + 14.0
-	var stat_step := CssText.line_height(9.0) + 4.0 + CssText.line_height(17.0) + 14.0
-	var note_top := stats_top + stat_step * 2.0 + 6.0
-	var height := note_top + CssText.line_height(10.0) + 30.0
-
-	var card := Rect2(Vector2((size.x - width) * 0.5, maxf(18.0, (size.y - height) * 0.44)),
-		Vector2(width, height))
+	var laid := _memorial_layout(size)
+	var card: Rect2 = laid.card
+	var width := card.size.x
+	var radius: float = laid.radius
+	var portrait_top: float = laid.portrait
+	var name_top: float = laid.name
+	var date_top: float = laid.date
+	var rule_top: float = laid.rule
+	var lines_top: float = laid.lines
+	var line_step: float = laid.line_step
+	var stats_top: float = laid.stats
+	var stat_step: float = laid.stat_step
+	var note_top: float = laid.note
 	# A lamp behind the card, so the last sky of the ending warms toward the
 	# room the story started in instead of staying out in the cold.
 	CssPaint.radial_gradient_at(self, card.get_center() - Vector2(0.0, card.size.y * 0.22),
@@ -237,6 +231,53 @@ func _draw_memorial(size: Vector2, eased: float) -> void:
 	# walk is finished, and now there are other cats to walk it with.
 	CssText.draw_centered(self, I18n.t("CODEX_OPENED"), card.position.x + 18.0, width - 36.0,
 		card.position.y + note_top, 10.0, 1.4, Color(muted, eased))
+
+
+## The memorial card and everything on it, for a screen of [param size].
+##
+## Kept apart from drawing so it can be checked without rendering a frame. The
+## card is laid out top down and is exactly as tall as what is on it: a fixed
+## height leaves a slab of empty paper under the last number, which is the one
+## thing on this screen that would look careless.
+##
+## Laid out twice when it has to be, because the portrait is the only part that
+## can give. The viewport is 390 units wide and its height follows the real
+## aspect ratio, so a 4:3 tablet in portrait is 390x520 and the card at its full
+## size runs off the bottom.
+func _memorial_layout(size: Vector2) -> Dictionary:
+	var width: float = minf(size.x * 0.84, 352.0)
+	var radius: float = minf(width * 0.30, 104.0)
+	var laid := _memorial_offsets(radius)
+	var available := size.y - 36.0
+	if float(laid.height) > available:
+		radius = maxf(46.0, radius - (float(laid.height) - available) * 0.5)
+		laid = _memorial_offsets(radius)
+	var height: float = laid.height
+	laid["radius"] = radius
+	laid["card"] = Rect2(
+		Vector2((size.x - width) * 0.5,
+			clampf((size.y - height) * 0.44, 18.0, maxf(18.0, size.y - height - 18.0))),
+		Vector2(width, height))
+	return laid
+
+
+## Where everything on the card sits, given a portrait of [param radius].
+func _memorial_offsets(radius: float) -> Dictionary:
+	var portrait_top := 34.0
+	var name_top := portrait_top + radius * 2.0 + 24.0
+	var date_top := name_top + CssText.line_height(22.0) + 4.0
+	var rule_top := date_top + CssText.line_height(12.0) + 18.0
+	var lines_top := rule_top + 18.0
+	var line_step := CssText.line_height(13.0) + 6.0
+	var stats_top := lines_top + line_step * 2.0 + 14.0
+	var stat_step := CssText.line_height(9.0) + 4.0 + CssText.line_height(17.0) + 14.0
+	var note_top := stats_top + stat_step * 2.0 + 6.0
+	return {
+		"portrait": portrait_top, "name": name_top, "date": date_top, "rule": rule_top,
+		"lines": lines_top, "line_step": line_step, "stats": stats_top,
+		"stat_step": stat_step, "note": note_top,
+		"height": note_top + CssText.line_height(10.0) + 30.0,
+	}
 
 
 ## Label and value for each memorial number. Falls (the runs that ended) and the
