@@ -621,3 +621,26 @@ Permanent lesson:
 A test suite proves the rules. It cannot tell you the game is legible. Render
 it, and measure the render — the measurement is the part that scales to twelve
 languages, where looking does not.
+
+### Being kind to the player twice, and being wrong twice (2026-08-31)
+
+The tutorial hands over with "now it is your turn", and the first version of
+that handover kept the bridges straight ahead for a second and a half so an
+unwatched beat could not kill anybody. It made every tap during that second and
+a half a jump into an empty lane. The game invited the turn and then punished
+it, 100% of the time.
+
+The fix for that made the bridge follow a well-timed tap. That teleported a
+bridge the player was looking at from one lane to the other, and rescued the tap
+only until the caption expired — the same betrayal, moved 1.5 seconds later.
+
+Neither was necessary. Driving 40 seeded handovers with a player who taps when a
+bridge is actually in reach: **zero deaths, and 269 ms of crossing window.** The
+thing that had died in the original harness run was the harness, which was not
+tapping at all. The send-off is a caption now and steers nothing.
+
+Permanent lesson:
+Measure the unfairness before compensating for it. Two rounds of increasingly
+clever protection were spent on a problem that a forty-run probe showed did not
+exist — and each round of protection was itself a worse bug than the one it was
+imagined to prevent.

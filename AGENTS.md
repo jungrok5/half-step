@@ -74,6 +74,13 @@ The core game must remain small. Do not add systems merely to create content.
   suspended for three beats on one run, ever.
 - It is marked learned the moment the second taught jump lands, not when the
   send-off line finishes: dying on the next bridge must not replay it.
+- **The send-off steers nothing.** Two versions of it aimed the bridges to be
+  kind and both were worse than the thing they avoided: straight ahead made
+  every tap a jump at nothing, and aiming at the tap teleported a bridge the
+  player was watching and rescued a well-timed tap only until the caption
+  expired. Measured over 40 seeded handovers with a player who taps when a
+  bridge is in reach: 0 deaths, 269 ms of window. There is nothing to protect
+  the player from here.
 
 ## 3. Explicitly rejected designs
 

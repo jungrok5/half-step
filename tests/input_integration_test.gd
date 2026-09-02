@@ -95,26 +95,27 @@ func _test_tutorial(game: Node) -> void:
 	expect(int(game.get("tutorial_step")) == 3, "two taught jumps and it hands over")
 	expect(state.is_running(), "with the run still alive")
 
-	# The send-off keeps the bridges straight ahead so an unwatched beat cannot
-	# kill. That must not turn the first tap the player takes on their own into
-	# a jump at nothing: the game says "now it is your turn" and would then
-	# punish the turn. A well-timed tap during it lands.
+	# The send-off steers nothing. Two earlier versions of it did, to be kind,
+	# and both were worse than the thing they avoided — see the comment on
+	# `Tutorial.GO`. What it must not do is make the ordinary rules stop
+	# applying: a well-timed tap during it works, and it works the same way it
+	# will a second later when the caption is gone.
 	guard = 0
 	while not state.can_cross(game.call("base_y"), game.get("row_scroll"), 1 - state.lane) \
-			and not state.next_row_in_reach(game.call("base_y"), game.get("row_scroll")) \
-			and guard < 400:
+			and guard < 600:
 		game.call("_process", 0.008)
 		guard += 1
+	expect(guard < 600, "a crossing comes up during or just after the send-off")
 	var lane_before := state.lane
 	press_touch(game, Vector2(195, 400))
 	expect(state.lane != lane_before, "a tap during the send-off is a real jump")
-	expect(not bool(game.get("doomed_leap")), "and it is not a jump at nothing")
+	expect(not bool(game.get("doomed_leap")), "made at a moment the rules allow")
 	guard = 0
 	var scored := state.score
 	while state.is_running() and state.score == scored and guard < 400:
 		game.call("_process", 0.008)
 		guard += 1
-	expect(state.is_running(), "the bridge is there when the cat comes down")
+	expect(state.is_running(), "so the bridge is there when the cat comes down")
 	# Learned is learned. Dying on the next bridge must not make this player sit
 	# through the whole thing again.
 	expect(progress.seen_tutorial, "and it is marked learned there, not later")

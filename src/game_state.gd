@@ -178,17 +178,6 @@ func can_cross(base_y: float, scroll: float, target_lane: int) -> bool:
 	return cross_depth(base_y, scroll, target_lane) >= 0.0
 
 
-## True when the arriving bridge is close enough to jump onto at all, whichever
-## lane it happens to be on. [method cross_depth] answers the same question only
-## for a lane the bridge is already on, which cannot tell a mistimed tap from a
-## tap toward the wrong side.
-func next_row_in_reach(base_y: float, scroll: float) -> bool:
-	var index := nearest_row_index(base_y)
-	if index < 0:
-		return false
-	return base_y - (float(rows[index].y) + scroll) <= CROSS_REACH
-
-
 ## Puts the bridge the cat is about to reach on [param lane]. Returns false when
 ## there is no unresolved row left to aim.
 ##

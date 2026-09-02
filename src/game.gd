@@ -521,13 +521,16 @@ func _process(delta: float) -> void:
 		return
 	_advance_timers(dt)
 	if state.is_running():
-		if tutorial_step != Tutorial.DONE:
-			_tutorial_frame(dt)
 		update_background(dt)
 		state.step_timer += dt
 		while state.step_timer >= state.step_interval and state.is_running():
 			state.step_timer -= state.step_interval
 			resolve_beat()
+		# After the beat, not before it. A landing promotes a fresh row to
+		# nearest, and steering it on the next frame instead of this one draws
+		# it on its generated lane for one frame and then snaps it across.
+		if state.is_running() and tutorial_step != Tutorial.DONE:
+			_tutorial_frame(dt)
 		if state.is_running():
 			row_scroll = HalfStepState.ROW_SPACING * step_phase()
 		if state.score >= StoryConfig.EPILOGUE_SCORE and not progress.seen_epilogue:
@@ -741,13 +744,17 @@ func _tutorial_frame(dt: float) -> void:
 				tutorial_time = 0.0
 				tone_player.play_cue(AudioBank.CUE_UI)
 		Tutorial.GO:
+			# Nothing but a caption counting itself down. Two earlier versions
+			# of this step steered the bridges to be kind, and both were worse
+			# than the thing they were avoiding: aiming them straight ahead made
+			# every tap a jump at nothing, and aiming them at the tap teleported
+			# a bridge the player was looking at — and rescued a well-timed tap
+			# only until the caption expired, which is the same betrayal 1.5
+			# seconds later.
+			#
+			# The player has just made two guided crossings and has a full beat
+			# to read the next one. That is the game, and it starts here.
 			tutorial_time += dt
-			# The send-off keeps the bridges straight ahead while it is on
-			# screen. Handing over on a beat that demands a jump the player has
-			# not been watching for is a cheap death thirty seconds into
-			# somebody's first game.
-			if state.score >= tutorial_from:
-				state.aim_next_row(base_y(), state.lane)
 			if tutorial_time >= TUTORIAL_GO_MS:
 				tutorial_step = Tutorial.DONE
 
@@ -758,15 +765,6 @@ func _tutorial_tap() -> bool:
 	if tutorial_step == Tutorial.DONE:
 		return false
 	if tutorial_step == Tutorial.GO:
-		# The send-off keeps the bridges straight ahead so an unwatched beat
-		# cannot kill — which, on its own, made the first tap the player took on
-		# their own a jump at nothing. The game says "now it is your turn" and
-		# then punishes the turn. So the bridge follows a well-timed tap.
-		#
-		# A mistimed one still fails, and should: that is the whole lesson, and
-		# it was just taught twice.
-		if state.next_row_in_reach(base_y(), row_scroll):
-			state.aim_next_row(base_y(), 1 - state.lane)
 		return false
 	if not tutorial_hold:
 		# While the tutorial is asking for one specific tap, every other tap is
