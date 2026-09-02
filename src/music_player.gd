@@ -34,6 +34,13 @@ func play(id: String) -> void:
 		return
 	var stream := AudioBank.music(id)
 	track = id
+	# A track nobody has heard is cut, not crossfaded. `_fade` is still 0 when
+	# two switches land in the same frame — `reset()` picks the bed for the
+	# score and then the title asks for its own — and fading out a player that
+	# has not started ramping up walks it to FULL volume on its way out. That is
+	# a burst of gameplay music over the title screen.
+	if _fade <= 0.0:
+		_players[_active].stop()
 	if stream == null:
 		# No file for this band yet: fade out rather than cut, so the bands that
 		# do have music do not end abruptly at the boundary.

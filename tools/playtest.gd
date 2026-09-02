@@ -58,6 +58,11 @@ func _run() -> void:
 func _session(locale: String) -> void:
 	I18n.use(locale)
 	var game: Node = load("res://scenes/main.tscn").instantiate()
+	# Set before the node enters the tree, because `_ready` is where the save is
+	# first touched. This harness finishes runs and plays cut scenes to the end,
+	# all of which write progress; on the real path it would eat a developer's
+	# game every time it ran.
+	game.set("save_path", "user://playtest.cfg")
 	root.add_child(game)
 	await process_frame
 	# The engine's own `_process` is turned off and every frame is stepped by

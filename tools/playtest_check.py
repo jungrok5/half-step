@@ -20,7 +20,7 @@ which any gameplay test can see:
              `CssText` while the harness plays, and reported here so one command
              covers the whole pass.
 
-Exit code is the number of findings, so this can gate a build.
+Exits non-zero when there is something to fix, so this can gate a build.
 
 It is plain Python over every pixel of every shot — a few seconds per screen, a
 few minutes for all twelve languages. That is why `playtest.sh` defaults to four
@@ -216,7 +216,10 @@ def main() -> int:
         lines.append("")
     (directory / "findings.md").write_text("\n".join(lines))
     print("\n".join(lines))
-    return len(hard)
+    print(f"\n{len(hard)} to fix, {len(findings) - len(hard)} marginal")
+    # 1 or 0, not the count: an exit status is eight bits, and 256 findings
+    # would come back as a pass.
+    return 1 if hard else 0
 
 
 if __name__ == "__main__":

@@ -143,6 +143,50 @@ func _test_every_slot_has_a_prompt() -> void:
 		expect(brief.contains("music/%s.ogg" % id), "music/%s.ogg has a prompt" % id)
 
 
+## Two switches in one frame must not walk the first track up to full volume on
+## its way out.
+##
+## `reset()` picks the bed for the current score and the title screen then asks
+## for its own, both before a frame is drawn. Crossfading the first one out ramps
+## it from silence to full and back, which is a burst of gameplay music over the
+## title — the one screen that is supposed to be quiet.
+func _test_music_switch() -> void:
+	var music := MusicPlayer.new()
+	root.add_child(music)
+	await process_frame
+	# A real stream in the slots, because the bug only exists on the path where
+	# there is something to play. Half a second of silence is enough.
+	var sample := AudioStreamWAV.new()
+	sample.format = AudioStreamWAV.FORMAT_16_BITS
+	sample.mix_rate = 22050
+	sample.data = PackedByteArray()
+	sample.data.resize(22050)
+	for id: String in ["day", "title"]:
+		AudioBank._cache["%s/%s.ogg" % [AudioBank.MUSIC_DIR, id]] = sample
+
+	music.play("day")
+	var started := music._players[music._active]
+	expect(started.playing, "the first track starts")
+	music.play(AudioBank.MUSIC_TITLE)
+	expect(music.track == AudioBank.MUSIC_TITLE, "the second switch takes")
+	expect(not started.playing,
+		"and the track nobody has heard yet is cut rather than faded out through full volume")
+	expect(music._players[music._active].playing, "while the new one plays")
+
+	# A switch made after the crossfade has actually run does fade, because by
+	# then the outgoing track is something the player is listening to.
+	music._fade = 1.0
+	var heard := music._players[music._active]
+	music.play("day")
+	expect(heard.playing, "a track that has been heard is faded out, not cut")
+
+	music.stop()
+	root.remove_child(music)
+	music.free()
+	for id: String in ["day", "title"]:
+		AudioBank._cache.erase("%s/%s.ogg" % [AudioBank.MUSIC_DIR, id])
+
+
 func _run() -> void:
 	var player := TonePlayer.new()
 	root.add_child(player)
@@ -173,6 +217,7 @@ func _run() -> void:
 	_test_cross(player)
 	_test_audio_bank()
 	_test_every_slot_has_a_prompt()
+	await _test_music_switch()
 	render(player, 0.05)
 
 	# Notes overlap rather than cut each other off once the cadence is short.

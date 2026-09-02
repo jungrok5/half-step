@@ -39,13 +39,18 @@ static var _font: Font
 ## which pixels are text. See PROTOTYPE_HISTORY.md on white-on-white.
 static var recording := false
 static var debug_tint := Color(0.0, 0.0, 0.0, 0.0)
-## Strings whose measured width did not fit the box they were centred in.
+## Strings whose measured width did not fit the box they were centred in, one
+## entry each. The same frame is drawn hundreds of times over a session and
+## twice per capture, so without this the report is one finding repeated a
+## thousand times.
 static var overflows: Array[Dictionary] = []
+static var _overflowed: Dictionary = {}
 
 
 static func start_recording() -> void:
 	recording = true
 	overflows.clear()
+	_overflowed.clear()
 
 
 static func font() -> Font:
@@ -126,13 +131,19 @@ static func draw_at(canvas: CanvasItem, text: String, origin: Vector2, size: flo
 static func draw_centered(canvas: CanvasItem, text: String, left: float, box_width: float, top: float, size: float, letter_spacing: float, color: Color) -> void:
 	var text_width := width(text, size, letter_spacing)
 	if recording and text_width > box_width + 0.5:
-		overflows.append({
-			"text": text,
-			"locale": TranslationServer.get_locale(),
-			"width": text_width,
-			"box": box_width,
-			"size": size,
-		})
+		var locale := TranslationServer.get_locale()
+		# Unit separator, not NUL: a NUL inside a GDScript string makes the
+		# parser replace characters and warn on every load.
+		var key := "%s\u001f%s\u001f%d" % [locale, text, int(box_width)]
+		if not _overflowed.has(key):
+			_overflowed[key] = true
+			overflows.append({
+				"text": text,
+				"locale": locale,
+				"width": text_width,
+				"box": box_width,
+				"size": size,
+			})
 	draw_at(canvas, text, Vector2(left + (box_width - text_width) * 0.5, top), size, letter_spacing, color)
 
 

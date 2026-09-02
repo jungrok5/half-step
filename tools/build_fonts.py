@@ -129,11 +129,19 @@ def source_font(family: str, characters: str, cache: Path) -> Path:
     something anyone notices until the download. So whatever comes back is
     treated as a source, never as the answer; `build_script` subsets it here.
     """
+    from fontTools.ttLib import TTFont
+
     cache.mkdir(parents=True, exist_ok=True)
     cached = cache / (family.split(":")[0].replace("+", "") + ".ttf")
     if cached.exists():
-        return cached
-    from fontTools.ttLib import TTFont
+        # A cache entry can be a genuine subset from a day when the endpoint was
+        # still subsetting, and a subset of yesterday's strings is missing
+        # today's. Checked here rather than after subsetting, where the failure
+        # reads as "upstream has no glyph for 홈" and blames Google.
+        covered = TTFont(cached).getBestCmap()
+        if all(c.isspace() or ord(c) in covered for c in characters):
+            return cached
+        cached.unlink()
 
     request = urllib.request.Request(
         GOOGLE_CSS % family + urllib.parse.quote(characters),

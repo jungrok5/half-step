@@ -80,6 +80,8 @@ const WIND_SIZE := Vector2(4.0, 28.0)
 const TILE_RADIUS := 9.0
 
 ## Translation keys — resolved at draw time, because the locale can change.
+## Where progress is kept. The name is the old one on purpose — STORY.md
+## section 0: finishing the rename would take every player's save with it.
 const SAVE_PATH := "user://half_step.cfg"
 
 var state := HalfStepState.new()
@@ -88,6 +90,10 @@ var run_feats := RunFeats.new()
 var tone_player: TonePlayer
 var music_player: MusicPlayer
 var result_overlay: ResultOverlay
+## The file this instance writes. `tools/playtest.gd` points it somewhere else:
+## the harness plays whole runs and finishes cut scenes, and doing that on the
+## real path would eat a developer's save every time the harness ran.
+var save_path := SAVE_PATH
 var codex_screen: CodexScreen
 var story_screen: StoryScreen
 var title_screen: TitleScreen
@@ -227,7 +233,7 @@ func _ready() -> void:
 	add_child(tone_player)
 	music_player = MusicPlayer.new()
 	add_child(music_player)
-	if _save.load(SAVE_PATH) == OK:
+	if _save.load(save_path) == OK:
 		best = int(_save.get_value("score", "best", 0))
 		progress.load_from(_save)
 	# Stacking order, stated. These are siblings, and until this was written the
@@ -506,8 +512,11 @@ func _process(delta: float) -> void:
 		return
 	if tutorial_hold:
 		# Everything stops: the stack, the sky, the cadence. The one thing the
-		# player can do is the thing being taught.
+		# player can do is the thing being taught — and the one thing that keeps
+		# moving is the prompt asking for it. A frozen screen with a frozen ring
+		# on it does not read as "now", it reads as "broken".
 		tutorial_time += dt
+		hint_phase = fmod(hint_phase + dt, HINT_PULSE_MS)
 		queue_redraw()
 		return
 	_advance_timers(dt)
@@ -701,7 +710,7 @@ func die() -> void:
 	if not opened_cats.is_empty():
 		tone_player.play_cue(AudioBank.CUE_UNLOCK)
 	progress.save_to(_save)
-	_save.save(SAVE_PATH)
+	_save.save(save_path)
 	# The walk finished on this run: the ending is the first thing the player
 	# sees, before the result card.
 	if not reached_before and progress.reunion_reached():
@@ -765,7 +774,7 @@ func _tutorial_tap() -> bool:
 	tutorial_from = state.score + 1
 	progress.seen_tutorial = true
 	progress.save_to(_save)
-	_save.save(SAVE_PATH)
+	_save.save(save_path)
 	return false
 
 
@@ -882,7 +891,7 @@ func play_story(sequence: String) -> void:
 			music_player.play(AudioBank.MUSIC_INTRO)
 			progress.seen_intro = true
 	progress.save_to(_save)
-	_save.save(SAVE_PATH)
+	_save.save(save_path)
 	queue_redraw()
 
 
@@ -1005,7 +1014,7 @@ func _take_witness_link() -> void:
 		return
 	if not progress.witness(seen).is_empty() or progress.has_witnessed(seen):
 		progress.save_to(_save)
-		_save.save(SAVE_PATH)
+		_save.save(save_path)
 
 
 # --- player animation -------------------------------------------------------
